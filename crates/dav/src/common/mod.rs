@@ -50,7 +50,7 @@ pub(crate) struct DavQuery<'x> {
     pub sync_type: SyncType,
     pub depth: usize,
     pub limit: Option<u32>,
-    pub max_vcard_version: Option<VCardVersion>,
+    pub vcard_version: Option<VCardVersion>,
     pub ret: Return,
     pub depth_no_root: bool,
     pub expand: bool,
@@ -170,7 +170,7 @@ impl<'x> DavQuery<'x> {
             ret: headers.ret,
             depth_no_root: headers.depth_no_root,
             uri: headers.uri,
-            max_vcard_version: headers.max_vcard_version,
+            vcard_version: headers.vcard_version,
             sync_type: Default::default(),
             limit: Default::default(),
             expand: Default::default(),
@@ -191,7 +191,7 @@ impl<'x> DavQuery<'x> {
             ret: headers.ret,
             depth_no_root: headers.depth_no_root,
             uri: headers.uri,
-            max_vcard_version: headers.max_vcard_version,
+            vcard_version: headers.vcard_version,
             sync_type: Default::default(),
             depth: Default::default(),
             limit: Default::default(),
@@ -215,7 +215,7 @@ impl<'x> DavQuery<'x> {
             ret: headers.ret,
             depth_no_root: headers.depth_no_root,
             uri: headers.uri,
-            max_vcard_version: headers.max_vcard_version,
+            vcard_version: headers.vcard_version,
             sync_type: Default::default(),
             depth: Default::default(),
             expand: Default::default(),
@@ -245,7 +245,7 @@ impl<'x> DavQuery<'x> {
             sync_type: Default::default(),
             depth: Default::default(),
             limit: Default::default(),
-            max_vcard_version: Default::default(),
+            vcard_version: Default::default(),
             expand: Default::default(),
         }
     }
@@ -275,7 +275,7 @@ impl<'x> DavQuery<'x> {
             depth_no_root: headers.depth_no_root,
             expand: false,
             uri: headers.uri,
-            max_vcard_version: headers.max_vcard_version,
+            vcard_version: headers.vcard_version,
         }
     }
 
@@ -306,7 +306,7 @@ impl<'x> DavQuery<'x> {
             uri: headers.uri,
             sync_type: Default::default(),
             limit: Default::default(),
-            max_vcard_version: headers.max_vcard_version,
+            vcard_version: headers.vcard_version,
         }
     }
 

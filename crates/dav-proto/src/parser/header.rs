@@ -84,17 +84,39 @@ impl<'x> RequestHeaders<'x> {
                 return true;
             },
             "Accept" => {
-                for value in value.split(',') {
-                    if value.trim().starts_with("text/vcard") && let Some(version) = value.split_once("version=")
-                                .and_then(|(_, version)| VCardVersion::try_parse(version.trim().trim_matches('"'))) {
-                        if let Some(max_vcard_version) = &mut self.max_vcard_version {
-                            if version > *max_vcard_version {
-                                *max_vcard_version = version;
-                            }
-                        } else {
-                            self.max_vcard_version = Some(version);
+                let mut preferred: Option<(f32, VCardVersion)> = None;
+
+                for entry in value.split(',') {
+                    let mut parts = entry.split(';');
+                    if !parts.next().is_some_and(|media_type| media_type.trim().eq_ignore_ascii_case("text/vcard")) {
+                        continue;
+                    }
+
+                    let mut version = None;
+                    let mut quality = 1.0;
+
+                    for param in parts {
+                        let Some((name, param_value)) = param.split_once('=') else {
+                            continue;
+                        };
+                        let param_value = param_value.trim().trim_matches('"');
+
+                        if name.trim().eq_ignore_ascii_case("version") {
+                            version = VCardVersion::try_parse(param_value);
+                        } else if name.trim().eq_ignore_ascii_case("q") {
+                            quality = param_value.parse().unwrap_or(1.0);
                         }
                     }
+
+                    if let Some(version) = version
+                        && quality > 0.0
+                        && preferred.is_none_or(|(preferred_quality, _)| quality > preferred_quality) {
+                        preferred = Some((quality, version));
+                    }
+                }
+
+                if let Some((_, version)) = preferred {
+                    self.vcard_version = Some(version);
                 }
                 return true;
             },
@@ -335,6 +357,48 @@ fn try_unwrap_coded_url(url: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_accept_vcard_version() {
+        for (header, expected) in [
+            ("text/vcard", None),
+            ("application/json", None),
+            ("text/vcard; version=3.0", Some(VCardVersion::V3_0)),
+            ("text/vcard;version=\"3.0\"", Some(VCardVersion::V3_0)),
+            ("text/vcard; VERSION=3.0", Some(VCardVersion::V3_0)),
+            ("text/vcard; version=3.0; q=1.0", Some(VCardVersion::V3_0)),
+            (
+                "text/vcard; version=3.0; charset=utf-8",
+                Some(VCardVersion::V3_0),
+            ),
+            (
+                "text/vcard; charset=utf-8; version=3.0",
+                Some(VCardVersion::V3_0),
+            ),
+            (
+                "text/vcard; version=4.0, text/vcard; version=3.0",
+                Some(VCardVersion::V4_0),
+            ),
+            (
+                "text/vcard; version=4.0; q=0.5, text/vcard; version=3.0",
+                Some(VCardVersion::V3_0),
+            ),
+            (
+                "text/vcard; q=0.5; version=4.0, text/vcard; q=1.0; version=3.0",
+                Some(VCardVersion::V3_0),
+            ),
+            (
+                "text/vcard; version=4.0; q=0, text/vcard; version=3.0; q=0.1",
+                Some(VCardVersion::V3_0),
+            ),
+            ("*/*, text/vcard; version=3.0", Some(VCardVersion::V3_0)),
+            ("text/vcard-custom; version=3.0", None),
+        ] {
+            let mut headers = RequestHeaders::new("/dav/card/test/default/");
+            assert!(headers.parse("Accept", header));
+            assert_eq!(headers.vcard_version, expected, "failed for {header:?}");
+        }
+    }
 
     #[test]
     fn base_uri() {
