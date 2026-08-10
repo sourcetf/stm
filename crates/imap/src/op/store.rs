@@ -52,18 +52,19 @@ impl<T: SessionStream> Session<T> {
         let arguments = request.parse_store()?;
         let (data, mailbox) = self.state.select_data();
         let is_condstore = self.is_condstore || mailbox.is_condstore;
+        let is_utf8 = self.is_utf8;
 
         if spawn {
             spawn_op!(data, {
                 let response = data
-                    .store(arguments, mailbox, is_uid, is_condstore, op_start)
+                    .store(arguments, mailbox, is_uid, is_condstore, is_utf8, op_start)
                     .await?;
 
                 data.write_bytes(response).await
             })
         } else {
             let response = data
-                .store(arguments, mailbox, is_uid, is_condstore, op_start)
+                .store(arguments, mailbox, is_uid, is_condstore, is_utf8, op_start)
                 .await?;
 
             data.write_bytes(response).await
@@ -78,6 +79,7 @@ impl<T: SessionStream> SessionData<T> {
         mailbox: Arc<SelectedMailbox>,
         is_uid: bool,
         is_condstore: bool,
+        is_utf8: bool,
         op_start: Instant,
     ) -> trc::Result<Vec<u8>> {
         // Resync messages if needed
@@ -192,6 +194,7 @@ impl<T: SessionStream> SessionData<T> {
             return Ok(response.into_bytes());
         }
         let mut items = Response {
+            is_utf8,
             items: Vec::with_capacity(ids.len()),
         };
 

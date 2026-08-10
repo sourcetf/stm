@@ -20,7 +20,7 @@ use email::{
     },
 };
 use imap_proto::{
-    Command, ResponseCode, ResponseType, StatusResponse, protocol::copy_move::Arguments,
+    Command, ResponseCode, StatusResponse, protocol::copy_move::Arguments,
     receiver::Request,
 };
 use registry::schema::enums::Permission;
@@ -188,11 +188,12 @@ impl<T: SessionStream> SessionData<T> {
                 .id(arguments.tag));
         }
 
-        let mut response = StatusResponse::completed(if is_move {
+        let response = StatusResponse::completed(if is_move {
             Command::Move(is_uid)
         } else {
             Command::Copy(is_uid)
         });
+        let mut error: Option<(ResponseCode, &'static str)> = None;
         let mut did_move = false;
         let mut copied_ids = Vec::with_capacity(ids.len());
 
@@ -353,6 +354,7 @@ impl<T: SessionStream> SessionData<T> {
                 .get_cached_messages(src_account_id)
                 .await
                 .imap_ctx(&arguments.tag, trc::location!())?;
+            let mut dest_cache = None;
             for (id, imap_id) in ids {
                 match self
                     .server
@@ -378,21 +380,102 @@ impl<T: SessionStream> SessionData<T> {
                             copied_ids.push((imap_id.uid, *assigned_uid));
                         }
                     }
-                    Err(err) => {
-                        match err {
-                            CopyMessageError::OverQuota => {
-                                response.rtype = ResponseType::No;
-                                response.code = Some(ResponseCode::OverQuota);
-                                response.message = "Mailbox quota exceeded".into();
-                            }
-                            CopyMessageError::AlreadyExists(_) => {
-                                response.rtype = ResponseType::No;
-                                response.code = Some(ResponseCode::AlreadyExists);
-                                response.message =
-                                    "Message already exists in destination mailbox".into();
-                            }
-                            CopyMessageError::NotFound => (),
+                    Err(CopyMessageError::AlreadyExists(existing_id)) => {
+                        if dest_cache.is_none() {
+                            dest_cache = self
+                                .server
+                                .get_cached_messages(dest_account_id)
+                                .await
+                                .imap_ctx(&arguments.tag, trc::location!())?
+                                .into();
                         }
+
+                        if let Some(uid) = dest_cache
+                            .as_ref()
+                            .and_then(|cache| cache.email_by_id(&existing_id))
+                            .and_then(|message| {
+                                message
+                                    .mailboxes
+                                    .iter()
+                                    .find(|mailbox| mailbox.mailbox_id == dest_mailbox_id)
+                            })
+                            .map(|mailbox| mailbox.uid)
+                        {
+                            copied_ids.push((imap_id.uid, uid));
+                        } else {
+                            let data_ = if let Some(data_) = self
+                                .get_message_data(dest_account_id, existing_id)
+                                .await
+                                .imap_ctx(&arguments.tag, trc::location!())?
+                            {
+                                data_
+                            } else {
+                                continue;
+                            };
+                            let data = data_
+                                .to_unarchived::<MessageData>()
+                                .imap_ctx(&arguments.tag, trc::location!())?;
+
+                            if let Some(uid) = data.inner.message_uid(dest_mailbox_id) {
+                                copied_ids.push((imap_id.uid, uid));
+                            } else {
+                                let mut new_data = data.inner.to_builder();
+                                new_data.add_mailbox(UidMailbox::new_unassigned(dest_mailbox_id));
+
+                                let uids = self
+                                    .server
+                                    .assign_email_ids(
+                                        dest_account_id,
+                                        new_data
+                                            .mailboxes
+                                            .iter()
+                                            .filter(|m| m.uid == 0)
+                                            .map(|m| m.mailbox_id),
+                                        false,
+                                    )
+                                    .await
+                                    .caused_by(trc::location!())?;
+
+                                let mut assigned_uid = 0;
+                                for (uid_mailbox, uid) in new_data
+                                    .mailboxes
+                                    .iter_mut()
+                                    .filter(|m| m.uid == 0)
+                                    .zip(uids)
+                                {
+                                    uid_mailbox.uid = uid;
+                                    assigned_uid = uid;
+                                }
+
+                                let mut batch = BatchBuilder::new();
+                                batch
+                                    .with_account_id(dest_account_id)
+                                    .with_collection(Collection::Email)
+                                    .with_document(existing_id)
+                                    .custom(
+                                        ObjectIndexBuilder::new()
+                                            .with_current(data)
+                                            .with_changes(new_data.seal()),
+                                    )
+                                    .imap_ctx(&arguments.tag, trc::location!())?;
+
+                                dest_change_id = self
+                                    .server
+                                    .commit_batch(batch)
+                                    .await
+                                    .and_then(|ids| ids.last_change_id(dest_account_id))
+                                    .imap_ctx(&arguments.tag, trc::location!())?
+                                    .into();
+
+                                copied_ids.push((imap_id.uid, assigned_uid));
+                            }
+                        }
+                    }
+                    Err(CopyMessageError::OverQuota) => {
+                        error = Some((ResponseCode::OverQuota, "Mailbox quota exceeded"));
+                        continue;
+                    }
+                    Err(CopyMessageError::NotFound) => {
                         continue;
                     }
                 };
@@ -438,11 +521,11 @@ impl<T: SessionStream> SessionData<T> {
 
         // Map copied JMAP Ids to IMAP UIDs in the destination folder.
         if copied_ids.is_empty() {
-            return if response.rtype != ResponseType::Ok {
+            return if let Some((code, message)) = error {
                 Err(trc::ImapEvent::Error
                     .into_err()
-                    .details(response.message)
-                    .ctx_opt(trc::Key::Code, response.code)
+                    .details(message)
+                    .ctx(trc::Key::Code, code)
                     .id(arguments.tag))
             } else {
                 trc::event!(

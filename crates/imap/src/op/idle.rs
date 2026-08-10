@@ -254,6 +254,7 @@ impl<T: SessionStream> SessionData<T> {
                             true,
                             is_qresync,
                             false,
+                            is_utf8,
                             op_start,
                         )
                         .await

@@ -6,6 +6,7 @@
 
 use crate::{Command, ResponseCode, ResponseType, StatusResponse};
 use ahash::AHashSet;
+use base64::{Engine, engine::general_purpose::STANDARD};
 use chrono::{DateTime, Utc};
 use compact_str::CompactString;
 use std::{cmp::Ordering, fmt::Display};
@@ -219,6 +220,28 @@ pub fn quoted_or_literal_string(buf: &mut Vec<u8>, text: &str) {
 pub fn quoted_or_literal_string_or_nil(buf: &mut Vec<u8>, text: Option<&str>) {
     if let Some(text) = text {
         quoted_or_literal_string(buf, text);
+    } else {
+        buf.extend_from_slice(b"NIL");
+    }
+}
+
+pub fn quoted_or_literal_encoded_string(buf: &mut Vec<u8>, text: &str, is_utf8: bool) {
+    if is_utf8 || text.is_ascii() {
+        quoted_or_literal_string(buf, text);
+    } else {
+        buf.extend_from_slice(b"\"=?utf-8?B?");
+        buf.extend_from_slice(STANDARD.encode(text.as_bytes()).as_bytes());
+        buf.extend_from_slice(b"?=\"");
+    }
+}
+
+pub fn quoted_or_literal_encoded_string_or_nil(
+    buf: &mut Vec<u8>,
+    text: Option<&str>,
+    is_utf8: bool,
+) {
+    if let Some(text) = text {
+        quoted_or_literal_encoded_string(buf, text, is_utf8);
     } else {
         buf.extend_from_slice(b"NIL");
     }

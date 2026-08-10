@@ -650,9 +650,8 @@ impl MessageWrapper {
         );
 
         // Update expiration
-        let now = now();
         let recipient = self.message.recipients.last_mut().unwrap();
-        recipient.notify = Schedule::later(queue.notify.first().copied().unwrap_or(86400) + now);
+        recipient.notify = Schedule::later(queue.notify.first().copied().unwrap_or(86400));
         recipient.expires = queue.expiry;
         recipient.queue = queue.virtual_queue;
     }

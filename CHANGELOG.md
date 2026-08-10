@@ -11,7 +11,14 @@ If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If
 ## Changed
 
 ## Fixed
+- MTA: 
+  - Certificates for domains publishing an enforcing MTA-STS policy are always validated, even in the fallback TLS strategy.
+  - DSN delivery date uses wrong timestamp.
 - CardDAV: `Accept: text/vcard` version negotiation is ignored whenever another parameter such as `q` or `charset` follows `version=`.
+- Sharing: Accounts holding the `impersonate` permission never have their ACL grants collected, so shared items are never listed in JMAP sessions, CalDAV/CardDAV discovery or IMAP.
+- IMAP:
+  - `COPY`/`MOVE` into a shared folder fails with `NO [ALREADYEXISTS]` when the destination account already holds the message, leaving the message in the source mailbox and clients in a retry loop.
+  - `BODYSTRUCTURE` and `ENVELOPE` return MIME parameters, `Content-Description`, subjects and display names as raw UTF-8 even to sessions that never enabled `UTF8=ACCEPT`.
 
 ## [0.16.16] - 2026-08-02
 

@@ -59,6 +59,7 @@ impl<T: SessionStream> Session<T> {
 
         let (data, mailbox) = self.state.select_data();
         let is_qresync = self.is_qresync;
+        let is_utf8 = self.is_utf8;
 
         let mut ops = Vec::with_capacity(requests.len());
         let mut activate_objectid = false;
@@ -104,6 +105,7 @@ impl<T: SessionStream> Session<T> {
                                 is_uid,
                                 is_qresync,
                                 enabled_condstore,
+                                is_utf8,
                                 Instant::now(),
                             )
                             .await?;
@@ -128,6 +130,7 @@ impl<T: SessionStream> SessionData<T> {
         is_uid: bool,
         is_qresync: bool,
         enabled_condstore: bool,
+        is_utf8: bool,
         op_start: Instant,
     ) -> trc::Result<StatusResponse> {
         // Validate VANISHED parameter
@@ -549,7 +552,7 @@ impl<T: SessionStream> SessionData<T> {
 
             // Serialize fetch item
             let mut buf = Vec::with_capacity(128);
-            FetchItem { id: seqnum, items }.serialize(&mut buf);
+            FetchItem { id: seqnum, items }.serialize(&mut buf, is_utf8);
             self.write_bytes(buf).await?;
 
             // Add to set flags

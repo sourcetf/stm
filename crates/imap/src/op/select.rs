@@ -122,6 +122,7 @@ impl<T: SessionStream> Session<T> {
                         true,
                         true,
                         false,
+                        self.is_utf8,
                         Instant::now(),
                     )
                     .await
