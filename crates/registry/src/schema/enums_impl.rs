@@ -3764,6 +3764,7 @@ impl EnumImpl for ExpressionVariable {
             b"to.local" => ExpressionVariable::ToLocal,
             b"to.name" => ExpressionVariable::ToName,
             b"url" => ExpressionVariable::Url,
+            b"url_original" => ExpressionVariable::UrlOriginal,
             b"value" => ExpressionVariable::Value,
             b"value_lower" => ExpressionVariable::ValueLower,
         }
@@ -3861,6 +3862,7 @@ impl EnumImpl for ExpressionVariable {
             ExpressionVariable::ToLocal => "to.local",
             ExpressionVariable::ToName => "to.name",
             ExpressionVariable::Url => "url",
+            ExpressionVariable::UrlOriginal => "url_original",
             ExpressionVariable::Value => "value",
             ExpressionVariable::ValueLower => "value_lower",
         }
@@ -3961,13 +3963,14 @@ impl EnumImpl for ExpressionVariable {
             86 => Some(ExpressionVariable::ToLocal),
             87 => Some(ExpressionVariable::ToName),
             88 => Some(ExpressionVariable::Url),
-            89 => Some(ExpressionVariable::Value),
-            90 => Some(ExpressionVariable::ValueLower),
+            89 => Some(ExpressionVariable::UrlOriginal),
+            90 => Some(ExpressionVariable::Value),
+            91 => Some(ExpressionVariable::ValueLower),
             _ => None,
         }
     }
 
-    const COUNT: usize = 91;
+    const COUNT: usize = 92;
 }
 
 impl serde::Serialize for ExpressionVariable {

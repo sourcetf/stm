@@ -58,6 +58,11 @@ impl SpamFilterAnalyzeUrl for Server {
             let part_id = part_id as u32;
             let is_body = ctx.input.message.text_body.contains(&part_id)
                 || ctx.input.message.html_body.contains(&part_id);
+            let text_location = if is_body {
+                Location::BodyText
+            } else {
+                Location::Attachment
+            };
 
             let tokens = match part {
                 TextPart::Plain { tokens, .. } => tokens,
@@ -107,14 +112,7 @@ impl SpamFilterAnalyzeUrl for Server {
                             }
                         }
 
-                        urls.insert(ElementLocation::new(
-                            url.to_owned(),
-                            if is_body {
-                                Location::BodyHtml
-                            } else {
-                                Location::Attachment
-                            },
-                        ));
+                        urls.insert(ElementLocation::new(url.to_owned(), text_location));
                     }
                     _ => {}
                 }
@@ -406,19 +404,30 @@ impl<'x> UrlParts<'x> {
         let url = url_original.trim().to_lowercase();
 
         Self {
-            url_parsed: url.parse::<Uri>().ok().and_then(|url_parsed| {
-                if url_parsed.host().is_some() {
-                    Some(UrlParsed {
-                        host: Hostname::new(url_parsed.host().unwrap()),
-                        parts: url_parsed,
-                    })
-                } else {
-                    None
-                }
-            }),
+            url_parsed: Self::parse(&url),
             url,
             url_original,
         }
+    }
+
+    pub fn no_scheme(url: impl Into<Cow<'x, str>>) -> Self {
+        let url_original = url.into();
+        let url = format!("https://{}", url_original.trim().to_lowercase());
+
+        Self {
+            url_parsed: Self::parse(&url),
+            url,
+            url_original,
+        }
+    }
+
+    fn parse(url: &str) -> Option<UrlParsed> {
+        url.parse::<Uri>().ok().and_then(|parts| {
+            parts
+                .host()
+                .map(Hostname::new)
+                .map(|host| UrlParsed { host, parts })
+        })
     }
 
     pub fn to_owned(&self) -> UrlParts<'static> {

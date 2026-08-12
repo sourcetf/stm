@@ -83,7 +83,7 @@ impl JmapConfig {
             upload_max_concurrent: jmap.max_concurrent_uploads,
             upload_tmp_quota_size: jmap.upload_quota as usize,
             upload_tmp_quota_amount: jmap.max_upload_count as usize,
-            upload_tmp_ttl: jmap.upload_ttl.into_inner().as_secs(),
+            upload_tmp_ttl: jmap.upload_ttl.into_inner().as_secs().max(1),
             mail_parse_max_items: jmap.parse_limit_email as usize,
             contact_parse_max_items: jmap.parse_limit_contact as usize,
             calendar_parse_max_items: jmap.parse_limit_event as usize,

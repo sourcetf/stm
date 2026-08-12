@@ -35,6 +35,7 @@ pub mod status;
 pub mod store;
 pub mod subscribe;
 pub mod thread;
+pub mod uidbatches;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProtocolVersion {
@@ -553,6 +554,18 @@ impl ResponseCode {
                 return;
             }
             ResponseCode::UseAttr => b"USEATTR",
+            ResponseCode::UidRequired => b"UIDREQUIRED",
+            ResponseCode::TooFew => b"TOOFEW",
+            ResponseCode::TooMany => b"TOOMANY",
+            ResponseCode::MessageLimit { limit, uid } => {
+                buf.extend_from_slice(b"MESSAGELIMIT ");
+                buf.extend_from_slice(limit.to_string().as_bytes());
+                if let Some(uid) = uid {
+                    buf.push(b' ');
+                    buf.extend_from_slice(uid.to_string().as_bytes());
+                }
+                return;
+            }
         });
     }
 
@@ -596,6 +609,10 @@ impl ResponseCode {
             ResponseCode::ObjectId { .. } => "OBJECTID",
             ResponseCode::HighestModseq { .. } => "HIGHESTMODSEQ",
             ResponseCode::UseAttr => "USEATTR",
+            ResponseCode::UidRequired => "UIDREQUIRED",
+            ResponseCode::TooFew => "TOOFEW",
+            ResponseCode::TooMany => "TOOMANY",
+            ResponseCode::MessageLimit { .. } => "MESSAGELIMIT",
         }
     }
 }
@@ -739,6 +756,7 @@ pub fn serialize_sequence(buf: &mut Vec<u8>, list: &[u32]) {
 impl Display for Command {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+            Command::UidBatches => write!(f, "UIDBATCHES"),
             Command::Capability => write!(f, "CAPABILITY"),
             Command::Noop => write!(f, "NOOP"),
             Command::Logout => write!(f, "LOGOUT"),

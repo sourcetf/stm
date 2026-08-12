@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::{Condition, Depth, If, RequestHeaders, ResourceState, Return, Timeout};
+use crate::{ByteRange, Condition, Depth, If, RequestHeaders, ResourceState, Return, Timeout};
 use calcard::vcard::VCardVersion;
+use std::ops::Range;
 
 impl<'x> RequestHeaders<'x> {
     pub fn new(uri: &'x str) -> Self {
@@ -126,6 +127,14 @@ impl<'x> RequestHeaders<'x> {
             },
             "Schedule-Reply" => {
                 self.no_schedule_reply = value == "F";
+                return true;
+            },
+            "Range" => {
+                self.range = ByteRange::parse(value);
+                return self.range.is_some();
+            },
+            "If-Range" => {
+                self.if_range = Some(value.trim());
                 return true;
             },
             _ => {}
@@ -301,8 +310,60 @@ impl<'x> RequestHeaders<'x> {
         }
     }
 
+    pub fn eval_if_range(&self, etag: &str, last_modified: Option<&str>) -> bool {
+        match self.if_range {
+            Some(validator) => {
+                !validator.starts_with("W/")
+                    && (validator == etag
+                        || last_modified.is_some_and(|last_modified| validator == last_modified))
+            }
+            None => true,
+        }
+    }
+
     pub fn base_uri(&self) -> Option<&str> {
         dav_base_uri(self.uri)
+    }
+}
+
+impl ByteRange {
+    pub fn parse(value: &str) -> Option<Self> {
+        let (unit, spec) = value.split_once('=')?;
+        if !unit.trim().eq_ignore_ascii_case("bytes") || spec.contains(',') {
+            return None;
+        }
+
+        let (start, end) = spec.split_once('-')?;
+        let (start, end) = (start.trim(), end.trim());
+
+        if !start.is_empty() {
+            let start = start.parse::<u64>().ok()?;
+            let end = if !end.is_empty() {
+                let end = end.parse::<u64>().ok()?;
+                if end < start {
+                    return None;
+                }
+                Some(end)
+            } else {
+                None
+            };
+
+            Some(ByteRange::Offset { start, end })
+        } else {
+            end.parse::<u64>().ok().map(ByteRange::Suffix)
+        }
+    }
+
+    pub fn resolve(&self, size: u64) -> Option<Range<u64>> {
+        match self {
+            ByteRange::Offset { start, end } if *start < size => {
+                Some(*start..end.map_or(size, |end| std::cmp::min(end.saturating_add(1), size)))
+            }
+            ByteRange::Suffix(length) if *length > 0 && size > 0 => {
+                Some(size.saturating_sub(*length)..size)
+            }
+            _ => None,
+        }
     }
 }
 
@@ -397,6 +458,146 @@ mod tests {
             let mut headers = RequestHeaders::new("/dav/card/test/default/");
             assert!(headers.parse("Accept", header));
             assert_eq!(headers.vcard_version, expected, "failed for {header:?}");
+        }
+    }
+
+    #[test]
+    fn parse_range() {
+        for (header, expected) in [
+            (
+                "bytes=0-499",
+                Some(ByteRange::Offset {
+                    start: 0,
+                    end: Some(499),
+                }),
+            ),
+            (
+                "bytes=500-",
+                Some(ByteRange::Offset {
+                    start: 500,
+                    end: None,
+                }),
+            ),
+            (
+                "bytes = 500 - 999 ",
+                Some(ByteRange::Offset {
+                    start: 500,
+                    end: Some(999),
+                }),
+            ),
+            (
+                "BYTES=0-0",
+                Some(ByteRange::Offset {
+                    start: 0,
+                    end: Some(0),
+                }),
+            ),
+            ("bytes=-500", Some(ByteRange::Suffix(500))),
+            ("bytes=-0", Some(ByteRange::Suffix(0))),
+            ("bytes=0-499,600-999", None),
+            ("bytes=499-100", None),
+            ("bytes=abc-def", None),
+            ("bytes=-", None),
+            ("bytes=0", None),
+            ("items=0-499", None),
+            ("0-499", None),
+        ] {
+            let mut headers = RequestHeaders::new("/dav/file/test/file.txt");
+            assert_eq!(headers.parse("Range", header), expected.is_some());
+            assert_eq!(headers.range, expected, "failed for {header:?}");
+        }
+
+        for (range, size, expected) in [
+            (
+                ByteRange::Offset {
+                    start: 0,
+                    end: Some(499),
+                },
+                1000,
+                Some(0..500),
+            ),
+            (
+                ByteRange::Offset {
+                    start: 0,
+                    end: Some(499),
+                },
+                100,
+                Some(0..100),
+            ),
+            (
+                ByteRange::Offset {
+                    start: 500,
+                    end: None,
+                },
+                1000,
+                Some(500..1000),
+            ),
+            (
+                ByteRange::Offset {
+                    start: 999,
+                    end: Some(u64::MAX),
+                },
+                1000,
+                Some(999..1000),
+            ),
+            (
+                ByteRange::Offset {
+                    start: 1000,
+                    end: None,
+                },
+                1000,
+                None,
+            ),
+            (
+                ByteRange::Offset {
+                    start: 0,
+                    end: None,
+                },
+                0,
+                None,
+            ),
+            (ByteRange::Suffix(500), 1000, Some(500..1000)),
+            (ByteRange::Suffix(5000), 1000, Some(0..1000)),
+            (ByteRange::Suffix(0), 1000, None),
+            (ByteRange::Suffix(500), 0, None),
+        ] {
+            assert_eq!(
+                range.resolve(size),
+                expected,
+                "failed for {range:?} of {size}"
+            );
+        }
+    }
+
+    #[test]
+    fn eval_if_range_header() {
+        const LAST_MODIFIED: &str = "Mon, 10 Aug 2026 12:00:00 GMT";
+
+        let mut headers = RequestHeaders::new("/dav/file/test/file.txt");
+        assert!(headers.eval_if_range("\"etag\"", Some(LAST_MODIFIED)));
+
+        for (validator, expected) in [
+            ("\"etag\"", true),
+            (LAST_MODIFIED, true),
+            ("W/\"etag\"", false),
+            ("\"other\"", false),
+            ("Sun, 09 Aug 2026 12:00:00 GMT", false),
+        ] {
+            assert!(headers.parse("If-Range", validator));
+            assert_eq!(
+                headers.eval_if_range("\"etag\"", Some(LAST_MODIFIED)),
+                expected,
+                "failed for {validator:?}"
+            );
+        }
+
+        for (validator, expected) in [("\"etag\"", true), (LAST_MODIFIED, false)] {
+            assert!(headers.parse("If-Range", validator));
+            assert_eq!(
+                headers.eval_if_range("\"etag\"", None),
+                expected,
+                "failed for {validator:?}"
+            );
         }
     }
 

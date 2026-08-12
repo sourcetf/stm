@@ -1110,8 +1110,9 @@ impl QueuedMessage {
                         || (message.message.flags & MAIL_REQUIRETLS) != 0
                         || mta_sts_policy.is_some()
                         || dane_policy.is_some();
-                    let is_mta_sts_enforced =
-                        mta_sts_policy.as_ref().is_some_and(|policy| policy.enforce());
+                    let is_mta_sts_enforced = mta_sts_policy
+                        .as_ref()
+                        .is_some_and(|policy| policy.enforce());
                     let tls_connector = if dane_policy.is_some()
                         || remote_host.allow_invalid_certs()
                         || (tls_strategy.allow_invalid_certs && !is_mta_sts_enforced)

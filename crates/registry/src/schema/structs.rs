@@ -3102,6 +3102,14 @@ pub struct Imap {
     pub timeout_authenticated: Duration,
     #[serde(rename = "timeoutIdle")]
     pub timeout_idle: Duration,
+    #[serde(rename = "maxMessagesPerCommand")]
+    pub max_messages_per_command: u64,
+    #[serde(rename = "minUidBatchSize")]
+    pub min_uid_batch_size: u64,
+    #[serde(rename = "maxUidBatches")]
+    pub max_uid_batches: u64,
+    #[serde(rename = "maxMessagesPerSave")]
+    pub max_messages_per_save: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

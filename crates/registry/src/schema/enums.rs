@@ -833,8 +833,9 @@ pub enum ExpressionVariable {
     ToLocal = 86,
     ToName = 87,
     Url = 88,
-    Value = 89,
-    ValueLower = 90,
+    UrlOriginal = 89,
+    Value = 90,
+    ValueLower = 91,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -3907,6 +3908,7 @@ pub static SPAM_IP_VARIABLE: &[ExpressionVariable] = &[
 
 pub static SPAM_URL_VARIABLE: &[ExpressionVariable] = &[
     ExpressionVariable::Url,
+    ExpressionVariable::UrlOriginal,
     ExpressionVariable::Value,
     ExpressionVariable::PathQuery,
     ExpressionVariable::Path,

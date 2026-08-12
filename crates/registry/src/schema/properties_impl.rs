@@ -914,6 +914,8 @@ impl EnumImpl for Property {
             b"maxMatchVars" => Property::MaxMatchVars,
             b"maxMessageSize" => Property::MaxMessageSize,
             b"maxMessages" => Property::MaxMessages,
+            b"maxMessagesPerCommand" => Property::MaxMessagesPerCommand,
+            b"maxMessagesPerSave" => Property::MaxMessagesPerSave,
             b"maxMethodCalls" => Property::MaxMethodCalls,
             b"maxMultihomed" => Property::MaxMultihomed,
             b"maxMxHosts" => Property::MaxMxHosts,
@@ -945,6 +947,7 @@ impl EnumImpl for Property {
             b"maxStringLength" => Property::MaxStringLength,
             b"maxSubmissions" => Property::MaxSubmissions,
             b"maxSubscriptions" => Property::MaxSubscriptions,
+            b"maxUidBatches" => Property::MaxUidBatches,
             b"maxUploadCount" => Property::MaxUploadCount,
             b"maxUploadSize" => Property::MaxUploadSize,
             b"maxVCardSize" => Property::MaxVCardSize,
@@ -964,6 +967,7 @@ impl EnumImpl for Property {
             b"minRetryWait" => Property::MinRetryWait,
             b"minSpamSamples" => Property::MinSpamSamples,
             b"minTriggerInterval" => Property::MinTriggerInterval,
+            b"minUidBatchSize" => Property::MinUidBatchSize,
             b"minute" => Property::Minute,
             b"mode" => Property::Mode,
             b"model" => Property::Model,
@@ -1843,6 +1847,8 @@ impl EnumImpl for Property {
             Property::MaxMatchVars => "maxMatchVars",
             Property::MaxMessageSize => "maxMessageSize",
             Property::MaxMessages => "maxMessages",
+            Property::MaxMessagesPerCommand => "maxMessagesPerCommand",
+            Property::MaxMessagesPerSave => "maxMessagesPerSave",
             Property::MaxMethodCalls => "maxMethodCalls",
             Property::MaxMultihomed => "maxMultihomed",
             Property::MaxMxHosts => "maxMxHosts",
@@ -1874,6 +1880,7 @@ impl EnumImpl for Property {
             Property::MaxStringLength => "maxStringLength",
             Property::MaxSubmissions => "maxSubmissions",
             Property::MaxSubscriptions => "maxSubscriptions",
+            Property::MaxUidBatches => "maxUidBatches",
             Property::MaxUploadCount => "maxUploadCount",
             Property::MaxUploadSize => "maxUploadSize",
             Property::MaxVCardSize => "maxVCardSize",
@@ -1893,6 +1900,7 @@ impl EnumImpl for Property {
             Property::MinRetryWait => "minRetryWait",
             Property::MinSpamSamples => "minSpamSamples",
             Property::MinTriggerInterval => "minTriggerInterval",
+            Property::MinUidBatchSize => "minUidBatchSize",
             Property::Minute => "minute",
             Property::Mode => "mode",
             Property::Model => "model",
@@ -2776,6 +2784,8 @@ impl EnumImpl for Property {
             718 => Some(Property::MaxMatchVars),
             354 => Some(Property::MaxMessageSize),
             361 => Some(Property::MaxMessages),
+            924 => Some(Property::MaxMessagesPerCommand),
+            927 => Some(Property::MaxMessagesPerSave),
             438 => Some(Property::MaxMethodCalls),
             544 => Some(Property::MaxMultihomed),
             545 => Some(Property::MaxMxHosts),
@@ -2807,6 +2817,7 @@ impl EnumImpl for Property {
             724 => Some(Property::MaxStringLength),
             362 => Some(Property::MaxSubmissions),
             458 => Some(Property::MaxSubscriptions),
+            926 => Some(Property::MaxUidBatches),
             444 => Some(Property::MaxUploadCount),
             443 => Some(Property::MaxUploadSize),
             22 => Some(Property::MaxVCardSize),
@@ -2826,6 +2837,7 @@ impl EnumImpl for Property {
             649 => Some(Property::MinRetryWait),
             732 => Some(Property::MinSpamSamples),
             166 => Some(Property::MinTriggerInterval),
+            925 => Some(Property::MinUidBatchSize),
             191 => Some(Property::Minute),
             567 => Some(Property::Mode),
             28 => Some(Property::Model),
@@ -3197,7 +3209,7 @@ impl EnumImpl for Property {
         }
     }
 
-    const COUNT: usize = 924;
+    const COUNT: usize = 928;
 }
 
 impl serde::Serialize for Property {

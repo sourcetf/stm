@@ -24,7 +24,7 @@ use utils::wait_for_shutdown;
 pub mod test_data;
 
 #[cfg(not(any(target_env = "msvc", target_os = "freebsd")))]
-use jemallocator::Jemalloc;
+use tikv_jemallocator::Jemalloc;
 
 #[cfg(not(any(target_env = "msvc", target_os = "freebsd")))]
 #[global_allocator]

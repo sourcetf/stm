@@ -32,6 +32,7 @@ pub struct Response<'x> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FetchItem<'x> {
     pub id: u32,
+    pub is_uidonly: bool,
     pub items: Vec<DataItem<'x>>,
 }
 
@@ -843,7 +844,11 @@ impl FetchItem<'_> {
     pub fn serialize(&self, buf: &mut Vec<u8>, is_utf8: bool) {
         buf.extend_from_slice(b"* ");
         buf.extend_from_slice(self.id.to_string().as_bytes());
-        buf.extend_from_slice(b" FETCH (");
+        buf.extend_from_slice(if self.is_uidonly {
+            b" UIDFETCH (".as_slice()
+        } else {
+            b" FETCH (".as_slice()
+        });
         for (pos, item) in self.items.iter().enumerate() {
             if pos > 0 {
                 buf.push(b' ');
@@ -1368,6 +1373,7 @@ mod tests {
                     is_utf8: false,
                     items: vec![FetchItem {
                         id: 123,
+                        is_uidonly: false,
                         items: vec![
                             super::DataItem::Flags {
                                 flags: vec![Flag::Deleted, Flag::Flagged],

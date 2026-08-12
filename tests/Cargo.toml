@@ -90,4 +90,4 @@ testcontainers = { version = "0.27", features = ["reusable-containers"] }
 rust-s3 = { version = "0.37", default-features = false, features = ["tokio-rustls-tls"] }
 
 [target.'cfg(not(any(target_env = "msvc", target_os = "freebsd")))'.dependencies]
-jemallocator = "0.5.4"
+tikv-jemallocator = "0.7"
