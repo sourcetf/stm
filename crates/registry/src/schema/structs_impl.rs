@@ -32884,7 +32884,7 @@ impl RegistryJsonPropertyPatch for RedisStore {
 
 impl ObjectImpl for ReportSettings {
     const FLAGS: u64 = OBJ_SINGLETON;
-    const VERSION: u8 = 0;
+    const VERSION: u8 = 1;
     const OBJECT: ObjectType = ObjectType::ReportSettings;
 
     fn validate(&self, errors: &mut Vec<ValidationError>) -> bool {
@@ -32902,6 +32902,13 @@ impl ObjectImpl for ReportSettings {
         }
         let value = &self.outbound_report_submitter;
         value.validate(errors);
+        let value = &self.inbound_report_max_size;
+        if *value < (1024) {
+            errors.push(ValidationError::min_value(
+                Property::InboundReportMaxSize,
+                1024,
+            ));
+        }
         errors.len() == neb
     }
 
@@ -32933,6 +32940,7 @@ impl Pickle for ReportSettings {
         self.inbound_report_forwarding.pickle(out);
         self.outbound_report_domain.pickle(out);
         self.outbound_report_submitter.pickle(out);
+        self.inbound_report_max_size.pickle(out);
     }
 
     fn unpickle(stream: &mut crate::pickle::PickledStream<'_>) -> Option<Self> {
@@ -32941,6 +32949,9 @@ impl Pickle for ReportSettings {
         this.inbound_report_forwarding = Pickle::unpickle(stream)?;
         this.outbound_report_domain = Pickle::unpickle(stream)?;
         this.outbound_report_submitter = Pickle::unpickle(stream)?;
+        if stream.version() >= 1 {
+            this.inbound_report_max_size = Pickle::unpickle(stream)?;
+        }
         Some(this)
     }
 }
@@ -32955,13 +32966,14 @@ impl Default for ReportSettings {
                 else_: "system('hostname')".to_string(),
                 ..Default::default()
             },
+            inbound_report_max_size: 26214400i64,
         }
     }
 }
 
 impl IntoValue for ReportSettings {
     fn into_value(self) -> JmapValue<'static> {
-        let mut map = jmap_tools::Map::with_capacity(6);
+        let mut map = jmap_tools::Map::with_capacity(7);
         map.insert_unchecked(
             Property::InboundReportAddresses,
             self.inbound_report_addresses.into_value(),
@@ -32977,6 +32989,10 @@ impl IntoValue for ReportSettings {
         map.insert_unchecked(
             Property::OutboundReportSubmitter,
             self.outbound_report_submitter.into_value(),
+        );
+        map.insert_unchecked(
+            Property::InboundReportMaxSize,
+            self.inbound_report_max_size.into_value(),
         );
         JmapValue::Object(map)
     }
@@ -33000,6 +33016,9 @@ impl RegistryJsonPropertyPatch for ReportSettings {
                 .patch(pointer.with_validators(&[StringValidator::Domain]), value),
             Some(Property::OutboundReportSubmitter) => {
                 self.outbound_report_submitter.patch(pointer, value)
+            }
+            Some(Property::InboundReportMaxSize) => {
+                self.inbound_report_max_size.patch(pointer, value)
             }
             Some(Property::Type) => Ok(MaybeUnpatched::Unpatched {
                 property: Property::Type,

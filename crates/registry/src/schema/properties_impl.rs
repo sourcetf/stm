@@ -803,6 +803,7 @@ impl EnumImpl for Property {
             b"inMemoryStore" => Property::InMemoryStore,
             b"inboundReportAddresses" => Property::InboundReportAddresses,
             b"inboundReportForwarding" => Property::InboundReportForwarding,
+            b"inboundReportMaxSize" => Property::InboundReportMaxSize,
             b"incidents" => Property::Incidents,
             b"includeSource" => Property::IncludeSource,
             b"indexAsn" => Property::IndexAsn,
@@ -1736,6 +1737,7 @@ impl EnumImpl for Property {
             Property::InMemoryStore => "inMemoryStore",
             Property::InboundReportAddresses => "inboundReportAddresses",
             Property::InboundReportForwarding => "inboundReportForwarding",
+            Property::InboundReportMaxSize => "inboundReportMaxSize",
             Property::Incidents => "incidents",
             Property::IncludeSource => "includeSource",
             Property::IndexAsn => "indexAsn",
@@ -2673,6 +2675,7 @@ impl EnumImpl for Property {
             128 => Some(Property::InMemoryStore),
             651 => Some(Property::InboundReportAddresses),
             652 => Some(Property::InboundReportForwarding),
+            928 => Some(Property::InboundReportMaxSize),
             70 => Some(Property::Incidents),
             352 => Some(Property::IncludeSource),
             94 => Some(Property::IndexAsn),
@@ -3209,7 +3212,7 @@ impl EnumImpl for Property {
         }
     }
 
-    const COUNT: usize = 928;
+    const COUNT: usize = 929;
 }
 
 impl serde::Serialize for Property {

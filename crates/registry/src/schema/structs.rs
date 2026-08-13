@@ -4452,6 +4452,8 @@ pub struct ReportSettings {
     pub outbound_report_domain: Option<String>,
     #[serde(rename = "outboundReportSubmitter")]
     pub outbound_report_submitter: Expression,
+    #[serde(rename = "inboundReportMaxSize")]
+    pub inbound_report_max_size: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

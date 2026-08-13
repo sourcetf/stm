@@ -6,8 +6,8 @@
 
 // This file is auto-generated. Do not edit directly.
 
-pub const TOTAL_EVENT_COUNT: usize = 635;
-pub const TOTAL_METRIC_COUNT: usize = 367;
+pub const TOTAL_EVENT_COUNT: usize = 637;
+pub const TOTAL_METRIC_COUNT: usize = 369;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EventType {
@@ -240,10 +240,12 @@ pub enum DkimEvent {
     SignatureTagUnexpected = 614,
     SequenceGap = 615,
     SequenceOverflow = 616,
+    ChainTooLong = 635,
     MailFromMismatch = 617,
     RcptToMismatch = 618,
     MailFromDomainMismatch = 619,
     NextDomainMismatch = 620,
+    CustodyBreak = 636,
     PublicKeyFetch = 621,
     PublicKeyMissing = 622,
     PublicKeyMultiple = 623,
@@ -999,10 +1001,12 @@ pub enum MetricType {
     DkimSignatureTagUnexpected = 348,
     DkimSequenceGap = 349,
     DkimSequenceOverflow = 350,
+    DkimChainTooLong = 367,
     DkimMailFromMismatch = 351,
     DkimRcptToMismatch = 352,
     DkimMailFromDomainMismatch = 353,
     DkimNextDomainMismatch = 354,
+    DkimCustodyBreak = 368,
     DkimPublicKeyFetch = 355,
     DkimPublicKeyMissing = 356,
     DkimPublicKeyMultiple = 357,

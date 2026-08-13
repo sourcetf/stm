@@ -650,6 +650,7 @@ pub enum Property {
     InMemoryStore = 128,
     InboundReportAddresses = 651,
     InboundReportForwarding = 652,
+    InboundReportMaxSize = 928,
     Incidents = 70,
     IncludeSource = 352,
     IndexAsn = 94,
