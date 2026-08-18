@@ -22,17 +22,18 @@ jobs:
           git remote add upstream https://github.com/sourcetf/stalwart.git
           git fetch upstream
           git checkout main
-          git diff --name-only --diff-filter=U | grep '\.md$' | xargs -r -I{} git rm -f {} 2>/dev/null || true
-          git checkout HEAD -- '*.md' 2>/dev/null || true
-          git ls-files --deleted '*.md' | xargs -r git rm -f 2>/dev/null || true
           if git merge upstream/main --no-edit; then
             echo "Merge succeeded without conflicts"
           else
             echo "Merge conflicts detected, resolving automatically..."
-            git checkout --ours .github/workflows/ci.yml
-            git add .github/workflows/ci.yml
-            git checkout --ours .github/workflows/sync.yml
-            git add .github/workflows/sync.yml
-            git commit -m "Sync upstream (auto-resolved conflicts)"
+            git diff --name-only --diff-filter=U | grep '\.md$' | while read -r file; do
+              echo "Resolving .md conflict: accepting local deletion for $file"
+              git rm -f "$file" || true
+            done
+            git checkout --ours .github/workflows/ci.yml 2>/dev/null || true
+            git add .github/workflows/ci.yml 2>/dev/null || true
+            git checkout --ours .github/workflows/sync.yml 2>/dev/null || true
+            git add .github/workflows/sync.yml 2>/dev/null || true
+            git commit -m "Sync upstream (auto-resolved conflicts)" || echo "Nothing to commit"
           fi
           git push origin main
