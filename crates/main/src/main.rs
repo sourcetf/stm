@@ -37,6 +37,9 @@ async fn main() -> std::io::Result<()> {
         .install_default()
         .expect("failed to install aws-lc-rs as the default rustls crypto provider");
 
+    // Build the shared outbound TLS configurations
+    utils::http::init_shared_tls_configs();
+
     // Load config and apply macros
     let mut init = Box::pin(BootManager::init()).await;
 

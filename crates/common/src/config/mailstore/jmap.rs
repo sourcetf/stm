@@ -68,7 +68,14 @@ impl JmapConfig {
             })
             .unwrap_or_default()
             .map(|k| k.into_owned());
-        let web_push_contact = jmap.web_push_contact;
+        let web_push_contact = jmap
+            .web_push_contact
+            .as_deref()
+            .and_then(crate::network::webpush::normalize_contact)
+            .or_else(|| {
+                let hostname = bp.registry.local_hostname();
+                (!hostname.is_empty()).then(|| format!("mailto:postmaster@{hostname}"))
+            });
 
         let mut jmap = JmapConfig {
             query_max_results: jmap.query_max_results as usize,
@@ -118,13 +125,7 @@ impl JmapConfig {
                     None
                 }
             })
-            .map(|key| {
-                let contact = web_push_contact.or_else(|| {
-                    let hostname = bp.registry.local_hostname();
-                    (!hostname.is_empty()).then(|| format!("mailto:postmaster@{hostname}"))
-                });
-                Vapid::new(key, contact)
-            });
+            .map(|key| Vapid::new(key, web_push_contact));
 
         // Add capabilities
         jmap.add_capabilities(bp).await;

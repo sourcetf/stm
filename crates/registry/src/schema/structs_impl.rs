@@ -6705,7 +6705,7 @@ impl RegistryJsonPropertyPatch for DataRetention {
 
 impl ObjectImpl for DataStore {
     const FLAGS: u64 = OBJ_SINGLETON;
-    const VERSION: u8 = 0;
+    const VERSION: u8 = 1;
     const OBJECT: ObjectType = ObjectType::DataStore;
 
     fn validate(&self, errors: &mut Vec<ValidationError>) -> bool {
@@ -19703,6 +19703,9 @@ impl ObjectImpl for Domain {
         i.unique(Property::Name, &self.name);
         i.text(Property::Text, &self.name);
         for value in self.aliases.iter() {
+            i.unique(Property::Aliases, value);
+        }
+        for value in self.aliases.iter() {
             i.text(Property::Text, value);
         }
         if let Some(value) = &self.description {
@@ -30514,7 +30517,9 @@ impl RegistryJsonPropertyPatch for OidcDirectory {
             Some(Property::ClaimName) => self
                 .claim_name
                 .patch(pointer.with_validators(&[StringValidator::Trim]), value),
-            Some(Property::ClaimGroups) => self.claim_groups.patch(pointer, value),
+            Some(Property::ClaimGroups) => self
+                .claim_groups
+                .patch(pointer.with_validators(&[StringValidator::Trim]), value),
             Some(Property::MemberTenantId) => self
                 .member_tenant_id
                 .patch(pointer.assert_can_set_tenant()?, value),
@@ -33044,11 +33049,11 @@ impl RocksDbStore {
             errors.push(ValidationError::min_value(Property::BlobSize, 1024));
         }
         let value = &self.buffer_size;
-        if *value > 1073741824 {
-            errors.push(ValidationError::max_value(Property::BufferSize, 1073741824));
+        if *value > 4294967296 {
+            errors.push(ValidationError::max_value(Property::BufferSize, 4294967296));
         }
-        if *value < 8192 {
-            errors.push(ValidationError::min_value(Property::BufferSize, 8192));
+        if *value < 8388608 {
+            errors.push(ValidationError::min_value(Property::BufferSize, 8388608));
         }
         if let Some(value) = &self.pool_workers {
             if *value > 64 {
@@ -33057,6 +33062,13 @@ impl RocksDbStore {
             if *value < 1 {
                 errors.push(ValidationError::min_value(Property::PoolWorkers, 1));
             }
+        }
+        let value = &self.cache_size;
+        if *value > 17179869184 {
+            errors.push(ValidationError::max_value(Property::CacheSize, 17179869184));
+        }
+        if *value < 8388608 {
+            errors.push(ValidationError::min_value(Property::CacheSize, 8388608));
         }
         errors.len() == neb
     }
@@ -33068,6 +33080,7 @@ impl Pickle for RocksDbStore {
         self.blob_size.pickle(out);
         self.buffer_size.pickle(out);
         self.pool_workers.pickle(out);
+        self.cache_size.pickle(out);
     }
 
     fn unpickle(stream: &mut crate::pickle::PickledStream<'_>) -> Option<Self> {
@@ -33076,6 +33089,9 @@ impl Pickle for RocksDbStore {
         this.blob_size = Pickle::unpickle(stream)?;
         this.buffer_size = Pickle::unpickle(stream)?;
         this.pool_workers = Pickle::unpickle(stream)?;
+        if stream.version() >= 1 {
+            this.cache_size = Pickle::unpickle(stream)?;
+        }
         Some(this)
     }
 }
@@ -33087,17 +33103,19 @@ impl Default for RocksDbStore {
             blob_size: 16834u64,
             buffer_size: 134217728u64,
             pool_workers: Default::default(),
+            cache_size: 134217728u64,
         }
     }
 }
 
 impl IntoValue for RocksDbStore {
     fn into_value(self) -> JmapValue<'static> {
-        let mut map = jmap_tools::Map::with_capacity(6);
+        let mut map = jmap_tools::Map::with_capacity(7);
         map.insert_unchecked(Property::Path, self.path.into_value());
         map.insert_unchecked(Property::BlobSize, self.blob_size.into_value());
         map.insert_unchecked(Property::BufferSize, self.buffer_size.into_value());
         map.insert_unchecked(Property::PoolWorkers, self.pool_workers.into_value());
+        map.insert_unchecked(Property::CacheSize, self.cache_size.into_value());
         JmapValue::Object(map)
     }
 }
@@ -33115,6 +33133,7 @@ impl RegistryJsonPropertyPatch for RocksDbStore {
             Some(Property::BlobSize) => self.blob_size.patch(pointer, value),
             Some(Property::BufferSize) => self.buffer_size.patch(pointer, value),
             Some(Property::PoolWorkers) => self.pool_workers.patch(pointer, value),
+            Some(Property::CacheSize) => self.cache_size.patch(pointer, value),
             Some(Property::Type) => Ok(MaybeUnpatched::Unpatched {
                 property: Property::Type,
                 value,

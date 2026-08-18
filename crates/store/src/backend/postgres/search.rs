@@ -20,6 +20,12 @@ use tokio_postgres::{
 };
 
 impl PostgresStore {
+    fn ts_config(&self, language: &Language) -> &'static str {
+        pg_lang(language)
+            .filter(|config| self.ts_configs.contains(config))
+            .unwrap_or(PG_UNSTEMMED_LANG)
+    }
+
     pub async fn index(&self, documents: Vec<IndexDocument>) -> trc::Result<()> {
         let mut conn = self.conn_pool.get().await.map_err(into_pool_error)?;
         let trx = conn
@@ -60,9 +66,9 @@ impl PostgresStore {
                     let value_ref = format!("${}", values.len() + 1);
                     let (text_len, language) = if let SearchValue::Text { value, language } = value
                     {
-                        (value.len(), pg_lang(language).unwrap_or("simple"))
+                        (value.len(), self.ts_config(language))
                     } else {
-                        (0, "simple")
+                        (0, PG_UNSTEMMED_LANG)
                     };
 
                     if field.is_text() {
@@ -187,16 +193,29 @@ impl PostgresStore {
                         query.push(' ');
 
                         let language = match &value {
-                            SearchValue::Text { language, .. } => {
-                                pg_lang(language).unwrap_or("simple")
-                            }
-                            _ => "simple",
+                            SearchValue::Text { language, .. } => *language,
+                            _ => Language::None,
                         };
+                        let config = self.ts_config(&language);
                         let method = match op {
                             SearchOperator::Equal => "phraseto_tsquery",
                             _ => "plainto_tsquery",
                         };
-                        let _ = write!(query, "@@ {method}('{language}', ${value_pos})");
+
+                        if matches!(language, Language::None) {
+                            let _ = write!(query, "@@ {method}('{config}', ${value_pos})");
+                        } else {
+                            let _ = write!(query, "@@ ({method}('{config}', ${value_pos})");
+                            for fallback in [PG_FALLBACK_LANG, PG_UNSTEMMED_LANG] {
+                                if fallback != config && self.ts_configs.contains(fallback) {
+                                    let _ = write!(
+                                        query,
+                                        " || {method}('{fallback}', ${value_pos})"
+                                    );
+                                }
+                            }
+                            query.push(')');
+                        }
                         values.push(value as &(dyn ToSql + Sync));
                     } else if let SearchValue::KeyValues(kv) = value {
                         query.push_str(field.column());
@@ -411,6 +430,38 @@ impl SearchOperator {
         }
     }
 }
+
+pub(super) const PG_FALLBACK_LANG: &str = "english";
+pub(super) const PG_UNSTEMMED_LANG: &str = "simple";
+
+pub(super) const PG_LANGS: &[&str] = &[
+    "arabic",
+    "armenian",
+    "catalan",
+    "danish",
+    "dutch",
+    "english",
+    "finnish",
+    "french",
+    "german",
+    "greek",
+    "hindi",
+    "hungarian",
+    "indonesian",
+    "italian",
+    "lithuanian",
+    "nepali",
+    "norwegian",
+    "portuguese",
+    "romanian",
+    "russian",
+    "serbian",
+    "spanish",
+    "swedish",
+    "tamil",
+    "turkish",
+    "yiddish",
+];
 
 #[inline(always)]
 fn pg_lang(lang: &Language) -> Option<&'static str> {

@@ -361,6 +361,7 @@ pub enum Property {
     Bucket = 658,
     BufferSize = 656,
     Buffered = 863,
+    CacheSize = 929,
     Canonicalization = 216,
     CapacityClient = 584,
     CapacityReadBuffer = 585,

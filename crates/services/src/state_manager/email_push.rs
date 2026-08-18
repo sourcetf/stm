@@ -63,7 +63,7 @@ pub async fn build_email_push_object(
     document_id: u32,
     config: &EmailPush,
     max_size: usize,
-) -> trc::Result<Option<Value<'static, EmailProperty, EmailValue>>> {
+) -> trc::Result<Option<(Value<'static, EmailProperty, EmailValue>, usize)>> {
     let properties = &config.properties;
     let Some(data) = server
         .store()
@@ -309,7 +309,7 @@ pub async fn build_email_push_object(
         }
     }
 
-    Ok(Some(email.into()))
+    Ok(Some((email.into(), used)))
 }
 
 fn estimate_value_size(value: &Value<'_, EmailProperty, EmailValue>) -> usize {

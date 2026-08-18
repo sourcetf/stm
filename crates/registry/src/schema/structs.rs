@@ -4467,6 +4467,8 @@ pub struct RocksDbStore {
     pub buffer_size: u64,
     #[serde(rename = "poolWorkers")]
     pub pool_workers: Option<u64>,
+    #[serde(rename = "cacheSize")]
+    pub cache_size: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

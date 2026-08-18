@@ -104,6 +104,7 @@ pub enum CacheInvalidation {
         domain_id: u32,
         local_part_hash: u32,
     },
+    DomainNegative,
 }
 
 #[derive(Debug)]
