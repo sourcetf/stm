@@ -177,9 +177,7 @@ impl Server {
         }
 
         // Catch-all resolution
-        if allow_catch_all
-            && let Some(catch_all) = &domain.catch_all
-        {
+        if allow_catch_all && let Some(catch_all) = &domain.catch_all {
             return Ok(RcptResolution::Rewrite(catch_all.to_string()));
         }
 

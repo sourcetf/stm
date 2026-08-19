@@ -86,11 +86,7 @@ pub(crate) async fn validate_domain(
 
         for index in [Property::Name, Property::Aliases] {
             if let Some(existing) = registry
-                .primary_key(
-                    ObjectType::Domain.into(),
-                    index,
-                    alias.as_bytes().to_vec(),
-                )
+                .primary_key(ObjectType::Domain.into(), index, alias.as_bytes().to_vec())
                 .await?
             {
                 return Ok(Err(SetError::new(SetErrorType::PrimaryKeyViolation)

@@ -208,10 +208,8 @@ impl PostgresStore {
                             let _ = write!(query, "@@ ({method}('{config}', ${value_pos})");
                             for fallback in [PG_FALLBACK_LANG, PG_UNSTEMMED_LANG] {
                                 if fallback != config && self.ts_configs.contains(fallback) {
-                                    let _ = write!(
-                                        query,
-                                        " || {method}('{fallback}', ${value_pos})"
-                                    );
+                                    let _ =
+                                        write!(query, " || {method}('{fallback}', ${value_pos})");
                                 }
                             }
                             query.push(')');

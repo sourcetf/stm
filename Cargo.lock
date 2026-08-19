@@ -1038,7 +1038,7 @@ dependencies = [
  "chrono-tz",
  "hashify",
  "jmap-tools",
- "mail-builder",
+ "mail-builder 0.4.4",
  "mail-parser",
  "rkyv",
  "serde",
@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "aes-gcm-siv",
  "ahash",
@@ -1317,7 +1317,7 @@ dependencies = [
  "libc",
  "lz4_flex 0.14.0",
  "mail-auth",
- "mail-builder",
+ "mail-builder 0.5.0",
  "mail-parser",
  "md5",
  "nlp",
@@ -1482,7 +1482,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "coordinator"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "async-nats",
  "futures",
@@ -1846,7 +1846,7 @@ checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
 name = "dav"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "calcard",
  "chrono",
@@ -1869,7 +1869,7 @@ dependencies = [
 
 [[package]]
 name = "dav-proto"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "calcard",
  "chrono",
@@ -2106,7 +2106,7 @@ dependencies = [
 
 [[package]]
 name = "directory"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "argon2",
@@ -2116,7 +2116,7 @@ dependencies = [
  "futures",
  "jsonwebtoken",
  "ldap3",
- "mail-builder",
+ "mail-builder 0.5.0",
  "mail-parser",
  "md5",
  "nlp",
@@ -2357,7 +2357,7 @@ dependencies = [
 
 [[package]]
 name = "email"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "aes 0.9.2",
  "aes-gcm 0.11.0",
@@ -2371,7 +2371,7 @@ dependencies = [
  "hashify",
  "jmap-tools",
  "jmap_proto",
- "mail-builder",
+ "mail-builder 0.5.0",
  "mail-parser",
  "nlp",
  "rand 0.8.7",
@@ -2467,7 +2467,7 @@ dependencies = [
 
 [[package]]
 name = "event_macro"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2980,7 +2980,7 @@ dependencies = [
 
 [[package]]
 name = "groupware"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "calcard",
@@ -3262,7 +3262,7 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "async-stream",
  "base64 0.23.1",
@@ -3282,7 +3282,7 @@ dependencies = [
  "jmap",
  "jmap_proto",
  "mail-auth",
- "mail-builder",
+ "mail-builder 0.5.0",
  "mail-parser",
  "mime",
  "percent-encoding",
@@ -3362,7 +3362,7 @@ dependencies = [
 
 [[package]]
 name = "http_proto"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "common",
  "compact_str",
@@ -3670,7 +3670,7 @@ checksum = "65b27460c2c92b037f3f94c538ed9a3342f3fdf923606781629ccb35f82d042a"
 
 [[package]]
 name = "imap"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "common",
@@ -3697,7 +3697,7 @@ dependencies = [
 
 [[package]]
 name = "imap_proto"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "base64 0.23.1",
@@ -3945,7 +3945,7 @@ dependencies = [
 
 [[package]]
 name = "jmap"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "aes-gcm 0.11.0",
  "aes-gcm-siv",
@@ -3969,7 +3969,7 @@ dependencies = [
  "jmap_proto",
  "lz4_flex 0.14.0",
  "mail-auth",
- "mail-builder",
+ "mail-builder 0.5.0",
  "mail-parser",
  "nlp",
  "p256",
@@ -4033,7 +4033,7 @@ dependencies = [
 
 [[package]]
 name = "jmap_proto"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "calcard",
@@ -4492,7 +4492,7 @@ dependencies = [
  "hashify",
  "hickory-resolver",
  "idna",
- "mail-builder",
+ "mail-builder 0.4.4",
  "mail-parser",
  "quick-xml 0.41.0",
  "rand 0.8.7",
@@ -4515,6 +4515,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mail-builder"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c942e8a4b83f9351236c1e531ea9fa0237913d63c7fc36818430e0128a1ddf3"
+dependencies = [
+ "gethostname",
+]
+
+[[package]]
 name = "mail-parser"
 version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4528,7 +4537,7 @@ dependencies = [
 
 [[package]]
 name = "managesieve"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "common",
@@ -4670,7 +4679,7 @@ checksum = "c797b9d6bb23aab2fc369c65f871be49214f5c759af65bde26ffaaa2b646b492"
 
 [[package]]
 name = "migration"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "base64 0.23.1",
  "common",
@@ -4926,7 +4935,7 @@ dependencies = [
 
 [[package]]
 name = "nlp"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "bincode",
@@ -5758,7 +5767,7 @@ dependencies = [
 
 [[package]]
 name = "pop3"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "common",
  "directory",
@@ -5950,7 +5959,7 @@ dependencies = [
 
 [[package]]
 name = "proc_macros"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6585,7 +6594,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "registry"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "hashify",
@@ -7453,7 +7462,7 @@ dependencies = [
 
 [[package]]
 name = "services"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "aes-gcm 0.11.0",
  "aes-gcm-siv",
@@ -7470,7 +7479,7 @@ dependencies = [
  "hkdf 0.13.0",
  "jmap-tools",
  "jmap_proto",
- "mail-builder",
+ "mail-builder 0.5.0",
  "mail-parser",
  "memory-stats",
  "p256",
@@ -7655,7 +7664,7 @@ dependencies = [
  "arc-swap",
  "fancy-regex",
  "hashify",
- "mail-builder",
+ "mail-builder 0.4.4",
  "mail-parser",
  "rkyv",
  "serde",
@@ -7772,7 +7781,7 @@ checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "smtp"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "base64 0.23.1",
@@ -7789,7 +7798,7 @@ dependencies = [
  "hyper-util",
  "lru-cache",
  "mail-auth",
- "mail-builder",
+ "mail-builder 0.5.0",
  "mail-parser",
  "md5",
  "nlp",
@@ -7874,7 +7883,7 @@ dependencies = [
 
 [[package]]
 name = "spam-filter"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "common",
  "compact_str",
@@ -7883,7 +7892,7 @@ dependencies = [
  "idna",
  "infer 0.22.0",
  "mail-auth",
- "mail-builder",
+ "mail-builder 0.5.0",
  "mail-parser",
  "nlp",
  "psl",
@@ -7989,7 +7998,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "stalwart"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "common",
  "coordinator",
@@ -7997,7 +8006,7 @@ dependencies = [
  "directory",
  "email",
  "groupware",
- "http 0.16.18",
+ "http 0.16.19",
  "http_proto",
  "imap",
  "jmap",
@@ -8026,7 +8035,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "arc-swap",
@@ -8278,7 +8287,7 @@ dependencies = [
 
 [[package]]
 name = "tests"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "async-trait",
@@ -8302,7 +8311,7 @@ dependencies = [
  "form_urlencoded",
  "futures",
  "groupware",
- "http 0.16.18",
+ "http 0.16.19",
  "http-body-util",
  "http_proto",
  "hyper",
@@ -8314,7 +8323,7 @@ dependencies = [
  "jmap-tools",
  "jmap_proto",
  "mail-auth",
- "mail-builder",
+ "mail-builder 0.5.0",
  "mail-parser",
  "managesieve",
  "migration",
@@ -8878,7 +8887,7 @@ dependencies = [
 
 [[package]]
 name = "trc"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "base64 0.23.1",
@@ -8987,7 +8996,7 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "types"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "blake3",
  "compact_str",
@@ -9195,7 +9204,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "utils"
-version = "0.16.18"
+version = "0.16.19"
 dependencies = [
  "ahash",
  "arcstr",

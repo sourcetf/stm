@@ -260,7 +260,11 @@ mod tests {
     #[test]
     fn iso_639_locale_suffixes() {
         for code in ["nl_NL", "nl_BE", "nl_NL@euro", "nl-NL"] {
-            assert_eq!(Language::from_iso_639(code), Some(Language::Dutch), "{code}");
+            assert_eq!(
+                Language::from_iso_639(code),
+                Some(Language::Dutch),
+                "{code}"
+            );
         }
         assert_eq!(Language::from_iso_639("xx_XX"), None);
     }
