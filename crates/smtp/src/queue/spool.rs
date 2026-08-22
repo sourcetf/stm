@@ -915,8 +915,8 @@ impl MessageWrapper {
                     cur_message.priority = new_message.priority.to_native();
                     cur_message.env_id = new_message.env_id.as_ref().map(|v| v.as_ref().into());
 
-                    for idx in params.bytes(1).chunks_exact(U32_LEN) {
-                        let rcpt_idx = u32::from_be_bytes(idx.try_into().unwrap()) as usize;
+                    for idx in params.bytes(1).as_chunks::<U32_LEN>().0 {
+                        let rcpt_idx = u32::from_be_bytes(*idx) as usize;
                         if let Some(rcpt) = new_message.recipients.get(rcpt_idx) {
                             cur_message.recipients[rcpt_idx] =
                                 rkyv_deserialize(rcpt).caused_by(trc::location!())?;

@@ -732,7 +732,9 @@ impl RegistrySet for Server {
 
             ObjectType::Task => task_set(set).await.map(|set| set.into_response()),
 
-            ObjectType::Action => action_set(set).await.map(|set| set.into_response()),
+            ObjectType::Action => Box::pin(action_set(set))
+                .await
+                .map(|set| set.into_response()),
 
             ObjectType::Bootstrap => Box::pin(bootstrap_set(set))
                 .await

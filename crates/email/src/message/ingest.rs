@@ -792,7 +792,9 @@ impl EmailIngest for Server {
 
                             if message_ids.len() == references.len() / CheekyHash::HASH_SIZE
                                 && references
-                                    .chunks_exact(CheekyHash::HASH_SIZE)
+                                    .as_chunks::<{ CheekyHash::HASH_SIZE }>()
+                                    .0
+                                    .iter()
                                     .zip(message_ids.iter())
                                     .all(|(a, b)| a == b.as_raw_bytes())
                             {

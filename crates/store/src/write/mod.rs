@@ -12,7 +12,7 @@ use rkyv::util::AlignedVec;
 use std::{
     collections::HashSet,
     hash::Hash,
-    time::{Duration, SystemTime},
+    time::SystemTime,
 };
 use types::{
     blob_hash::BlobHash,
@@ -89,15 +89,33 @@ pub struct ChangeId {
     pub change_id: u64,
 }
 
-#[cfg(not(feature = "test_mode"))]
-pub(crate) const MAX_COMMIT_ATTEMPTS: u32 = 10;
-#[cfg(not(feature = "test_mode"))]
-pub(crate) const MAX_COMMIT_TIME: Duration = Duration::from_secs(10);
+#[cfg(any(
+    feature = "rocks",
+    feature = "postgres",
+    feature = "mysql",
+    feature = "foundation"
+))]
+pub(crate) use commit_limits::{MAX_COMMIT_ATTEMPTS, MAX_COMMIT_TIME};
 
-#[cfg(feature = "test_mode")]
-pub(crate) const MAX_COMMIT_ATTEMPTS: u32 = 1000;
-#[cfg(feature = "test_mode")]
-pub(crate) const MAX_COMMIT_TIME: Duration = Duration::from_secs(3600);
+#[cfg(any(
+    feature = "rocks",
+    feature = "postgres",
+    feature = "mysql",
+    feature = "foundation"
+))]
+mod commit_limits {
+    use std::time::Duration;
+
+    #[cfg(not(feature = "test_mode"))]
+    pub(crate) const MAX_COMMIT_ATTEMPTS: u32 = 10;
+    #[cfg(not(feature = "test_mode"))]
+    pub(crate) const MAX_COMMIT_TIME: Duration = Duration::from_secs(10);
+
+    #[cfg(feature = "test_mode")]
+    pub(crate) const MAX_COMMIT_ATTEMPTS: u32 = 1000;
+    #[cfg(feature = "test_mode")]
+    pub(crate) const MAX_COMMIT_TIME: Duration = Duration::from_secs(3600);
+}
 
 #[derive(Debug)]
 pub struct Batch<'x> {
