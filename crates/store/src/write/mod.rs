@@ -9,11 +9,7 @@ use crate::backend::MAX_TOKEN_LENGTH;
 use log::ChangeLogBuilder;
 use nlp::tokenizers::word::WordTokenizer;
 use rkyv::util::AlignedVec;
-use std::{
-    collections::HashSet,
-    hash::Hash,
-    time::SystemTime,
-};
+use std::{collections::HashSet, hash::Hash, time::SystemTime};
 use types::{
     blob_hash::BlobHash,
     collection::{Collection, SyncCollection, VanishedCollection},

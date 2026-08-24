@@ -12,7 +12,8 @@ use crate::{
         EVENT_NOTIFICATION_IS_CHANGE,
     },
     scheduling::{
-        ItipError, ItipMessage,
+        ItipError, ItipMessage, ItipMessages,
+        event_update::itip_update,
         inbound::{
             MergeResult, itip_import_message, itip_merge_changes, itip_method, itip_process_message,
         },
@@ -29,10 +30,12 @@ use calcard::{
 };
 use common::{
     DavName, Server,
-    auth::{AccountInfo, oauth::GrantType},
+    auth::{AccessToken, AccountInfo, oauth::GrantType},
     config::groupware::CalendarTemplateVariable,
     i18n,
 };
+use registry::schema::enums::Permission;
+use std::net::IpAddr;
 use store::{
     ValueKey, rand,
     write::{AlignedBytes, Archive, BatchBuilder, now},
@@ -73,6 +76,7 @@ pub trait ItipIngest: Sync + Send {
         &self,
         query: &str,
         language: &str,
+        remote_ip: IpAddr,
     ) -> impl Future<Output = trc::Result<String>> + Send;
 }
 
@@ -428,9 +432,14 @@ impl ItipIngest for Server {
         }
     }
 
-    async fn http_rsvp_handle(&self, query: &str, language: &str) -> trc::Result<String> {
+    async fn http_rsvp_handle(
+        &self,
+        query: &str,
+        language: &str,
+        remote_ip: IpAddr,
+    ) -> trc::Result<String> {
         let response = if let Some(rsvp) = decode_rsvp_response(self, query).await {
-            if let Some(archive) = self
+            let Some(archive) = self
                 .store()
                 .get_value::<Archive<AlignedBytes>>(ValueKey::archive(
                     rsvp.account_id,
@@ -439,99 +448,143 @@ impl ItipIngest for Server {
                 ))
                 .await
                 .caused_by(trc::location!())?
-            {
-                let event = archive
-                    .to_unarchived::<CalendarEvent>()
-                    .caused_by(trc::location!())?;
-                let mut new_event = event
-                    .deserialize::<CalendarEvent>()
-                    .caused_by(trc::location!())?;
-                let mut did_change = false;
-                let mut summary = None;
-                let mut description = None;
-                let mut found_participant = false;
+            else {
+                return Ok(render_response(self, Response::EventNotFound, language));
+            };
 
-                for component in &mut new_event.data.event.components {
-                    if component.component_type.is_scheduling_object() {
-                        'outer: for entry in &mut component.entries {
-                            if entry.name == ICalendarProperty::Attendee
-                                && entry
-                                    .calendar_address()
-                                    .is_some_and(|v| v.eq_ignore_ascii_case(&rsvp.attendee))
-                            {
-                                let mut add_partstat = true;
-                                for param in &mut entry.params {
-                                    if let (
-                                        ICalendarParameterName::Partstat,
-                                        ICalendarParameterValue::Partstat(partstat),
-                                    ) = (&param.name, &mut param.value)
-                                    {
-                                        if partstat != &rsvp.partstat {
-                                            *partstat = rsvp.partstat.clone();
-                                            add_partstat = false;
-                                        } else {
-                                            continue 'outer;
-                                        }
+            let target = match http_rsvp_attendee_copy(self, &rsvp, &archive, remote_ip).await? {
+                Some(target) => target,
+                None => RsvpTarget {
+                    account_id: rsvp.account_id,
+                    document_id: rsvp.document_id,
+                    archive,
+                    send_reply: false,
+                },
+            };
+
+            let event = target
+                .archive
+                .to_unarchived::<CalendarEvent>()
+                .caused_by(trc::location!())?;
+            let mut new_event = event
+                .deserialize::<CalendarEvent>()
+                .caused_by(trc::location!())?;
+            let old_ical = target.send_reply.then(|| new_event.data.event.clone());
+            let mut did_change = false;
+            let mut summary = None;
+            let mut description = None;
+            let mut found_participant = false;
+
+            for component in &mut new_event.data.event.components {
+                if component.component_type.is_scheduling_object() {
+                    'outer: for entry in &mut component.entries {
+                        if entry.name == ICalendarProperty::Attendee
+                            && entry
+                                .calendar_address()
+                                .is_some_and(|v| v.eq_ignore_ascii_case(&rsvp.attendee))
+                        {
+                            let mut add_partstat = true;
+                            for param in &mut entry.params {
+                                if let (
+                                    ICalendarParameterName::Partstat,
+                                    ICalendarParameterValue::Partstat(partstat),
+                                ) = (&param.name, &mut param.value)
+                                {
+                                    if partstat != &rsvp.partstat {
+                                        *partstat = rsvp.partstat.clone();
+                                        add_partstat = false;
+                                    } else {
+                                        continue 'outer;
                                     }
                                 }
-
-                                if add_partstat {
-                                    entry
-                                        .params
-                                        .push(ICalendarParameter::partstat(rsvp.partstat.clone()));
-                                }
-                                found_participant = true;
-                                did_change = true;
-                            } else if summary.is_none() && entry.name == ICalendarProperty::Summary
-                            {
-                                summary = entry
-                                    .values
-                                    .first()
-                                    .and_then(|v| v.as_text())
-                                    .map(|s| s.to_string());
-                            } else if description.is_none()
-                                && entry.name == ICalendarProperty::Description
-                            {
-                                description = entry
-                                    .values
-                                    .first()
-                                    .and_then(|v| v.as_text())
-                                    .map(|s| s.to_string());
                             }
+
+                            if add_partstat {
+                                entry
+                                    .params
+                                    .push(ICalendarParameter::partstat(rsvp.partstat.clone()));
+                            }
+                            found_participant = true;
+                            did_change = true;
+                        } else if summary.is_none() && entry.name == ICalendarProperty::Summary {
+                            summary = entry
+                                .values
+                                .first()
+                                .and_then(|v| v.as_text())
+                                .map(|s| s.to_string());
+                        } else if description.is_none()
+                            && entry.name == ICalendarProperty::Description
+                        {
+                            description = entry
+                                .values
+                                .first()
+                                .and_then(|v| v.as_text())
+                                .map(|s| s.to_string());
                         }
                     }
                 }
+            }
 
-                if did_change {
-                    // Prepare write batch
-                    let account_info = self
-                        .account(rsvp.account_id)
-                        .await
-                        .caused_by(trc::location!())?;
-                    let mut batch = BatchBuilder::new();
-                    new_event
-                        .update(
-                            account_info.account_tenant_ids(),
-                            event,
-                            rsvp.account_id,
-                            rsvp.document_id,
-                            &mut batch,
-                        )
-                        .caused_by(trc::location!())?;
+            if did_change {
+                let account_info = self
+                    .account_info(target.account_id)
+                    .await
+                    .caused_by(trc::location!())?;
 
-                    self.commit_batch(batch).await.caused_by(trc::location!())?;
-                }
-
-                if found_participant {
-                    Response::Success {
-                        summary,
-                        description,
+                let itip_messages = if let Some(old_ical) = old_ical {
+                    match itip_update(
+                        &mut new_event.data.event,
+                        &old_ical,
+                        account_info.addresses(),
+                    ) {
+                        Ok(messages) if !messages.is_empty() => Some(ItipMessages::new(messages)),
+                        Ok(_) => None,
+                        Err(err) => {
+                            trc::event!(
+                                Calendar(trc::CalendarEvent::ItipMessageError),
+                                AccountId = target.account_id,
+                                DocumentId = target.document_id,
+                                To = rsvp.attendee.to_string(),
+                                Details = err.to_string(),
+                            );
+                            None
+                        }
                     }
                 } else {
-                    Response::NoLongerParticipant
+                    None
+                };
+                new_event.size = new_event.data.event.size() as u32;
+
+                let mut batch = BatchBuilder::new();
+                new_event
+                    .update(
+                        account_info.account_tenant_ids(),
+                        event,
+                        target.account_id,
+                        target.document_id,
+                        &mut batch,
+                    )
+                    .caused_by(trc::location!())?;
+                let has_itip_messages = itip_messages.is_some();
+                if let Some(itip_messages) = itip_messages {
+                    itip_messages
+                        .queue(&mut batch)
+                        .caused_by(trc::location!())?;
+                }
+
+                self.commit_batch(batch).await.caused_by(trc::location!())?;
+                if has_itip_messages {
+                    self.notify_task_queue();
+                }
+            }
+
+            if found_participant {
+                Response::Success {
+                    summary,
+                    description,
                 }
             } else {
-                Response::EventNotFound
+                Response::NoLongerParticipant
             }
         } else {
             Response::ParseError
@@ -539,6 +592,92 @@ impl ItipIngest for Server {
 
         Ok(render_response(self, response, language))
     }
+}
+
+struct RsvpTarget {
+    account_id: u32,
+    document_id: u32,
+    archive: Archive<AlignedBytes>,
+    send_reply: bool,
+}
+
+async fn http_rsvp_attendee_copy(
+    server: &Server,
+    rsvp: &RsvpResponse,
+    archive: &Archive<AlignedBytes>,
+    remote_ip: IpAddr,
+) -> trc::Result<Option<RsvpTarget>> {
+    if !server.core.groupware.itip_enabled {
+        return Ok(None);
+    }
+
+    let Some(account_id) = server
+        .account_id_from_email(&rsvp.attendee, true)
+        .await
+        .caused_by(trc::location!())?
+        .filter(|account_id| *account_id != rsvp.account_id)
+    else {
+        return Ok(None);
+    };
+
+    let can_send = match server.access_token(account_id).await {
+        Ok(access_token) => AccessToken::new(access_token, remote_ip).is_ok_and(|access_token| {
+            access_token.has_permission(Permission::CalendarSchedulingSend)
+        }),
+        Err(err) => {
+            trc::error!(
+                err.account_id(account_id)
+                    .caused_by(trc::location!())
+                    .details("Failed to obtain access token for RSVP attendee")
+            );
+            false
+        }
+    };
+    if !can_send {
+        return Ok(None);
+    }
+
+    let Some(uid) = archive
+        .unarchive::<CalendarEvent>()
+        .caused_by(trc::location!())?
+        .data
+        .event
+        .uids()
+        .next()
+    else {
+        return Ok(None);
+    };
+
+    let Some(document_id) = server
+        .document_ids_matching(
+            account_id,
+            Collection::CalendarEvent,
+            CalendarEventField::Uid,
+            uid.as_bytes(),
+        )
+        .await
+        .caused_by(trc::location!())?
+        .iter()
+        .next()
+    else {
+        return Ok(None);
+    };
+
+    Ok(server
+        .store()
+        .get_value::<Archive<AlignedBytes>>(ValueKey::archive(
+            account_id,
+            Collection::CalendarEvent,
+            document_id,
+        ))
+        .await
+        .caused_by(trc::location!())?
+        .map(|archive| RsvpTarget {
+            account_id,
+            document_id,
+            archive,
+            send_reply: true,
+        }))
 }
 
 struct RsvpResponse {

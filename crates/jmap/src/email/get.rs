@@ -400,14 +400,12 @@ impl EmailGet for Server {
                     EmailProperty::BodyValues => {
                         let mut body_values = Map::with_capacity(contents.parts.len());
                         for (part_id, part) in contents.parts.iter().enumerate() {
-                            if ((contents.is_html_part(part_id as u16)
-                                && (fetch_all_body_values || fetch_html_body_values))
-                                || (contents.is_text_part(part_id as u16)
-                                    && (fetch_all_body_values || fetch_text_body_values)))
-                                && matches!(
-                                    part.body,
-                                    ArchivedMetadataPartType::Text | ArchivedMetadataPartType::Html
-                                )
+                            if part.is_text_mime_type()
+                                && (fetch_all_body_values
+                                    || (fetch_html_body_values
+                                        && contents.is_html_part(part_id as u16))
+                                    || (fetch_text_body_values
+                                        && contents.is_text_part(part_id as u16)))
                             {
                                 let contents = part.decode_contents(&raw_message);
 

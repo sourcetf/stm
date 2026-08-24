@@ -250,8 +250,8 @@ SUMMARY:What a nice present: 🎁
 DTSTART;TZID=America/New_York:20190221T170000
 DTEND;TZID=America/New_York:20190221T180000
 LOCATION:Germany
-DESCRIPTION:<html><body><h1>Title</h1><p><ul><li><b>first</b> Row </li><li><
- i>second</i> Row</li></ul></p></body></html>
+DESCRIPTION:<html><body><h1>Title</h1><p><ul><li><b>first</b> Row </li><li>
+ <i>second</i> Row</li></ul></p></body></html>
 END:VEVENT
 END:VCALENDAR
 "#;

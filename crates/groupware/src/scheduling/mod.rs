@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::decode_mailto_address;
+use crate::{decode_mailto_address, extract_addr_spec};
 use ahash::{AHashMap, AHashSet};
 use calcard::{
     common::{IanaString, PartialDateTime},
@@ -239,7 +239,9 @@ impl Attendee<'_> {
 
 impl Email {
     pub fn new(email: &str, local_addresses: &[String]) -> Option<Self> {
-        let email = sanitize_email(&decode_mailto_address(email.trim()))?;
+        let decoded = decode_mailto_address(email.trim());
+        let email = sanitize_email(decoded.as_ref())
+            .or_else(|| extract_addr_spec(decoded.as_ref()).and_then(sanitize_email))?;
         let is_local = local_addresses.contains(&email);
         Some(Email { email, is_local })
     }

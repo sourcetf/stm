@@ -77,6 +77,7 @@ pub(crate) enum TaskResult {
 pub(crate) enum TaskFailureType {
     Retry(u64),
     Temporary,
+    Perpetual,
     Permanent,
 }
 
@@ -121,6 +122,14 @@ impl TaskResult {
     pub fn temporary(message: impl Into<String>) -> Self {
         TaskResult::Failure {
             typ: TaskFailureType::Temporary,
+            message: message.into(),
+            max_attempts: None,
+        }
+    }
+
+    pub fn perpetual(message: impl Into<String>) -> Self {
+        TaskResult::Failure {
+            typ: TaskFailureType::Perpetual,
             message: message.into(),
             max_attempts: None,
         }
