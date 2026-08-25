@@ -53,7 +53,7 @@ jobs:
       - name: Build on OpenBSD VM
         uses: vmactions/openbsd-vm@v1
         with:
-          release: "7.6"
+          release: "7.9"
           usesh: true
           prepare: |
             pkg_add rust cmake gmake openssl
