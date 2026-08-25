@@ -56,45 +56,90 @@ jobs:
           release: "7.9"
           usesh: true
           prepare: |
-            pkg_add rust cmake gmake llvm libiconv
-            # 确认 llvm 版本和 libclang 位置
-            echo "=== llvm-config --version ==="
-            llvm-config --version || true
-            echo "=== llvm-config --libdir ==="
-            llvm-config --libdir || true
-            echo "=== libclang files ==="
-            ls -la /usr/local/llvm*/lib/libclang* 2>/dev/null || true
+            # 非交互模式强制安装，-v 看详情，-D unsigned 跳过签名问题（ports 包有时签名不匹配）
+            pkg_add -v -D unsigned llvm cmake gmake libiconv || true
+            
+            # 验证 llvm 到底装了什么版本、文件在哪
+            echo "=== installed llvm packages ==="
+            pkg_info | grep -i llvm || true
+            
+            echo "=== pkg_info file list (clang related) ==="
+            pkg_info -L llvm 2>/dev/null | grep -i clang | head -20 || true
+            pkg_info -L llvm-19 2>/dev/null | grep -i clang | head -20 || true
+            pkg_info -L llvm-21 2>/dev/null | grep -i clang | head -20 || true
+            
+            echo "=== find all libclang* files ==="
+            find /usr/local -name "libclang*" -o -name "libclang-cpp*" 2>/dev/null | head -20 || true
+            find /usr/lib -name "libclang*" 2>/dev/null | head -20 || true
+            
+            echo "=== llvm-config versions ==="
+            /usr/bin/llvm-config --version 2>/dev/null || true
+            /usr/local/llvm*/bin/llvm-config --version 2>/dev/null || true
+            
           run: |
             set -ex
-            # 不要 -u，LD_LIBRARY_PATH 可能未定义
+            # 不要 -u，避免未定义变量炸掉
             
-            # ===== 修复 1: 用 llvm-config 拿 libclang 路径 =====
-            if llvm-config --libdir >/dev/null 2>&1; then
-              export LIBCLANG_PATH=$(llvm-config --libdir)
-              echo "LIBCLANG_PATH from llvm-config: $LIBCLANG_PATH"
-            else
-              # fallback: 直接猜 OpenBSD 7.9 是 llvm21
-              export LIBCLANG_PATH=/usr/local/llvm21/lib
-              echo "LIBCLANG_PATH fallback: $LIBCLANG_PATH"
+            # ===== 多层 fallback 找 libclang =====
+            LIBCLANG_PATH=""
+            
+            # 1. 用 ports 的 llvm-config 找
+            for cfg in /usr/local/llvm*/bin/llvm-config; do
+              if [ -x "$cfg" ]; then
+                dir=$($cfg --libdir 2>/dev/null)
+                if [ -n "$dir" ] && ls "$dir"/libclang* >/dev/null 2>&1; then
+                  LIBCLANG_PATH="$dir"
+                  echo "Found libclang via $cfg: $LIBCLANG_PATH"
+                  break
+                fi
+              fi
+            done
+            
+            # 2. 手动搜 /usr/local/llvm*/lib/
+            if [ -z "$LIBCLANG_PATH" ]; then
+              for so in /usr/local/llvm*/lib/libclang*; do
+                if [ -f "$so" ]; then
+                  LIBCLANG_PATH=$(dirname "$so")
+                  echo "Found libclang manually: $LIBCLANG_PATH"
+                  break
+                fi
+              done
             fi
             
-            # ===== 修复 2: LD_LIBRARY_PATH 安全拼接 =====
+            # 3. 回退到 /usr/local/lib（旧路径，某些版本可能还在）
+            if [ -z "$LIBCLANG_PATH" ] && ls /usr/local/lib/libclang* >/dev/null 2>&1; then
+              LIBCLANG_PATH=/usr/local/lib
+              echo "Found libclang at old path: $LIBCLANG_PATH"
+            fi
+            
+            # 4. 回退到 base 系统的 /usr/lib（OpenBSD 7.9 base 自带 LLVM 19.1.7）
+            if [ -z "$LIBCLANG_PATH" ] && ls /usr/lib/libclang* >/dev/null 2>&1; then
+              LIBCLANG_PATH=/usr/lib
+              echo "Found libclang in base system: $LIBCLANG_PATH"
+            fi
+            
+            if [ -z "$LIBCLANG_PATH" ]; then
+              echo "ERROR: libclang not found anywhere"
+              exit 1
+            fi
+            
+            export LIBCLANG_PATH
+            # 安全设置 LD_LIBRARY_PATH
             if [ -n "${LD_LIBRARY_PATH:-}" ]; then
               export LD_LIBRARY_PATH="$LIBCLANG_PATH:$LD_LIBRARY_PATH"
             else
               export LD_LIBRARY_PATH="$LIBCLANG_PATH"
             fi
             
-            # ===== 修复 3: CC/CXX 指向 pkg_add 的 clang =====
-            # OpenBSD 7.9 自带 base clang 在 /usr/bin，但 pkg_add llvm 装的是新版本
-            # 用 llvm-config 同目录的 clang 最保险
-            CLANG_BIN=$(find /usr/local/llvm*/bin -name "clang" 2>/dev/null | head -1)
-            CLANGPP_BIN=$(find /usr/local/llvm*/bin -name "clang++" 2>/dev/null | head -1)
-            if [ -n "$CLANG_BIN" ]; then
-              export CC="$CLANG_BIN"
-              export CXX="$CLANGPP_BIN"
-              echo "CC=$CC CXX=$CXX"
-            fi
+            # CC/CXX 指向 ports 的 clang，如果没有就用 base 的
+            for clang in /usr/local/llvm*/bin/clang /usr/bin/clang; do
+              if [ -x "$clang" ]; then
+                export CC="$clang"
+                export CXX="${clang}++"
+                echo "CC=$CC CXX=$CXX"
+                break
+              fi
+            done
             
             # rocksdb 在 OpenBSD 上的 workaround
             export MAKE=gmake
