@@ -43,13 +43,38 @@ jobs:
           name: artifact-x86_64-unknown-linux-musl
           path: artifacts/stalwart
 
+  openbsd:
+    name: Build / x86_64-unknown-openbsd
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Build on OpenBSD VM
+        uses: vmactions/openbsd-vm@v1
+        with:
+          release: "7.6"
+          usesh: true
+          prepare: |
+            pkg_add rust cmake gmake openssl
+          run: |
+            cargo build --release -p stalwart --no-default-features --features "sqlite postgres mysql rocks s3 redis azure nats enterprise"
+            mkdir -p artifacts
+            cp ./target/release/stalwart ./artifacts/stalwart
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: artifact-x86_64-unknown-openbsd
+          path: artifacts/stalwart
+
   release:
     name: Release
     permissions:
       id-token: write
       contents: write
       attestations: write
-    needs: [linux]
+    needs: [linux, openbsd]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -68,7 +93,8 @@ jobs:
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           mkdir -p dist
-          tar -czf dist/stalwart-x86_64-unknown-linux-musl.tar.gz -C archive stalwart
+          tar -czf dist/stalwart-x86_64-unknown-linux-musl.tar.gz -C archive/artifact-x86_64-unknown-linux-musl stalwart
+          tar -czf dist/stalwart-x86_64-unknown-openbsd.tar.gz -C archive/artifact-x86_64-unknown-openbsd stalwart
 
       - name: Attest binary
         id: attest
@@ -112,7 +138,7 @@ jobs:
 
   cleanup:
     name: Cleanup failed release
-    needs: [linux, release]
+    needs: [linux, openbsd, release]
     if: failure()
     runs-on: ubuntu-latest
     permissions:
