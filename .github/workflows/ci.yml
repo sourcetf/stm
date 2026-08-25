@@ -55,13 +55,12 @@ jobs:
         with:
           release: "7.9"
           usesh: true
-          sync: tar
           prepare: |
             pkg_add rust cmake gmake llvm libiconv
           run: |
             set -eux
             
-            # 动态探测 libclang 路径（OpenBSD 7.4+ 版本化目录）
+            # 动态探测 libclang 路径
             LIBCLANG_SO=$(find /usr/local -maxdepth 4 -name "libclang.so*" -path "*/lib/*" 2>/dev/null | head -1)
             if [ -n "$LIBCLANG_SO" ]; then
               export LIBCLANG_PATH=$(dirname "$LIBCLANG_SO")
@@ -86,6 +85,7 @@ jobs:
             
             cargo build --release -p stalwart --no-default-features --features "sqlite postgres mysql rocks s3 redis azure nats enterprise"
             
+            # 产物放在工作目录下，rsync 同步回宿主机后 upload-artifact 才能拿到
             mkdir -p artifacts
             cp ./target/release/stalwart ./artifacts/stalwart
             file ./artifacts/stalwart
