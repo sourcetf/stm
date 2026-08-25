@@ -57,25 +57,43 @@ jobs:
           usesh: true
           prepare: |
             pkg_add rust cmake gmake llvm libiconv
+            # 确认 llvm 版本和 libclang 位置
+            echo "=== llvm-config --version ==="
+            llvm-config --version || true
+            echo "=== llvm-config --libdir ==="
+            llvm-config --libdir || true
+            echo "=== libclang files ==="
+            ls -la /usr/local/llvm*/lib/libclang* 2>/dev/null || true
           run: |
-            set -eux
+            set -ex
+            # 不要 -u，LD_LIBRARY_PATH 可能未定义
             
-            # 动态探测 libclang 路径
-            LIBCLANG_SO=$(find /usr/local -maxdepth 4 -name "libclang.so*" -path "*/lib/*" 2>/dev/null | head -1)
-            if [ -n "$LIBCLANG_SO" ]; then
-              export LIBCLANG_PATH=$(dirname "$LIBCLANG_SO")
-              echo "Found libclang at: $LIBCLANG_PATH"
+            # ===== 修复 1: 用 llvm-config 拿 libclang 路径 =====
+            if llvm-config --libdir >/dev/null 2>&1; then
+              export LIBCLANG_PATH=$(llvm-config --libdir)
+              echo "LIBCLANG_PATH from llvm-config: $LIBCLANG_PATH"
             else
-              echo "WARNING: libclang not found"
+              # fallback: 直接猜 OpenBSD 7.9 是 llvm21
+              export LIBCLANG_PATH=/usr/local/llvm21/lib
+              echo "LIBCLANG_PATH fallback: $LIBCLANG_PATH"
             fi
-            export LD_LIBRARY_PATH="${LIBCLANG_PATH:-/usr/local/lib}:$LD_LIBRARY_PATH"
             
-            # rocksdb/aws-lc-rs 需要 clang
+            # ===== 修复 2: LD_LIBRARY_PATH 安全拼接 =====
+            if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+              export LD_LIBRARY_PATH="$LIBCLANG_PATH:$LD_LIBRARY_PATH"
+            else
+              export LD_LIBRARY_PATH="$LIBCLANG_PATH"
+            fi
+            
+            # ===== 修复 3: CC/CXX 指向 pkg_add 的 clang =====
+            # OpenBSD 7.9 自带 base clang 在 /usr/bin，但 pkg_add llvm 装的是新版本
+            # 用 llvm-config 同目录的 clang 最保险
             CLANG_BIN=$(find /usr/local/llvm*/bin -name "clang" 2>/dev/null | head -1)
             CLANGPP_BIN=$(find /usr/local/llvm*/bin -name "clang++" 2>/dev/null | head -1)
             if [ -n "$CLANG_BIN" ]; then
               export CC="$CLANG_BIN"
               export CXX="$CLANGPP_BIN"
+              echo "CC=$CC CXX=$CXX"
             fi
             
             # rocksdb 在 OpenBSD 上的 workaround
@@ -85,7 +103,6 @@ jobs:
             
             cargo build --release -p stalwart --no-default-features --features "sqlite postgres mysql rocks s3 redis azure nats enterprise"
             
-            # 产物放在工作目录下，rsync 同步回宿主机后 upload-artifact 才能拿到
             mkdir -p artifacts
             cp ./target/release/stalwart ./artifacts/stalwart
             file ./artifacts/stalwart
