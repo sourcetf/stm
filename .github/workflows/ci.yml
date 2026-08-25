@@ -55,12 +55,40 @@ jobs:
         with:
           release: "7.9"
           usesh: true
+          sync: tar
           prepare: |
-            pkg_add rust cmake gmake openssl
+            pkg_add rust cmake gmake llvm libiconv
           run: |
+            set -eux
+            
+            # 动态探测 libclang 路径（OpenBSD 7.4+ 版本化目录）
+            LIBCLANG_SO=$(find /usr/local -maxdepth 4 -name "libclang.so*" -path "*/lib/*" 2>/dev/null | head -1)
+            if [ -n "$LIBCLANG_SO" ]; then
+              export LIBCLANG_PATH=$(dirname "$LIBCLANG_SO")
+              echo "Found libclang at: $LIBCLANG_PATH"
+            else
+              echo "WARNING: libclang not found"
+            fi
+            export LD_LIBRARY_PATH="${LIBCLANG_PATH:-/usr/local/lib}:$LD_LIBRARY_PATH"
+            
+            # rocksdb/aws-lc-rs 需要 clang
+            CLANG_BIN=$(find /usr/local/llvm*/bin -name "clang" 2>/dev/null | head -1)
+            CLANGPP_BIN=$(find /usr/local/llvm*/bin -name "clang++" 2>/dev/null | head -1)
+            if [ -n "$CLANG_BIN" ]; then
+              export CC="$CLANG_BIN"
+              export CXX="$CLANGPP_BIN"
+            fi
+            
+            # rocksdb 在 OpenBSD 上的 workaround
+            export MAKE=gmake
+            export ROCKSDB_DISABLE_SNAPPY=1
+            export ROCKSDB_DISABLE_ZSTD=1
+            
             cargo build --release -p stalwart --no-default-features --features "sqlite postgres mysql rocks s3 redis azure nats enterprise"
+            
             mkdir -p artifacts
             cp ./target/release/stalwart ./artifacts/stalwart
+            file ./artifacts/stalwart
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
@@ -128,7 +156,6 @@ jobs:
           files: |
             dist/*.tar.gz
             dist/*.sigstore.json
-  
           tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('sha-{0}', steps.prep.outputs.short_sha) }}
           name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('Build {0}', steps.prep.outputs.short_sha) }}
           prerelease: false
