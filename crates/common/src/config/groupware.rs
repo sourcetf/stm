@@ -4,9 +4,13 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use registry::schema::structs::{
-    AddressBook, Calendar, CalendarAlarm, CalendarScheduling, DataRetention, FileStorage, Sharing,
-    SystemSettings, WebDav,
+use calcard::vcard::VCardVersion;
+use registry::schema::{
+    enums::VCardVersion as RegistryVCardVersion,
+    structs::{
+        AddressBook, Calendar, CalendarAlarm, CalendarScheduling, DataRetention, FileStorage,
+        Sharing, SystemSettings, WebDav,
+    },
 };
 use std::str::FromStr;
 use store::registry::bootstrap::Bootstrap;
@@ -46,6 +50,7 @@ pub struct GroupwareConfig {
 
     // Addressbook settings
     pub max_vcard_size: usize,
+    pub vcard_version: VCardVersion,
     pub default_addressbook_name: Option<String>,
     pub default_addressbook_display_name: Option<String>,
 
@@ -108,6 +113,10 @@ impl GroupwareConfig {
             max_ical_instances: calendar.max_recurrence_expansions as usize,
             max_ical_attendees_per_instance: calendar.max_attendees as usize,
             max_vcard_size: book.max_v_card_size as usize,
+            vcard_version: match book.v_card_version {
+                RegistryVCardVersion::V3 => VCardVersion::V3_0,
+                RegistryVCardVersion::V4 => VCardVersion::V4_0,
+            },
             max_file_size: file.max_size as usize,
             alarms_enabled: alarm.enable,
             alarms_minimum_interval: alarm.min_trigger_interval.into_inner().as_secs() as i64,

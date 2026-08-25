@@ -853,7 +853,7 @@ impl PropFindRequestHandler for Server {
                                     properties,
                                     (*version)
                                         .or(query.vcard_version)
-                                        .or_else(|| card.inner.card.version()),
+                                        .unwrap_or(self.core.groupware.vcard_version),
                                 )),
                             ));
                         }
