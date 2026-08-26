@@ -178,7 +178,9 @@ pub async fn webdav_tests() {
     test.insert_account(admin);
 
     let start_time = Instant::now();
-    //test_build_itip_templates(&test).await;
+    if std::env::var("ITIP_TEMPLATES").is_ok() {
+        cal_scheduling::test_build_itip_templates(&test).await;
+    }
     basic::test(&test).await;
     put_get::test(&test).await;
     mkcol::test(&test).await;
@@ -217,6 +219,17 @@ impl DavResourcesTest for DavResources {
     fn items(&self) -> Vec<DavResource> {
         self.resources.clone()
     }
+}
+
+pub fn template_out_dir() -> Option<std::path::PathBuf> {
+    if std::env::var("ITIP_TEMPLATES").is_err() {
+        return None;
+    }
+
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../.ignore/itip_templates");
+    std::fs::create_dir_all(&dir).expect("Failed to create template output directory");
+
+    Some(dir.canonicalize().unwrap_or(dir))
 }
 
 pub const TEST_VCARD_1: &str = r#"BEGIN:VCARD

@@ -366,7 +366,10 @@ impl GroupwareCache for Server {
             batch
                 .with_collection(Collection::Principal)
                 .with_document(0)
-                .set(PrincipalField::DefaultAddressBookId, document_id.serialize());
+                .set(
+                    PrincipalField::DefaultAddressBookId,
+                    document_id.serialize(),
+                );
 
             self.commit_batch(batch).await?;
             Ok(Some(document_id))

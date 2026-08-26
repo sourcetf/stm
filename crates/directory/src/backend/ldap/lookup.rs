@@ -254,12 +254,9 @@ impl LdapMappings {
                 // Create a disabled AppPassword, used to indicate that the password has been changed
                 // but cannot be used for authentication.
                 if account.secret.is_none() {
-                    account.secret = value
-                        .into_iter()
-                        .find(|item| !item.is_empty())
-                        .map(|item| {
-                            format!("$app${}$", xxhash_rust::xxh3::xxh3_64(item.as_bytes()))
-                        });
+                    account.secret = value.into_iter().find(|item| !item.is_empty()).map(|item| {
+                        format!("$app${}$", xxhash_rust::xxh3::xxh3_64(item.as_bytes()))
+                    });
                 }
             } else if let Some(idx) = self.attr_description.iter().position(|a| a == &attr) {
                 if (account.description.is_none() || idx == 0)
