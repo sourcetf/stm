@@ -1739,6 +1739,7 @@ pub enum Permission {
     LiveTracing = 216,
     LiveMetrics = 217,
     LiveDeliveryTest = 218,
+    ScimAccess = 660,
     SysAccountGet = 219,
     SysAccountCreate = 220,
     SysAccountUpdate = 221,

@@ -3310,6 +3310,7 @@ dependencies = [
  "registry",
  "rkyv",
  "rsa",
+ "scim",
  "serde",
  "serde_json",
  "services",
@@ -7208,6 +7209,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "scim"
+version = "0.16.20"
+dependencies = [
+ "common",
+ "directory",
+ "hashify",
+ "http_proto",
+ "hyper",
+ "jmap",
+ "jmap_proto",
+ "percent-encoding",
+ "registry",
+ "scim-proto",
+ "serde",
+ "serde_json",
+ "store",
+ "trc",
+ "types",
+ "utils",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "scim-proto"
+version = "0.16.20"
+dependencies = [
+ "hashify",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8079,6 +8112,7 @@ dependencies = [
  "pop3",
  "registry",
  "rustls",
+ "scim",
  "services",
  "smtp",
  "smtp-proto",
@@ -8404,6 +8438,8 @@ dependencies = [
  "rustls",
  "rustls-pemfile",
  "rustls-pki-types",
+ "scim",
+ "scim-proto",
  "serde",
  "serde_json",
  "serial_test",

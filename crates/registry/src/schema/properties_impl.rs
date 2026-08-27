@@ -452,6 +452,7 @@ impl EnumImpl for Property {
             b"allowInvalidCerts" => Property::AllowInvalidCerts,
             b"allowPlainTextAuth" => Property::AllowPlainTextAuth,
             b"allowRelaying" => Property::AllowRelaying,
+            b"allowScimProvisioning" => Property::AllowScimProvisioning,
             b"allowSpamTraining" => Property::AllowSpamTraining,
             b"allowedEndpoints" => Property::AllowedEndpoints,
             b"allowedIps" => Property::AllowedIps,
@@ -730,6 +731,7 @@ impl EnumImpl for Property {
             b"expungeTrashAfter" => Property::ExpungeTrashAfter,
             b"extension" => Property::Extension,
             b"extensions" => Property::Extensions,
+            b"externalId" => Property::ExternalId,
             b"extraContactInfo" => Property::ExtraContactInfo,
             b"factor" => Property::Factor,
             b"failOnTimeout" => Property::FailOnTimeout,
@@ -1389,6 +1391,7 @@ impl EnumImpl for Property {
             Property::AllowInvalidCerts => "allowInvalidCerts",
             Property::AllowPlainTextAuth => "allowPlainTextAuth",
             Property::AllowRelaying => "allowRelaying",
+            Property::AllowScimProvisioning => "allowScimProvisioning",
             Property::AllowSpamTraining => "allowSpamTraining",
             Property::AllowedEndpoints => "allowedEndpoints",
             Property::AllowedIps => "allowedIps",
@@ -1667,6 +1670,7 @@ impl EnumImpl for Property {
             Property::ExpungeTrashAfter => "expungeTrashAfter",
             Property::Extension => "extension",
             Property::Extensions => "extensions",
+            Property::ExternalId => "externalId",
             Property::ExtraContactInfo => "extraContactInfo",
             Property::Factor => "factor",
             Property::FailOnTimeout => "failOnTimeout",
@@ -2330,6 +2334,7 @@ impl EnumImpl for Property {
             26 => Some(Property::AllowInvalidCerts),
             424 => Some(Property::AllowPlainTextAuth),
             348 => Some(Property::AllowRelaying),
+            932 => Some(Property::AllowScimProvisioning),
             369 => Some(Property::AllowSpamTraining),
             398 => Some(Property::AllowedEndpoints),
             49 => Some(Property::AllowedIps),
@@ -2608,6 +2613,7 @@ impl EnumImpl for Property {
             194 => Some(Property::ExpungeTrashAfter),
             754 => Some(Property::Extension),
             257 => Some(Property::Extensions),
+            933 => Some(Property::ExternalId),
             243 => Some(Property::ExtraContactInfo),
             821 => Some(Property::Factor),
             490 => Some(Property::FailOnTimeout),
@@ -3221,7 +3227,7 @@ impl EnumImpl for Property {
         }
     }
 
-    const COUNT: usize = 932;
+    const COUNT: usize = 934;
 }
 
 impl serde::Serialize for Property {
@@ -3383,6 +3389,11 @@ impl ObjectType {
                     Property::DomainId,
                     IndexSchemaType::Search,
                     IndexSchemaValueType::Id,
+                ),
+                IndexSchema::new(
+                    Property::ExternalId,
+                    IndexSchemaType::Search,
+                    IndexSchemaValueType::Keyword,
                 ),
                 IndexSchema::new(
                     Property::MemberGroupIds,

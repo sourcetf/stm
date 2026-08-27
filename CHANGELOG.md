@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file. This projec
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
 ## Added
+- System for Cross-domain Identity Management (SCIM) v2 (*Enterprise*):
+  - Core Schema ([RFC 7643](https://www.rfc-editor.org/rfc/rfc7643.html))
+  - Protocol ([RFC 7644](https://www.rfc-editor.org/rfc/rfc7644.html))
+  - Cursor-Based Pagination ([RFC 9865](https://www.rfc-editor.org/rfc/rfc9865.html))
+  - Interoperability Profile ([draft-zollner-scim-interop-profile](https://datatracker.ietf.org/doc/draft-zollner-scim-interop-profile/))
+  - IPSIE lifecycle profile ([draft-schreiber-scim-ipsie-profile](https://datatracker.ietf.org/doc/draft-schreiber-scim-ipsie-profile/))
 - Calendar: Invites now include conference links.
 
 ## Changed
