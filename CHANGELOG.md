@@ -13,6 +13,7 @@ If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If
   - Cursor-Based Pagination ([RFC 9865](https://www.rfc-editor.org/rfc/rfc9865.html))
   - Interoperability Profile ([draft-zollner-scim-interop-profile](https://datatracker.ietf.org/doc/draft-zollner-scim-interop-profile/))
   - IPSIE lifecycle profile ([draft-schreiber-scim-ipsie-profile](https://datatracker.ietf.org/doc/draft-schreiber-scim-ipsie-profile/))
+- JMAP: `CalendarEvent/set` support for updating and deleting synthetic ids (#2925).
 - Calendar: Invites now include conference links.
 
 ## Changed
