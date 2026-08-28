@@ -43,9 +43,16 @@ jobs:
           name: artifact-x86_64-unknown-linux-musl
           path: artifacts/stalwart
 
+  # OpenBSD build notes (aligned with upstream FreeBSD CI + OpenBSD ports):
+  # - Use ports llvm for libclang (bindgen/rocksdb). Do NOT build LLVM from source
+  #   in CI — that is slow/fragile and was the main source of flaky failures.
+  # - OpenBSD ports set USE_NOEXECONLY for aws-lc (s2n-bignum embeds data in .text);
+  #   that maps to ld --no-execute-only, passed via RUSTFLAGS for cargo.
+  # - Build under /tmp to avoid filling the small workspace disk in the VM.
   openbsd:
     name: Build / x86_64-unknown-openbsd
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -55,72 +62,76 @@ jobs:
         with:
           release: "7.9"
           usesh: true
+          mem: "14336"
+          cpu: "4"
+          sync: rsync
+          copyback: true
           prepare: |
-            # 安装编译工具
-            pkg_add -v -D unsigned cmake ninja python3 git curl gmake libiconv
-            
-            # ===== 从源码编译 libclang.so =====
-            # OpenBSD 7.9 的 llvm-19 包只提供编译器前端，不提供 libclang 共享库。
-            # rocksdb 的 bindgen 必须加载 libclang.so，别无他法。
-            echo "=== Building libclang.so from LLVM 19.1.7 source ==="
-            mkdir -p /tmp/llvm-build && cd /tmp/llvm-build
-            
-            # 下载与 OpenBSD 7.9 base 系统同版本的 LLVM 源码
-            curl -L -o llvm-src.tar.xz \
-              https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/llvm-project-19.1.7.src.tar.xz
-            tar -xf llvm-src.tar.xz
-            cd llvm-project-19.1.7.src
-            
-            # 最小化配置：只编译 host 架构，关闭所有可选功能
-            cmake -S llvm -B build \
-              -G Ninja \
-              -DLLVM_ENABLE_PROJECTS=clang \
-              -DBUILD_SHARED_LIBS=ON \
-              -DLLVM_TARGETS_TO_BUILD=host \
-              -DLLVM_ENABLE_ASSERTIONS=OFF \
-              -DLLVM_ENABLE_BACKTRACES=OFF \
-              -DLLVM_ENABLE_LIBEDIT=OFF \
-              -DLLVM_ENABLE_LIBXML2=OFF \
-              -DLLVM_ENABLE_TERMINFO=OFF \
-              -DLLVM_ENABLE_ZLIB=OFF \
-              -DLLVM_ENABLE_ZSTD=OFF \
-              -DCLANG_ENABLE_ARCMT=OFF \
-              -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
-              -DCMAKE_BUILD_TYPE=Release
-            
-            # 只编译 libclang 及其依赖（不编译 clang 工具）
-            ninja -C build libclang
-            
-            # 收集所有生成的共享库到统一目录
-            mkdir -p /usr/local/llvm-custom/lib
-            cp build/lib/libclang.so* /usr/local/llvm-custom/lib/ 2>/dev/null || true
-            cp build/lib/libclang-cpp.so* /usr/local/llvm-custom/lib/ 2>/dev/null || true
-            cp build/lib/libLLVM*.so* /usr/local/llvm-custom/lib/ 2>/dev/null || true
-            
-            echo "=== libclang build complete ==="
-            ls -la /usr/local/llvm-custom/lib/
-            
+            set -e
+            # rust: cargo toolchain
+            # gmake: jemalloc-sys / rocksdb make invocations
+            # llvm: libclang for bindgen (librocksdb-sys)
+            # libiconv / bzip2 / protobuf: matching OpenBSD ports deps
+            pkg_add rust gmake llvm libiconv bzip2 protobuf
+            rustc --version
+            echo "=== ports llvm ==="
+            for cfg in /usr/local/llvm*/bin/llvm-config; do
+              if [ -x "$cfg" ]; then
+                echo "llvm-config: $cfg"
+                "$cfg" --version
+                echo "libdir: $($cfg --libdir)"
+                ls -la "$("$cfg" --libdir)"/libclang* || true
+              fi
+            done
           run: |
-            set -ex
-            
-            # 指向刚编译的 libclang.so
-            export LIBCLANG_PATH=/usr/local/llvm-custom/lib
-            export LD_LIBRARY_PATH=/usr/local/llvm-custom/lib:$LD_LIBRARY_PATH
-            
-            # 用 base 系统的 clang 作为 C/C++ 编译器
-            export CC=/usr/bin/clang
-            export CXX=/usr/bin/clang++
-            
-            # rocksdb 在 OpenBSD 上的 workaround
+            set -e
+            export CARGO_TARGET_DIR=/tmp/target
+            export CARGO_TERM_COLOR=always
+            export CARGO_NET_RETRY=10
             export MAKE=gmake
             export ROCKSDB_DISABLE_SNAPPY=1
             export ROCKSDB_DISABLE_ZSTD=1
-            
+            # OpenBSD ports USE_NOEXECONLY → ld --no-execute-only (aws-lc / s2n-bignum)
+            export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-Wl,--no-execute-only"
+            export DEP_BZIP2_INCLUDE=/usr/local/include
+
+            # Prefer the newest ports llvm-* (versioned under /usr/local/llvm*)
+            LLVM_CONFIG=""
+            for cfg in $(ls -1d /usr/local/llvm*/bin/llvm-config 2>/dev/null | sort -V | tail -1); do
+              if [ -x "$cfg" ]; then
+                LLVM_CONFIG="$cfg"
+              fi
+            done
+            if [ -z "$LLVM_CONFIG" ]; then
+              echo "ERROR: ports llvm-config not found (pkg_add llvm may have failed)"
+              ls -la /usr/local/llvm* 2>/dev/null || true
+              exit 1
+            fi
+
+            LIBCLANG_PATH="$($LLVM_CONFIG --libdir)"
+            if ! ls "$LIBCLANG_PATH"/libclang*.so* >/dev/null 2>&1; then
+              echo "ERROR: libclang shared library not found under $LIBCLANG_PATH"
+              ls -la "$LIBCLANG_PATH" || true
+              exit 1
+            fi
+            export LIBCLANG_PATH
+            export LD_LIBRARY_PATH="$LIBCLANG_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+            CLANG_BIN="$(dirname "$LLVM_CONFIG")/clang"
+            CLANGPP_BIN="$(dirname "$LLVM_CONFIG")/clang++"
+            if [ ! -x "$CLANG_BIN" ]; then
+              CLANG_BIN=/usr/bin/clang
+              CLANGPP_BIN=/usr/bin/clang++
+            fi
+            export CC="$CLANG_BIN"
+            export CXX="$CLANGPP_BIN"
+            echo "CC=$CC CXX=$CXX LIBCLANG_PATH=$LIBCLANG_PATH RUSTFLAGS=$RUSTFLAGS"
+
             cargo build --release -p stalwart --no-default-features --features "sqlite postgres mysql rocks s3 redis azure nats enterprise"
-            
+
             mkdir -p artifacts
-            cp ./target/release/stalwart ./artifacts/stalwart
-            file ./artifacts/stalwart
+            cp /tmp/target/release/stalwart artifacts/stalwart
+            file artifacts/stalwart
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
