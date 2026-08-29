@@ -14,7 +14,9 @@ If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If
   - Interoperability Profile ([draft-zollner-scim-interop-profile](https://datatracker.ietf.org/doc/draft-zollner-scim-interop-profile/))
   - IPSIE lifecycle profile ([draft-schreiber-scim-ipsie-profile](https://datatracker.ietf.org/doc/draft-schreiber-scim-ipsie-profile/))
 - JMAP: `CalendarEvent/set` support for updating and deleting synthetic ids (#2925).
-- Calendar: Invites now include conference links.
+- Calendar: 
+  - Conference links in calendar invites and email alarms.
+  - Translations for Arabic (ar-SA), Brazilian Portuguese (pt-BR), Bulgarian (bg-BG), Chinese Simplified (zh-CN), Chinese Traditional (zh-TW), Croatian (hr-HR), Czech (cs-CZ), Finnish (fi-FI), Hebrew (he-IL), Hindi (hi-IN), Hungarian (hu-HU), Indonesian (id-ID), Japanese (ja-JP), Korean (ko-KR), Lithuanian (lt-LT), Norwegian Bokmål (nb-NO), Persian (fa-IR), Romanian (ro-RO), Russian (ru-RU), Slovak (sk-SK), Slovenian (sl-SI), Thai (th-TH), Turkish (tr-TR), Ukrainian (uk-UA) and Vietnamese (vi-VN).
 
 ## Changed
 - Calendar: Updated HTTP RSVP page.

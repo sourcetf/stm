@@ -21,6 +21,7 @@ serde_json = "1.0"
 hashify = { version = "0.2" }
 xxhash-rust = { version = "0.8.18", features = ["xxh3"] }
 percent-encoding = "2.3.2"
+icu_locale = "2.3.1"
 
 [dev-dependencies]
 

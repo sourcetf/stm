@@ -9,6 +9,7 @@ pub mod patch;
 pub mod set;
 
 use crate::{context::ScimContext, error::Result};
+use icu_locale::{Locale as LanguageTag, LocaleExpander, subtags::Language as LanguageSubtag};
 use registry::{
     schema::{
         enums::{Locale, Permission, TimeZone},
@@ -27,7 +28,10 @@ use scim_proto::{
     },
 };
 use serde_json::Value;
+use std::sync::LazyLock;
 use types::id::Id;
+
+static EXPANDER: LazyLock<LocaleExpander> = LazyLock::new(LocaleExpander::new_extended);
 
 pub const EMAIL_TYPE_WORK: &str = "work";
 pub const DEFAULT_LOCALE: Locale = Locale::EnUS;
@@ -89,7 +93,7 @@ impl ScimContext<'_> {
                 Some(groups)
             };
 
-        let locale = locale_to_scim(account.locale.as_str());
+        let locale = account.locale.as_str();
         let user = User {
             id: Some(id.to_string().into()),
             external_id: account.external_id.as_deref().map(Into::into),
@@ -105,7 +109,7 @@ impl ScimContext<'_> {
                 Some(self.is_active(account).await?)
             },
             emails: Some(emails),
-            locale: Some(locale.clone().into()),
+            locale: Some(locale.into()),
             preferred_language: Some(locale.into()),
             timezone: account
                 .time_zone
@@ -179,10 +183,6 @@ impl ScimContext<'_> {
     }
 }
 
-pub fn locale_to_scim(locale: &str) -> String {
-    locale.replace('_', "-")
-}
-
 pub fn set_active(permissions: &mut Permissions, active: bool) {
     const AUTHENTICATE: Permission = Permission::Authenticate;
 
@@ -226,36 +226,109 @@ pub fn set_active(permissions: &mut Permissions, active: bool) {
 }
 
 pub fn set_locale(account: &mut UserAccount, locale: &str) -> Result<()> {
-    let value = locale.replace('-', "_");
-
-    account.locale = Locale::parse(&value)
-        .or_else(|| Locale::parse(&canonical_locale(&value)))
-        .ok_or_else(|| {
-            Error::invalid_value(format!(
-                "The locale '{locale}' is not supported by this server."
-            ))
-        })?;
+    account.locale = resolve_locale(locale).ok_or_else(|| {
+        Error::invalid_value(format!(
+            "The locale '{locale}' is not supported by this server."
+        ))
+    })?;
 
     Ok(())
 }
 
+fn resolve_locale(value: &str) -> Option<Locale> {
+    let mut candidates = Vec::new();
+
+    for entry in value.split(',') {
+        let (tag, quality) = match entry.split_once(';') {
+            Some((tag, parameters)) => (tag.trim(), quality_of(parameters)),
+            None => (entry.trim(), 1000),
+        };
+
+        if !tag.is_empty() && tag != "*" && quality > 0 {
+            candidates.push((tag, quality));
+        }
+    }
+
+    candidates.sort_by(|(_, a), (_, b)| b.cmp(a));
+    candidates.into_iter().find_map(|(tag, _)| resolve_tag(tag))
+}
+
+fn quality_of(parameters: &str) -> u16 {
+    parameters
+        .split(';')
+        .filter_map(|parameter| {
+            let parameter = parameter.trim();
+            parameter
+                .strip_prefix("q=")
+                .or_else(|| parameter.strip_prefix("Q="))
+        })
+        .next()
+        .map_or(1000, |quality| {
+            quality
+                .trim()
+                .parse::<f32>()
+                .ok()
+                .filter(|quality| (0.0..=1.0).contains(quality))
+                .map_or(1000, |quality| (quality * 1000.0).round() as u16)
+        })
+}
+
+fn resolve_tag(tag: &str) -> Option<Locale> {
+    let tag = tag.replace('_', "-");
+
+    if let Some(locale) = Locale::parse(&tag).or_else(|| Locale::parse(&canonical_locale(&tag))) {
+        return Some(locale);
+    }
+
+    let mut language_tag = LanguageTag::try_from_str(&tag).ok()?;
+    if language_tag.id.language == LanguageSubtag::UNKNOWN {
+        return None;
+    }
+
+    EXPANDER.maximize(&mut language_tag.id);
+    let id = &language_tag.id;
+    let language = id.language;
+    let mut attempts = Vec::with_capacity(4);
+
+    if let Some(region) = id.region {
+        if let Some(script) = id.script {
+            attempts.push(format!("{language}-{script}-{region}"));
+        }
+        attempts.push(format!("{language}-{region}"));
+    }
+    if let Some(script) = id.script {
+        attempts.push(format!("{language}-{script}"));
+    }
+    attempts.push(language.to_string());
+
+    attempts.iter().find_map(|attempt| Locale::parse(attempt))
+}
+
 fn canonical_locale(locale: &str) -> String {
-    let Some((language, rest)) = locale.split_once('_') else {
-        return locale.to_lowercase();
-    };
-    let (region, modifier) = match rest.split_once('@') {
-        Some((region, modifier)) => (region, Some(modifier)),
-        None => (rest, None),
-    };
-
     let mut canonical = String::with_capacity(locale.len());
-    canonical.extend(language.chars().flat_map(char::to_lowercase));
-    canonical.push('_');
-    canonical.extend(region.chars().flat_map(char::to_uppercase));
+    let mut in_extension = false;
 
-    if let Some(modifier) = modifier {
-        canonical.push('@');
-        canonical.extend(modifier.chars().flat_map(char::to_lowercase));
+    for (position, subtag) in locale.split('-').enumerate() {
+        if position > 0 {
+            canonical.push('-');
+        }
+        in_extension |= subtag.len() == 1;
+
+        let is_script = subtag.len() == 4 && subtag.chars().all(|c| c.is_ascii_alphabetic());
+        let is_region = subtag.len() == 2 && subtag.chars().all(|c| c.is_ascii_alphabetic())
+            || subtag.len() == 3 && subtag.chars().all(|c| c.is_ascii_digit());
+
+        if position == 0 || in_extension {
+            canonical.extend(subtag.chars().flat_map(char::to_lowercase));
+        } else if is_script {
+            let mut chars = subtag.chars();
+            canonical.extend(chars.by_ref().take(1).flat_map(char::to_uppercase));
+            canonical.extend(chars.flat_map(char::to_lowercase));
+        } else if is_region {
+            canonical.extend(subtag.chars().flat_map(char::to_uppercase));
+        } else {
+            canonical.extend(subtag.chars().flat_map(char::to_lowercase));
+        }
     }
 
     canonical
@@ -404,18 +477,50 @@ mod tests {
         for (scim, expected) in [
             ("en-US", Locale::EnUS),
             ("EN-us", Locale::EnUS),
+            ("en-us", Locale::EnUS),
             ("de-DE", Locale::DeDE),
-            ("en_US", Locale::EnUS),
-            ("POSIX", Locale::POSIX),
-            ("ca-ES@valencia", Locale::CaESValencia),
-            ("CA-es@VALENCIA", Locale::CaESValencia),
+            ("ca-ES-valencia", Locale::CaESValencia),
+            ("CA-es-VALENCIA", Locale::CaESValencia),
+            ("be-Latn-BY", Locale::BeLatnBY),
+            ("be-latn-by", Locale::BeLatnBY),
+            ("es-419", Locale::Es419),
+            ("zh-Hans", Locale::ZhHans),
         ] {
             set_locale(&mut account, scim).unwrap_or_else(|_| panic!("{scim}"));
             assert_eq!(account.locale, expected, "{scim}");
         }
 
-        assert_eq!(locale_to_scim(Locale::EnUS.as_str()), "en-US");
-        assert!(set_locale(&mut account, "not-a-locale").is_err());
+        assert_eq!(Locale::EnUS.as_str(), "en-US");
+
+        // Bare and over-specified RFC 5646 tags resolve through likely subtags
+        for (scim, expected) in [
+            ("fr", Locale::FrFR),
+            ("en", Locale::EnUS),
+            ("de", Locale::DeDE),
+            ("zh-Hans-CN", Locale::ZhCN),
+            ("az-Arab", Locale::AzIR),
+            ("en-US-u-ca-gregory", Locale::EnUS),
+            // RFC 7643 section 8.7.1 documents preferredLanguage as "en_US"
+            ("en_US", Locale::EnUS),
+        ] {
+            set_locale(&mut account, scim).unwrap_or_else(|_| panic!("{scim}"));
+            assert_eq!(account.locale, expected, "{scim}");
+        }
+
+        // preferredLanguage is an RFC 7231 Accept-Language value
+        for (scim, expected) in [
+            ("da, en-gb;q=0.8, en;q=0.7", Locale::DaDK),
+            ("en;q=0.7, fr;q=0.9", Locale::FrFR),
+            ("*, de;q=0.5", Locale::DeDE),
+            ("xx;q=1.0, sv;q=0.4", Locale::SvSE),
+        ] {
+            set_locale(&mut account, scim).unwrap_or_else(|_| panic!("{scim}"));
+            assert_eq!(account.locale, expected, "{scim}");
+        }
+
+        for rejected in ["not-a-locale", "POSIX", "ca-ES@valencia", "x-pig-latin", ""] {
+            assert!(set_locale(&mut account, rejected).is_err(), "{rejected}");
+        }
     }
 
     #[test]
