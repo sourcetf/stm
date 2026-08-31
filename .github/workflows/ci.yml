@@ -54,8 +54,10 @@ jobs:
   # - Build under /tmp; use fixed /usr/local/llvm19 paths (no GNU sort -V).
   # - Cargo.toml [profile.release] is lto=true + codegen-units=1; fat LTO OOMs
   #   rustc/LLVM in an 8G VM (run 33350821470). Use ~14G + swap and LTO=off here.
-  # - Final link of stalwart still OOMs with LTO off (run after 33350821470): disable
-  #   link-time strip, use ld.lld, opt-level=2, jobs=1, and ~24G VM swap.
+  # - Final link of stalwart still OOMs with LTO off: disable link-time strip,
+  #   use ld.lld, opt-level=2, jobs=1, and ~24G VM swap.
+  # - Snapshots packages (rust 1.98) target -current, not 7.9 stable; pkg_add
+  #   silently falls back to rust 1.94.1, which is enough to build stalwart today.
   openbsd:
     name: Build / x86_64-unknown-openbsd
     runs-on: ubuntu-latest
@@ -89,22 +91,9 @@ jobs:
           prepare: |
             set -e
             RELEASE_PKG="https://cdn.openbsd.org/pub/OpenBSD/7.9/packages/amd64"
-            SNAPSHOT_PKG="https://cdn.openbsd.org/pub/OpenBSD/snapshots/packages/amd64"
-            # -Iv: never prompt. llvm%19 selects devel/llvm/19 branch (libclang).
-            pkg_add -Iv -m "$RELEASE_PKG" gmake "llvm%19" libiconv bzip2 protobuf cmake
-            # 7.9 stable has rust 1.94.1; stalwart needs >= 1.95. Do NOT use -I here:
-            # -I skips install when any rust is already present (VM image / deps).
-            pkg_delete -I rust 2>/dev/null || true
-            pkg_add -v -m "$SNAPSHOT_PKG" rust
+            # -Iv: never prompt. llvm%19 = devel/llvm/19 (libclang). rust = 1.94.1 on 7.9.
+            pkg_add -Iv -m "$RELEASE_PKG" rust gmake "llvm%19" libiconv bzip2 protobuf cmake
             rustc --version
-            which rustc
-            RUSTC_VER=$(rustc --version | sed -n 's/.*rustc \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
-            echo "parsed rustc version: $RUSTC_VER"
-            echo "$RUSTC_VER" | awk -F. '{ if ($1 > 1 || ($1 == 1 && $2 >= 95)) exit 0; exit 1 }' || {
-              echo "ERROR: rustc $RUSTC_VER too old after pkg_add; need >= 1.95"
-              pkg_info rust || true
-              exit 1
-            }
             test -x /usr/local/llvm19/bin/ld.lld
             # Large final link needs lots of virtual memory; recreate swap each run.
             swapctl -d /var/swap.img 2>/dev/null || true
