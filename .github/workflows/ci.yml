@@ -44,11 +44,12 @@ jobs:
           path: artifacts/stalwart
 
   # OpenBSD notes:
-  # - OpenBSD 7.9 ships llvm-19/20/21 packages; bare `pkg_add llvm` is ambiguous
-  #   and exits non-zero in non-interactive CI (ssh exited with code 1 in ~2m).
-  #   Pin llvm-19 to match base system LLVM 19.1.7 and get libclang for bindgen.
+  # - OpenBSD 7.9 ships llvm branches 19/20/21. Bare `pkg_add llvm` is ambiguous
+  #   and fails non-interactively (~2m, "ssh exited with code 1").
+  #   Branch pin is `llvm%19` (pkg_add(1) "pkgname%branch"), NOT `llvm-19`
+  #   (that looks like stem llvm-19 and fails immediately).
   # - OpenBSD ports USE_NOEXECONLY maps to ld --no-execute-only (aws-lc/s2n-bignum).
-  # - Build under /tmp; OpenBSD sort has no -V, so use a fixed llvm19 path.
+  # - Build under /tmp; use fixed /usr/local/llvm19 paths (no GNU sort -V).
   openbsd:
     name: Build / x86_64-unknown-openbsd
     runs-on: ubuntu-latest
@@ -62,15 +63,14 @@ jobs:
         with:
           release: "7.9"
           usesh: true
-          mem: 14336
+          mem: 8192
           cpu: 4
           sync: rsync
           copyback: true
           prepare: |
             set -e
-            # -I: never prompt (required; llvm has multiple versions on 7.9)
-            # llvm-19: unambiguous; provides /usr/local/llvm19/lib/libclang.so*
-            pkg_add -I rust gmake llvm-19 libiconv bzip2 protobuf
+            # -I: never prompt. llvm%19 selects devel/llvm/19 branch (libclang).
+            pkg_add -Iv rust gmake "llvm%19" libiconv bzip2 protobuf
             rustc --version
             /usr/local/llvm19/bin/llvm-config --version
             /usr/local/llvm19/bin/llvm-config --libdir
@@ -89,7 +89,7 @@ jobs:
 
             LLVM_CONFIG=/usr/local/llvm19/bin/llvm-config
             if [ ! -x "$LLVM_CONFIG" ]; then
-              echo "ERROR: $LLVM_CONFIG missing after pkg_add llvm-19"
+              echo "ERROR: $LLVM_CONFIG missing after pkg_add llvm%19"
               ls -la /usr/local/llvm* 2>/dev/null || true
               exit 1
             fi
