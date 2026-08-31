@@ -90,17 +90,21 @@ jobs:
             set -e
             RELEASE_PKG="https://cdn.openbsd.org/pub/OpenBSD/7.9/packages/amd64"
             SNAPSHOT_PKG="https://cdn.openbsd.org/pub/OpenBSD/snapshots/packages/amd64"
-            # -I: never prompt. llvm%19 selects devel/llvm/19 branch (libclang).
+            # -Iv: never prompt. llvm%19 selects devel/llvm/19 branch (libclang).
             pkg_add -Iv -m "$RELEASE_PKG" gmake "llvm%19" libiconv bzip2 protobuf cmake
-            # 7.9 stable packages ship rust 1.94.1; stalwart needs >= 1.95 (cfg_select!).
-            pkg_add -Iv -m "$SNAPSHOT_PKG" rust
+            # 7.9 stable has rust 1.94.1; stalwart needs >= 1.95. Do NOT use -I here:
+            # -I skips install when any rust is already present (VM image / deps).
+            pkg_delete -I rust 2>/dev/null || true
+            pkg_add -v -m "$SNAPSHOT_PKG" rust
             rustc --version
-            case "$(rustc --version)" in
-              *" 1.9"[0-4].*|*" 1.8".*|*" 1.7".*|*" 1.6".*|*" 1.5".*|*" 1.4".*|*" 1.3".*|*" 1.2".*|*" 1.1".*|*" 1.0".*)
-                echo "ERROR: rustc too old after pkg_add; need >= 1.95"
-                exit 1
-                ;;
-            esac
+            which rustc
+            RUSTC_VER=$(rustc --version | sed -n 's/.*rustc \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
+            echo "parsed rustc version: $RUSTC_VER"
+            echo "$RUSTC_VER" | awk -F. '{ if ($1 > 1 || ($1 == 1 && $2 >= 95)) exit 0; exit 1 }' || {
+              echo "ERROR: rustc $RUSTC_VER too old after pkg_add; need >= 1.95"
+              pkg_info rust || true
+              exit 1
+            }
             test -x /usr/local/llvm19/bin/ld.lld
             # Large final link needs lots of virtual memory; recreate swap each run.
             swapctl -d /var/swap.img 2>/dev/null || true
