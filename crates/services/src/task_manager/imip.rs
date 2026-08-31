@@ -176,6 +176,7 @@ async fn send_imip(
                     "Reply-To",
                     HeaderType::Text(itip_message.from.as_str().into()),
                 )
+                .message_id(server.core.network.message_id())
                 .subject(&tpl.subject)
                 .body(MimePart::new(
                     ContentType::new("multipart/mixed"),

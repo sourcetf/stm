@@ -212,6 +212,7 @@ async fn send_email_alarm(
         .header("To", HeaderType::Text(tpl.to.as_str().into()))
         .header("Auto-Submitted", HeaderType::Text("auto-generated".into()))
         .header("Reply-To", HeaderType::Text(account_main_email.into()))
+        .message_id(server.core.network.message_id())
         .subject(tpl.subject)
         .body(MimePart::new(
             ContentType::new("multipart/related"),

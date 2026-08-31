@@ -6,7 +6,7 @@
 
 use crate::{
     HttpSessionManager,
-    api::{ManagementApi, ToManageHttpResponse},
+    api::{AuthChallenge, ManagementApi, ToManageHttpResponse},
     auth::{
         authenticate::{Authenticator, HttpHeaders},
         oauth::{
@@ -474,7 +474,14 @@ impl ParseHttp for Server {
                     return Ok(HttpResponse::new(StatusCode::NO_CONTENT));
                 }
 
-                return self.handle_api_request(&mut req, &session).await;
+                return Ok(match self.handle_api_request(&mut req, &session).await {
+                    Ok(response) => response,
+                    Err(err) => {
+                        let response = err.into_http_response(AuthChallenge::Bearer);
+                        trc::error!(err.span_id(session.session_id));
+                        response
+                    }
+                });
             }
             "mail" => {
                 if req.method() == Method::GET
@@ -833,7 +840,7 @@ async fn handle_session<T: SessionStream>(inner: Arc<Inner>, session: SessionDat
                     {
                         Ok(response) => response,
                         Err(err) => {
-                            let response = err.into_http_response();
+                            let response = err.into_http_response(AuthChallenge::BearerAndBasic);
                             trc::error!(err.span_id(session.session_id));
                             response
                         }

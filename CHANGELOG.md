@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.16.20] - 2026-09-XX
+## [0.16.20] - 2026-09-30
 
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
@@ -16,15 +16,27 @@ If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If
 - JMAP: `CalendarEvent/set` support for updating and deleting synthetic ids (#2925).
 - Calendar: 
   - Conference links in calendar invites and email alarms.
-  - Translations for Arabic (ar-SA), Brazilian Portuguese (pt-BR), Bulgarian (bg-BG), Chinese Simplified (zh-CN), Chinese Traditional (zh-TW), Croatian (hr-HR), Czech (cs-CZ), Finnish (fi-FI), Hebrew (he-IL), Hindi (hi-IN), Hungarian (hu-HU), Indonesian (id-ID), Japanese (ja-JP), Korean (ko-KR), Lithuanian (lt-LT), Norwegian Bokmål (nb-NO), Persian (fa-IR), Romanian (ro-RO), Russian (ru-RU), Slovak (sk-SK), Slovenian (sl-SI), Thai (th-TH), Turkish (tr-TR), Ukrainian (uk-UA) and Vietnamese (vi-VN).
+  - Translations for Arabic, Brazilian Portuguese, Bulgarian, Chinese Simplified, Chinese Traditional, Croatian, Czech, Finnish, Hebrew, Hindi, Hungarian, Indonesian, Japanese, Korean, Lithuanian, Norwegian Bokmål, Persian, Romanian, Russian, Slovak, Slovenian, Thai, Turkish, Ukrainian and Vietnamese.
 
 ## Changed
 - Calendar: Updated HTTP RSVP page.
 
 ## Fixed
+- DANE:
+  - `TLSA` records are looked up whenever the MX RRset is signed, even when the MX host's own zone is not.
+  - Mandatory DANE failures are permanent rather than temporary, bouncing messages that should be delayed.
+  - Valid but unusable `TLSA` records fall back to the configured TLS strategy, permitting cleartext delivery where TLS is required.
 - S3: Fix outdated upstream `af-south-1` region configuration.
 - Setup wizard: SQL directories set to use the main data store are now validated against the data store being configured.
 - CardDAV: Delete default address book id when deleting the default address book.
+- Redis: Sentinel deployments configured with `rediss://` URLs now connect to the master over TLS instead of silently falling back to cleartext.
+- Email: Generated `Message-ID` headers use the hostname of the node that built the message instead of the configured server hostname.
+- MTA: 
+  - Do not send DMARC reports to local domains.
+  - Messages addressed to an `inboundReportAddresses` match are only discarded when they actually contain a report (#1088).
+- Directory: Impersonation using the recovery admin fails when the impersonated account has not logged in before (LDAP and SQL directories).
+- WebUI: Failed logins open the browser's native credential prompt.
+- Cluster: Expired node id leases are released periodically rather than only during startup, so entries for removed nodes no longer remain `Stale` or `Inactive` indefinitely.
 
 ## [0.16.19] - 2026-08-24
 
