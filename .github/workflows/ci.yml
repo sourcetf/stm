@@ -55,9 +55,10 @@ jobs:
   # - Cargo.toml [profile.release] is lto=true + codegen-units=1; fat LTO OOMs
   #   rustc/LLVM in an 8G VM (run 33350821470). Use ~14G + swap and LTO=off here.
   # - Final link of stalwart still OOMs with LTO off: disable link-time strip,
-  #   use ld.lld, opt-level=2, jobs=1, and ~24G VM swap.
-  # - Snapshots packages (rust 1.98) target -current, not 7.9 stable; pkg_add
-  #   silently falls back to rust 1.94.1, which is enough to build stalwart today.
+  #   use ld.lld, opt-level=1, jobs=1, and adaptive VM swap (disk is small;
+  #   a fixed 24G dd ENOSPCs after ~15G).
+  # - Snapshots packages (rust 1.98) target -current, not 7.9 stable; use 7.9
+  #   rust 1.94.1, which is enough to build stalwart today.
   openbsd:
     name: Build / x86_64-unknown-openbsd
     runs-on: ubuntu-latest
@@ -95,36 +96,50 @@ jobs:
             pkg_add -Iv -m "$RELEASE_PKG" rust gmake "llvm%19" libiconv bzip2 protobuf cmake
             rustc --version
             test -x /usr/local/llvm19/bin/ld.lld
-            # Large final link needs lots of virtual memory; recreate swap each run.
+            # Adaptive swap: VM disk is ~small; fixed 24G ENOSPCs after ~15G.
+            # Leave headroom for cargo target dir on the same filesystem.
+            df -h / /var /tmp /home || true
             swapctl -d /var/swap.img 2>/dev/null || true
             rm -f /var/swap.img
-            dd if=/dev/zero of=/var/swap.img bs=1m count=24576
+            FREE_MB=$(df -k /var | awk 'NR==2 {print int($4/1024)}')
+            RESERVE_MB=8192
+            SWAP_MB=$((FREE_MB - RESERVE_MB))
+            if [ "$SWAP_MB" -gt 12288 ]; then SWAP_MB=12288; fi
+            if [ "$SWAP_MB" -lt 2048 ]; then
+              echo "ERROR: only ${FREE_MB}MB free on /var; need >=10GB free for swap+build"
+              df -h /
+              exit 1
+            fi
+            echo "Creating ${SWAP_MB}MB swap (free=${FREE_MB}MB, reserve=${RESERVE_MB}MB)"
+            dd if=/dev/zero of=/var/swap.img bs=1m count="$SWAP_MB"
             chmod 600 /var/swap.img
             swapctl -a /var/swap.img
             swapctl -l || true
             ulimit -a || true
-            df -h /tmp /var / || true
+            df -h / /var /tmp || true
             /usr/local/llvm19/bin/llvm-config --version
             /usr/local/llvm19/bin/llvm-config --libdir
             ls -la /usr/local/llvm19/lib/libclang.so*
           run: |
             set -e
             ulimit -d unlimited 2>/dev/null || ulimit -d hard
-            export CARGO_TARGET_DIR=/tmp/target
+            # Prefer /home over /tmp (OpenBSD /tmp may be mfs / share the root FS).
+            mkdir -p /home/build
+            export CARGO_TARGET_DIR=/home/build/target
             export CARGO_TERM_COLOR=always
             export CARGO_INCREMENTAL=0
             export MAKE=gmake
             export ROCKSDB_DISABLE_SNAPPY=1
             export ROCKSDB_DISABLE_ZSTD=1
             # OpenBSD ports USE_NOEXECONLY -> ld --no-execute-only (aws-lc / s2n-bignum)
-            export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-Wl,--no-execute-only -C link-arg=-fuse-ld=lld"
+            export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-Wl,--no-execute-only -C link-arg=-fuse-ld=lld -C debuginfo=0"
             export DEP_BZIP2_INCLUDE=/usr/local/include
             # Cargo.toml release: lto=true, codegen-units=1, strip=true, opt-level=3.
-            # LTO off + link-time strip off + opt-level=2 keeps final link within VM RAM+swap.
+            # Lower opt-level + no link-time strip to keep final link within RAM+swap.
             export CARGO_PROFILE_RELEASE_LTO=off
             export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
             export CARGO_PROFILE_RELEASE_STRIP=false
-            export CARGO_PROFILE_RELEASE_OPT_LEVEL=2
+            export CARGO_PROFILE_RELEASE_OPT_LEVEL=1
             export CARGO_BUILD_JOBS=1
 
             LLVM_CONFIG=/usr/local/llvm19/bin/llvm-config
@@ -157,10 +172,10 @@ jobs:
 
             cargo build --release -p stalwart --no-default-features --features "sqlite postgres mysql rocks s3 redis azure nats enterprise"
 
-            test -x /tmp/target/release/stalwart
-            strip /tmp/target/release/stalwart
+            test -x /home/build/target/release/stalwart
+            strip /home/build/target/release/stalwart
             mkdir -p artifacts
-            cp /tmp/target/release/stalwart artifacts/stalwart
+            cp /home/build/target/release/stalwart artifacts/stalwart
             file artifacts/stalwart
             ls -lh artifacts/stalwart
 
