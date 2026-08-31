@@ -8,11 +8,13 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_NET_RETRY: 10
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
   AWS_LC_SYS_PREBUILT_NASM: 1
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   linux:
@@ -52,6 +54,8 @@ jobs:
   # - Build under /tmp; use fixed /usr/local/llvm19 paths (no GNU sort -V).
   # - Cargo.toml [profile.release] is lto=true + codegen-units=1; fat LTO OOMs
   #   rustc/LLVM in an 8G VM (run 33350821470). Use ~14G + swap and LTO=off here.
+  # - 7.9 stable packages ship rust 1.94.1; libsqlite3-sys 0.38 needs Rust >= 1.95
+  #   (cfg_select!). Install rust from snapshots (currently 1.98.x), llvm from 7.9.
   openbsd:
     name: Build / x86_64-unknown-openbsd
     runs-on: ubuntu-latest
@@ -59,6 +63,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+
+      # QEMU VM mem: 14336 leaves little headroom on 16G runners; host swap avoids thrashing.
+      - name: Add host swap
+        run: |
+          set -eux
+          if ! swapon --show | grep -q /mnt/swapfile; then
+            sudo fallocate -l 8G /mnt/swapfile 2>/dev/null || sudo dd if=/dev/zero of=/mnt/swapfile bs=1M count=8192 status=progress
+            sudo chmod 600 /mnt/swapfile
+            sudo mkswap /mnt/swapfile
+            sudo swapon /mnt/swapfile
+          fi
+          free -h
+          swapon --show
 
       - name: Build on OpenBSD VM
         uses: vmactions/openbsd-vm@v1
@@ -71,16 +88,27 @@ jobs:
           copyback: true
           prepare: |
             set -e
+            RELEASE_PKG="https://cdn.openbsd.org/pub/OpenBSD/7.9/packages/amd64"
+            SNAPSHOT_PKG="https://cdn.openbsd.org/pub/OpenBSD/snapshots/packages/amd64"
             # -I: never prompt. llvm%19 selects devel/llvm/19 branch (libclang).
-            pkg_add -Iv rust gmake "llvm%19" libiconv bzip2 protobuf
-            # Extra swap for fat-binary link peaks (keep off /tmp — CARGO_TARGET_DIR).
+            pkg_add -Iv -m "$RELEASE_PKG" gmake "llvm%19" libiconv bzip2 protobuf cmake
+            # Stable 7.9 rust is 1.94.1; stalwart needs >= 1.95 (libsqlite3-sys cfg_select!).
+            pkg_add -Iv -m "$SNAPSHOT_PKG" rust
+            rustc --version
+            case "$(rustc --version)" in
+              *" 1.9"[0-4].*|*" 1.8".*|*" 1.7".*|*" 1.6".*|*" 1.5".*|*" 1.4".*|*" 1.3".*|*" 1.2".*|*" 1.1".*|*" 1.0".*)
+                echo "ERROR: rustc too old after pkg_add; need >= 1.95"
+                exit 1
+                ;;
+            esac
+            # Extra swap for link peaks (keep off /tmp - that is CARGO_TARGET_DIR).
             if [ ! -f /var/swap.img ]; then
               dd if=/dev/zero of=/var/swap.img bs=1m count=8192
               chmod 600 /var/swap.img
               swapctl -a /var/swap.img
             fi
             swapctl -l || true
-            rustc --version
+            df -h /tmp /var / || true
             /usr/local/llvm19/bin/llvm-config --version
             /usr/local/llvm19/bin/llvm-config --libdir
             ls -la /usr/local/llvm19/lib/libclang.so*
@@ -88,7 +116,6 @@ jobs:
             set -e
             export CARGO_TARGET_DIR=/tmp/target
             export CARGO_TERM_COLOR=always
-            export CARGO_NET_RETRY=10
             export CARGO_INCREMENTAL=0
             export MAKE=gmake
             export ROCKSDB_DISABLE_SNAPPY=1
@@ -98,7 +125,7 @@ jobs:
             export DEP_BZIP2_INCLUDE=/usr/local/include
             # CRITICAL: Cargo.toml [profile.release] is lto=true + codegen-units=1.
             # That OOMs rustc/LLVM linking stalwart (run 33350821470: mem 8G, -C lto).
-            # Env overrides apply to this job only — do not change Cargo.toml.
+            # Env overrides apply to this job only - do not change Cargo.toml.
             export CARGO_PROFILE_RELEASE_LTO=off
             export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
             export CARGO_BUILD_JOBS=2
@@ -122,11 +149,13 @@ jobs:
             export CC=/usr/local/llvm19/bin/clang
             export CXX=/usr/local/llvm19/bin/clang++
             echo "CC=$CC CXX=$CXX LIBCLANG_PATH=$LIBCLANG_PATH RUSTFLAGS=$RUSTFLAGS"
-            echo "LTO=$CARGO_PROFILE_RELEASE_LTO CGU=$CARGO_PROFILE_RELEASE_CODEGEN_UNITS JOBS=$CARGO_BUILD_JOBS"
+            echo "rustc=$(rustc --version) LTO=$CARGO_PROFILE_RELEASE_LTO CGU=$CARGO_PROFILE_RELEASE_CODEGEN_UNITS JOBS=$CARGO_BUILD_JOBS"
             sysctl hw.physmem vm.loadavg || true
+            df -h /tmp /var || true
 
             cargo build --release -p stalwart --no-default-features --features "sqlite postgres mysql rocks s3 redis azure nats enterprise"
 
+            test -x /tmp/target/release/stalwart
             mkdir -p artifacts
             cp /tmp/target/release/stalwart artifacts/stalwart
             file artifacts/stalwart
