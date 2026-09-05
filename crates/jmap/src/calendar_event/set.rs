@@ -28,6 +28,7 @@ use groupware::{
         CalendarEventData, EVENT_DRAFT, EVENT_HIDE_ATTENDEES, EVENT_INVITE_OTHERS,
         EVENT_INVITE_SELF,
         expand::{CalendarEventExpansion, resolve_local},
+        itip::ItipSendStatus,
     },
     scheduling::{
         ItipMessages,
@@ -45,7 +46,6 @@ use jmap_proto::{
     types::state::State,
 };
 use jmap_tools::{JsonPointerHandler, JsonPointerItem, Key, Map, Value};
-use registry::schema::enums::Permission;
 use std::{borrow::Cow, str::FromStr};
 use store::{
     ValueKey,
@@ -428,12 +428,17 @@ impl CalendarEventSet for Server {
 
             // Scheduling
             let mut itip_messages = None;
-            if send_scheduling_messages
-                && self.core.groupware.itip_enabled
-                && !account_info.addresses().is_empty()
-                && access_token.has_permission(Permission::CalendarSchedulingSend)
-                && new_calendar_event.data.event_range_end() > now
-            {
+            let itip_status = if send_scheduling_messages {
+                ItipSendStatus::resolve(
+                    self,
+                    access_token,
+                    &account_info,
+                    new_calendar_event.data.event_range_end(),
+                )
+            } else {
+                ItipSendStatus::NotRequested
+            };
+            if itip_status.is_send() {
                 if let Some(calendar_address) = itip_unreachable_recipient(
                     &new_calendar_event.data.event,
                     account_info.addresses(),
@@ -504,12 +509,34 @@ impl CalendarEventSet for Server {
                             continue 'update;
                         }
 
+                        trc::event!(
+                            Calendar(trc::CalendarEvent::ItipMessageError),
+                            AccountId = account_id,
+                            DocumentId = document_id,
+                            Reason = err.to_string(),
+                        );
+
                         // Event changed, but there are no iTIP messages to send
                         if let Some(schedule_tag) = &mut new_calendar_event.schedule_tag {
                             *schedule_tag += 1;
                         }
                     }
                 }
+            } else if let Some(reason) = itip_status.reason() {
+                if itip_status.is_denied() {
+                    update.fail(
+                        &mut response,
+                        SetError::forbidden().with_description(reason),
+                    );
+                    continue 'update;
+                }
+
+                trc::event!(
+                    Calendar(trc::CalendarEvent::ItipMessageError),
+                    AccountId = account_id,
+                    DocumentId = document_id,
+                    Reason = reason,
+                );
             }
 
             // Validate quota
@@ -609,13 +636,40 @@ impl CalendarEventSet for Server {
                 }
             }
 
+            // Scheduling
+            let itip_status = if send_scheduling_messages {
+                ItipSendStatus::resolve(
+                    self,
+                    access_token,
+                    &account_info,
+                    calendar_event.inner.data.event_range_end(),
+                )
+            } else {
+                ItipSendStatus::NotRequested
+            };
+            if let Some(reason) = itip_status.reason() {
+                if itip_status.is_denied() {
+                    response
+                        .not_destroyed
+                        .append(id, SetError::forbidden().with_description(reason));
+                    continue 'destroy;
+                }
+
+                trc::event!(
+                    Calendar(trc::CalendarEvent::ItipMessageError),
+                    AccountId = account_id,
+                    DocumentId = document_id,
+                    Reason = reason,
+                );
+            }
+
             // Delete event
             DestroyArchive(calendar_event)
                 .delete_all(
                     &account_info,
                     account_id,
                     document_id,
-                    send_scheduling_messages,
+                    itip_status.is_send(),
                     &mut batch,
                 )
                 .caused_by(trc::location!())?;
@@ -773,12 +827,17 @@ impl CalendarEventSet for Server {
 
         // Scheduling
         let mut itip_messages = None;
-        if send_scheduling_messages
-            && self.core.groupware.itip_enabled
-            && !account_info.addresses().is_empty()
-            && access_token.has_permission(Permission::CalendarSchedulingSend)
-            && event.data.event_range_end() > now() as i64
-        {
+        let itip_status = if send_scheduling_messages {
+            ItipSendStatus::resolve(
+                self,
+                access_token,
+                account_info,
+                event.data.event_range_end(),
+            )
+        } else {
+            ItipSendStatus::NotRequested
+        };
+        if itip_status.is_send() {
             if let Some(calendar_address) =
                 itip_unreachable_recipient(&event.data.event, account_info.addresses())
             {
@@ -809,8 +868,24 @@ impl CalendarEventSet for Server {
                             .with_property(JSCalendarProperty::Participants)
                             .with_description(err.to_string())));
                     }
+
+                    trc::event!(
+                        Calendar(trc::CalendarEvent::ItipMessageError),
+                        AccountId = account_id,
+                        Reason = err.to_string(),
+                    );
                 }
             }
+        } else if let Some(reason) = itip_status.reason() {
+            if itip_status.is_denied() {
+                return Ok(Err(SetError::forbidden().with_description(reason)));
+            }
+
+            trc::event!(
+                Calendar(trc::CalendarEvent::ItipMessageError),
+                AccountId = account_id,
+                Reason = reason,
+            );
         }
 
         // Validate quota

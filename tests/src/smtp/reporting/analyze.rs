@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::{
-    smtp::session::TestSession,
-    utils::server::TestServerBuilder,
-};
+use crate::{smtp::session::TestSession, utils::server::TestServerBuilder};
 use ahash::AHashMap;
 use flate2::{Compression, Crc, write::GzEncoder};
 use mail_builder::{
@@ -232,6 +229,30 @@ async fn report_analyze() {
         admin.registry_get_all::<DmarcExternalReport>().await.len(),
         1
     );
+
+    // Redeliveries of a previously stored report must not be imported again
+    session
+        .send_message(
+            "john@test.org",
+            &["reports@foobar.org"],
+            &report_message(
+                "application/zip",
+                &format!("{attachment_name}.zip"),
+                &zip("report.xml", DMARC_REPORT.as_bytes(), None, None),
+            ),
+            "250",
+        )
+        .await;
+    test.assert_no_events();
+
+    let admin = test.account("admin");
+    for _ in 0..10 {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert_eq!(
+            admin.registry_get_all::<DmarcExternalReport>().await.len(),
+            1
+        );
+    }
 
     // Test delivery to non-report addresses
     session

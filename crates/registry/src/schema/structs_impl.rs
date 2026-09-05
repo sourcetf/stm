@@ -36454,7 +36454,7 @@ impl RegistryJsonPropertyPatch for SieveSystemScript {
 
 impl ObjectImpl for SieveUserInterpreter {
     const FLAGS: u64 = OBJ_SINGLETON;
-    const VERSION: u8 = 0;
+    const VERSION: u8 = 1;
     const OBJECT: ObjectType = ObjectType::SieveUserInterpreter;
 
     fn validate(&self, errors: &mut Vec<ValidationError>) -> bool {
@@ -36544,10 +36544,34 @@ impl ObjectImpl for SieveUserInterpreter {
                 errors.push(ValidationError::min_value(Property::MaxScripts, 1));
             }
         }
+        let value = &self.dkim_sign_domain;
+        value.validate(errors);
         errors.len() == neb
     }
 
     fn index<'x>(&'x self, _: &mut IndexBuilder<'x>) {}
+}
+
+impl SieveUserInterpreter {
+    pub fn ctx_dkim_sign_domain(&self) -> ExpressionContext<'_> {
+        ExpressionContext {
+            expr: &self.dkim_sign_domain,
+            default: Some(Expression {
+                else_: "false".to_string(),
+                match_: List::from_iter([ExpressionMatch {
+                    if_: "is_local_domain(sender_domain)".to_string(),
+                    then: "sender_domain".to_string(),
+                }]),
+            }),
+            property: Property::DkimSignDomain,
+            allowed_variables: MTA_QUEUE_SENDER_VARIABLE,
+            allowed_constants: &[],
+        }
+    }
+
+    pub fn expression_ctxs(&self) -> Vec<ExpressionContext<'_>> {
+        vec![self.ctx_dkim_sign_domain()]
+    }
 }
 
 impl Pickle for SieveUserInterpreter {
@@ -36577,6 +36601,7 @@ impl Pickle for SieveUserInterpreter {
         self.max_var_name_length.pickle(out);
         self.max_var_size.pickle(out);
         self.max_scripts.pickle(out);
+        self.dkim_sign_domain.pickle(out);
     }
 
     fn unpickle(stream: &mut crate::pickle::PickledStream<'_>) -> Option<Self> {
@@ -36606,6 +36631,9 @@ impl Pickle for SieveUserInterpreter {
         this.max_var_name_length = Pickle::unpickle(stream)?;
         this.max_var_size = Pickle::unpickle(stream)?;
         this.max_scripts = Pickle::unpickle(stream)?;
+        if stream.version() >= 1 {
+            this.dkim_sign_domain = Pickle::unpickle(stream)?;
+        }
         Some(this)
     }
 }
@@ -36643,13 +36671,20 @@ impl Default for SieveUserInterpreter {
             max_var_name_length: 32u64,
             max_var_size: 4096u64,
             max_scripts: Some(100u64),
+            dkim_sign_domain: Expression {
+                else_: "false".to_string(),
+                match_: List::from_iter([ExpressionMatch {
+                    if_: "is_local_domain(sender_domain)".to_string(),
+                    then: "sender_domain".to_string(),
+                }]),
+            },
         }
     }
 }
 
 impl IntoValue for SieveUserInterpreter {
     fn into_value(self) -> JmapValue<'static> {
-        let mut map = jmap_tools::Map::with_capacity(27);
+        let mut map = jmap_tools::Map::with_capacity(28);
         map.insert_unchecked(
             Property::DefaultExpiryDuplicate,
             self.default_expiry_duplicate.into_value(),
@@ -36714,6 +36749,7 @@ impl IntoValue for SieveUserInterpreter {
         );
         map.insert_unchecked(Property::MaxVarSize, self.max_var_size.into_value());
         map.insert_unchecked(Property::MaxScripts, self.max_scripts.into_value());
+        map.insert_unchecked(Property::DkimSignDomain, self.dkim_sign_domain.into_value());
         JmapValue::Object(map)
     }
 }
@@ -36764,6 +36800,7 @@ impl RegistryJsonPropertyPatch for SieveUserInterpreter {
             Some(Property::MaxVarNameLength) => self.max_var_name_length.patch(pointer, value),
             Some(Property::MaxVarSize) => self.max_var_size.patch(pointer, value),
             Some(Property::MaxScripts) => self.max_scripts.patch(pointer, value),
+            Some(Property::DkimSignDomain) => self.dkim_sign_domain.patch(pointer, value),
             Some(Property::Type) => Ok(MaybeUnpatched::Unpatched {
                 property: Property::Type,
                 value,

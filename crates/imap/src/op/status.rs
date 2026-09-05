@@ -60,40 +60,52 @@ impl<T: SessionStream> Session<T> {
                 match request {
                     Ok(arguments) => {
                         let op_start = Instant::now();
-                        if !did_sync {
+                        let synchronized = if did_sync {
+                            Ok(())
+                        } else {
                             // Refresh mailboxes
                             data.synchronize_mailboxes(false)
                                 .await
-                                .imap_ctx(&arguments.tag, trc::location!())?;
-                            did_sync = true;
-                        }
+                                .imap_ctx(&arguments.tag, trc::location!())
+                                .map(|_| ())
+                        };
 
                         // Fetch status
-                        let status = data
-                            .status(arguments.mailbox_name, &arguments.items)
-                            .await
-                            .imap_ctx(&arguments.tag, trc::location!())?;
+                        let status = match synchronized {
+                            Ok(()) => {
+                                did_sync = true;
+                                data.status(arguments.mailbox_name, &arguments.items)
+                                    .await
+                                    .imap_ctx(&arguments.tag, trc::location!())
+                            }
+                            Err(err) => Err(err),
+                        };
 
-                        trc::event!(
-                            Imap(trc::ImapEvent::Status),
-                            SpanId = data.session_id,
-                            MailboxName = status.mailbox_name.clone(),
-                            Details = arguments
-                                .items
-                                .iter()
-                                .map(|c| trc::Value::from(format!("{c:?}")))
-                                .collect::<Vec<_>>(),
-                            Elapsed = op_start.elapsed()
-                        );
+                        match status {
+                            Ok(status) => {
+                                trc::event!(
+                                    Imap(trc::ImapEvent::Status),
+                                    SpanId = data.session_id,
+                                    MailboxName = status.mailbox_name.clone(),
+                                    Details = arguments
+                                        .items
+                                        .iter()
+                                        .map(|c| trc::Value::from(format!("{c:?}")))
+                                        .collect::<Vec<_>>(),
+                                    Elapsed = op_start.elapsed()
+                                );
 
-                        let mut buf = Vec::with_capacity(32);
-                        status.serialize(&mut buf, is_utf8);
-                        data.write_bytes(
-                            StatusResponse::completed(Command::Status)
-                                .with_tag(arguments.tag)
-                                .serialize(buf),
-                        )
-                        .await?;
+                                let mut buf = Vec::with_capacity(32);
+                                status.serialize(&mut buf, is_utf8);
+                                data.write_bytes(
+                                    StatusResponse::completed(Command::Status)
+                                        .with_tag(arguments.tag)
+                                        .serialize(buf),
+                                )
+                                .await?;
+                            }
+                            Err(err) => data.write_error(err).await?,
+                        }
                     }
                     Err(err) => data.write_error(err).await?,
                 }

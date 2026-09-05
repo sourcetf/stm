@@ -2172,9 +2172,9 @@ dependencies = [
 
 [[package]]
 name = "dns-update"
-version = "0.5.6"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1bc47b32e69ef1ef40a7020f2737f7abb582579a400d482de76765f5a6a5277"
+checksum = "27f674bed2a1e07024dea9c52ce8c354aaf03de25438963d1e7fae9e237ba2cc"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
@@ -2182,7 +2182,7 @@ dependencies = [
  "hex",
  "hickory-net",
  "hickory-proto",
- "quick-xml 0.41.0",
+ "quick-xml 0.42.0",
  "reqwest 0.13.4",
  "rustls",
  "serde",
@@ -6235,6 +6235,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.42.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41b1177fdf999d2321d3fb46ff47159d9c1fb9ad66a4879f8c50a0b504615e9b"
+dependencies = [
+ "memchr",
  "serde",
 ]
 
@@ -8617,9 +8626,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.12.0"
+version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb4ebadaa0af04fab11ae01eb5f9fdb5f9c5b875506e210e71c07873528baa7f"
+checksum = "4cf0ded5c4e56918d8f8a339e1bb67d038d3bc6d144ac407904015ba2e4cde9b"
 dependencies = [
  "tinyvec_macros",
 ]

@@ -455,10 +455,16 @@ mod tests {
             .to_string();
         assert!(is_password_hash(&argon), "argon2 not detected: {argon}");
 
-        let pbkdf = Pbkdf2::default().hash_password(b"hello").unwrap().to_string();
+        let pbkdf = Pbkdf2::default()
+            .hash_password(b"hello")
+            .unwrap()
+            .to_string();
         assert!(is_password_hash(&pbkdf), "pbkdf2 not detected: {pbkdf}");
 
-        let scr = Scrypt::default().hash_password(b"hello").unwrap().to_string();
+        let scr = Scrypt::default()
+            .hash_password(b"hello")
+            .unwrap()
+            .to_string();
         assert!(is_password_hash(&scr), "scrypt not detected: {scr}");
     }
 
@@ -556,7 +562,10 @@ mod tests {
         assert!(is_password_hash(&format!("{{ARGON2}}{a}")));
         assert!(is_password_hash(&format!("{{ARGON2I}}{a}")));
 
-        let p = Pbkdf2::default().hash_password(b"hello").unwrap().to_string();
+        let p = Pbkdf2::default()
+            .hash_password(b"hello")
+            .unwrap()
+            .to_string();
         assert!(is_password_hash(&format!("{{PBKDF2}}{p}")));
 
         let mut h = Sha1::new();

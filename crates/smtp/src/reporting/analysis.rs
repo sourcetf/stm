@@ -341,7 +341,9 @@ impl AnalyzeReport for Server {
                         }
                     }
 
-                    if let Err(err) = core.core.storage.data.write(batch.build_all()).await {
+                    if let Err(err) = core.core.storage.data.write(batch.build_all()).await
+                        && !err.is_assertion_failure()
+                    {
                         trc::error!(
                             err.span_id(session_id)
                                 .caused_by(trc::location!())

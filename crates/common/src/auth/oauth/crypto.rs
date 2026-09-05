@@ -20,9 +20,7 @@ impl SymmetricEncrypt {
 
     pub fn new(key: &[u8], context: &str) -> Self {
         SymmetricEncrypt {
-            aes: Aes256GcmSiv::new(&Key::<Aes256GcmSiv>::from(blake3::derive_key(
-                context, key,
-            ))),
+            aes: Aes256GcmSiv::new(&Key::<Aes256GcmSiv>::from(blake3::derive_key(context, key))),
         }
     }
 
