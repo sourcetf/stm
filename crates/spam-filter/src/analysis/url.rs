@@ -22,6 +22,8 @@ use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::{borrow::Cow, future::Future, time::Duration};
 
+const HTTPS_SCHEME: &str = "https://";
+
 pub trait SpamFilterAnalyzeUrl: Sync + Send {
     fn spam_filter_analyze_url(
         &self,
@@ -34,6 +36,7 @@ pub struct UrlParts<'x> {
     pub url: String,
     pub url_original: Cow<'x, str>,
     pub url_parsed: Option<UrlParsed>,
+    pub has_scheme: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -45,14 +48,18 @@ pub struct UrlParsed {
 impl SpamFilterAnalyzeUrl for Server {
     async fn spam_filter_analyze_url(&self, ctx: &mut SpamFilterContext<'_>) {
         // Extract URLs
-        let mut urls: HashSet<ElementLocation<UrlParts<'static>>> =
-            HashSet::from_iter(ctx.output.subject_tokens.iter().filter_map(|t| match t {
-                TokenType::Url(url) | TokenType::UrlNoScheme(url) => Some(ElementLocation::new(
+        let mut urls: HashSet<ElementLocation<UrlParts<'static>>> = HashSet::new();
+        let mut inferred_urls: HashSet<ElementLocation<UrlParts<'static>>> = HashSet::new();
+        for token in &ctx.output.subject_tokens {
+            if let TokenType::Url(url) | TokenType::UrlNoScheme(url) = token {
+                collect_url(
+                    &mut urls,
+                    &mut inferred_urls,
                     url.to_owned(),
                     Location::HeaderSubject,
-                )),
-                _ => None,
-            }));
+                );
+            }
+        }
         for (part_id, part) in ctx.output.text_parts.iter().enumerate() {
             let part_id = part_id as u32;
             let is_body = ctx.input.message.text_body.contains(&part_id)
@@ -75,14 +82,16 @@ impl SpamFilterAnalyzeUrl for Server {
                             for (attr, value) in attributes {
                                 match value {
                                     Some(value) if [HREF, SRC].contains(attr) => {
-                                        urls.insert(ElementLocation::new(
+                                        collect_url(
+                                            &mut urls,
+                                            &mut inferred_urls,
                                             UrlParts::new(value.trim().to_string()),
                                             if is_body {
                                                 Location::BodyHtml
                                             } else {
                                                 Location::Attachment
                                             },
-                                        ));
+                                        );
                                     }
                                     _ => {}
                                 }
@@ -111,7 +120,7 @@ impl SpamFilterAnalyzeUrl for Server {
                             }
                         }
 
-                        urls.insert(ElementLocation::new(url.to_owned(), text_location));
+                        collect_url(&mut urls, &mut inferred_urls, url.to_owned(), text_location);
                     }
                     _ => {}
                 }
@@ -134,8 +143,26 @@ impl SpamFilterAnalyzeUrl for Server {
             }
         }
 
+        urls.extend(inferred_urls);
+
         if !ctx.input.is_train {
             let mut redirected_urls = HashSet::new();
+            let mut trusted_domains: HashSet<String> = HashSet::new();
+
+            {
+                let mut checked_domains: HashSet<&str> = HashSet::new();
+                for url in &urls {
+                    if let Some(url_parsed) = &url.element.url_parsed {
+                        let host_sld = url_parsed.host.sld_or_default();
+                        if checked_domains.insert(host_sld)
+                            && is_trusted_domain(self, host_sld, ctx.input.span_id).await
+                        {
+                            trusted_domains.insert(host_sld.into());
+                        }
+                    }
+                }
+            }
+
             for url in &urls {
                 for ch in url.element.url.chars() {
                     if ch.is_zwsp() {
@@ -163,7 +190,7 @@ impl SpamFilterAnalyzeUrl for Server {
                 let host_sld = url_parsed.host.sld_or_default();
 
                 // Skip local and trusted domains
-                if is_trusted_domain(self, host_sld, ctx.input.span_id).await {
+                if trusted_domains.contains(host_sld) {
                     continue;
                 }
 
@@ -201,6 +228,18 @@ impl SpamFilterAnalyzeUrl for Server {
                                             redirect_count += 1;
                                             continue;
                                         } else {
+                                            if is_trusted_domain(
+                                                self,
+                                                location_parsed.host.sld_or_default(),
+                                                ctx.input.span_id,
+                                            )
+                                            .await
+                                            {
+                                                trusted_domains.insert(
+                                                    location_parsed.host.sld_or_default().into(),
+                                                );
+                                            }
+
                                             redirected_urls.insert(ElementLocation::new(
                                                 location,
                                                 url.location,
@@ -232,6 +271,7 @@ impl SpamFilterAnalyzeUrl for Server {
                     .map(|url_parsed| (el, url_parsed))
             }) {
                 let host = &url_parsed.host;
+                let is_explicit_link = el.element.is_explicit_link();
 
                 if host.ip.is_none() {
                     if !host.fqdn.is_ascii() {
@@ -252,7 +292,10 @@ impl SpamFilterAnalyzeUrl for Server {
                     }
 
                     // Check Domain DNSBL
-                    if let Some(sld) = &host.sld {
+                    if is_explicit_link
+                        && let Some(sld) = &host.sld
+                        && !trusted_domains.contains(sld.as_str())
+                    {
                         check_dnsbl(
                             self,
                             ctx,
@@ -268,7 +311,9 @@ impl SpamFilterAnalyzeUrl for Server {
                 }
 
                 // Check URL DNSBL
-                check_dnsbl(self, ctx, &el.element, Element::Url, el.location).await;
+                if is_explicit_link {
+                    check_dnsbl(self, ctx, &el.element, Element::Url, el.location).await;
+                }
             }
         }
 
@@ -314,6 +359,19 @@ async fn http_get_header(
                 .and_then(|h| h.to_str().ok())
                 .map(|h| h.to_string())
         })
+}
+
+fn collect_url(
+    urls: &mut HashSet<ElementLocation<UrlParts<'static>>>,
+    inferred_urls: &mut HashSet<ElementLocation<UrlParts<'static>>>,
+    url: UrlParts<'static>,
+    location: Location,
+) {
+    if url.is_explicit_link() {
+        urls.insert(ElementLocation::new(url, location));
+    } else {
+        inferred_urls.insert(ElementLocation::new(url, location));
+    }
 }
 
 fn is_single_url<T, E, U, I>(tokens: &[TokenType<T, E, U, I>]) -> bool {
@@ -401,18 +459,32 @@ impl<'x> UrlParts<'x> {
             url_parsed: Self::parse(&url),
             url,
             url_original,
+            has_scheme: true,
         }
     }
 
     pub fn no_scheme(url: impl Into<Cow<'x, str>>) -> Self {
         let url_original = url.into();
-        let url = format!("https://{}", url_original.trim().to_lowercase());
+        let host = url_original.trim().to_lowercase();
+        let mut url = String::with_capacity(HTTPS_SCHEME.len() + host.len());
+        url.push_str(HTTPS_SCHEME);
+        url.push_str(&host);
 
         Self {
             url_parsed: Self::parse(&url),
             url,
             url_original,
+            has_scheme: false,
         }
+    }
+
+    pub fn is_explicit_link(&self) -> bool {
+        self.has_scheme
+            || self.url_original.contains(['/', '?'])
+            || self
+                .url_parsed
+                .as_ref()
+                .is_some_and(|url| url.host.fqdn.starts_with("www."))
     }
 
     fn parse(url: &str) -> Option<UrlParsed> {
@@ -429,6 +501,7 @@ impl<'x> UrlParts<'x> {
             url: self.url.clone(),
             url_original: Cow::Owned(self.url_original.clone().into_owned()),
             url_parsed: self.url_parsed.clone(),
+            has_scheme: self.has_scheme,
         }
     }
 }

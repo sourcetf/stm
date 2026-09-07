@@ -10,8 +10,8 @@ use calcard::{
     common::{PartialDateTime, timezone::Tz},
     icalendar::{
         ICalendar, ICalendarAction, ICalendarComponent, ICalendarComponentType, ICalendarDuration,
-        ICalendarEntry, ICalendarParameter, ICalendarParameterName, ICalendarParameterValue,
-        ICalendarProperty, ICalendarRelated, ICalendarValue,
+        ICalendarEntry, ICalendarParameter, ICalendarParameterValue, ICalendarProperty,
+        ICalendarRelated, ICalendarValue,
     },
     jscalendar::{JSCalendar, JSCalendarDateTime, JSCalendarProperty, JSCalendarValue},
 };
@@ -27,7 +27,7 @@ use groupware::{
         ALERT_EMAIL, ALERT_RELATIVE_TO_END, ArchivedDefaultAlert, Calendar, CalendarEvent,
         CalendarEventData, EVENT_DRAFT, EVENT_HIDE_ATTENDEES, EVENT_INVITE_OTHERS,
         EVENT_INVITE_SELF,
-        expand::{CalendarEventExpansion, resolve_local},
+        expand::{CalendarEventExpansion, ComponentRecurrenceId, RecurrenceKey, resolve_local},
         itip::ItipSendStatus,
     },
     scheduling::{
@@ -187,10 +187,10 @@ impl CalendarEventSet for Server {
                 continue;
             }
             let update = EventUpdate::for_document(&mut updates, document_id, has_synthetic_ids);
-            if let Some(expansion_id) = id.expansion_id() {
+            if let Some(recurrence_key) = id.recurrence_key() {
                 update.instances.push(InstanceOp {
                     id,
-                    expansion_id,
+                    recurrence_key,
                     patch: Some(object),
                     target: None,
                     is_destroy: false,
@@ -208,7 +208,7 @@ impl CalendarEventSet for Server {
             }
         }
         for id in will_destroy.iter().copied() {
-            let Some(expansion_id) = id.expansion_id() else {
+            let Some(recurrence_key) = id.recurrence_key() else {
                 continue;
             };
             let document_id = id.document_id();
@@ -220,7 +220,7 @@ impl CalendarEventSet for Server {
                 .instances
                 .push(InstanceOp {
                     id,
-                    expansion_id,
+                    recurrence_key,
                     patch: None,
                     target: None,
                     is_destroy: true,
@@ -1171,7 +1171,7 @@ struct EventUpdate<'x> {
 
 struct InstanceOp<'x> {
     id: Id,
-    expansion_id: u32,
+    recurrence_key: RecurrenceKey,
     patch: Option<Value<'x, JSCalendarProperty<Id>, JSCalendarValue<Id, BlobId>>>,
     target: Option<InstanceTarget>,
     is_destroy: bool,
@@ -1276,25 +1276,27 @@ impl<'x> EventUpdate<'x> {
         data: &CalendarEventData,
         response: &mut SetResponse<calendar_event::CalendarEvent>,
     ) -> InstancePlan {
-        let mut expansion_ids = self
+        let mut recurrence_keys = self
             .instances
             .iter()
-            .map(|instance| instance.expansion_id)
+            .map(|instance| instance.recurrence_key)
             .collect::<AHashSet<_>>();
         let expansions = data
-            .expand_from_ids(&mut expansion_ids, Tz::UTC)
+            .expand_from_ids(&mut recurrence_keys, Tz::UTC)
             .unwrap_or_default();
         let uid = data.event.uids().next();
         let mut has_base_event = false;
 
         self.instances.retain_mut(|instance| {
-            match expansions
+            let mut matches = expansions
                 .iter()
-                .find(|expansion| expansion.expansion_id == instance.expansion_id)
-                .filter(|expansion| expansion.is_valid())
-                .map_or(InstanceResolution::NotFound, |expansion| {
-                    InstanceTarget::resolve(expansion, data, uid)
-                }) {
+                .filter(|expansion| expansion.recurrence_key() == Some(instance.recurrence_key));
+            let resolution = match (matches.next(), matches.next()) {
+                (Some(expansion), None) => InstanceTarget::resolve(expansion, data, uid),
+                _ => InstanceResolution::NotFound,
+            };
+
+            match resolution {
                 InstanceResolution::Instance(target) => {
                     instance.target = Some(target);
                     true
@@ -1453,73 +1455,26 @@ impl InstanceTarget {
             return InstanceResolution::BaseEvent;
         }
 
-        let (recurrence_id, recurrence_id_naive) = if is_override {
-            match Self::recurrence_id(component, data, expansion.comp_id) {
-                Some(recurrence_id) => recurrence_id,
-                None => return InstanceResolution::NotFound,
-            }
-        } else {
-            (expansion.start, expansion.start_naive)
-        };
-
-        if is_override && !Self::is_own_occurrence(component, data, expansion) {
-            return InstanceResolution::ThisAndFuture;
+        if is_override && expansion.own_recurrence_id.is_none() {
+            return if data
+                .component_tz(expansion.comp_id)
+                .and_then(|component_tz| component.recurrence_id(component_tz))
+                .is_none()
+            {
+                InstanceResolution::NotFound
+            } else {
+                InstanceResolution::ThisAndFuture
+            };
         }
+        let recurrence_id = expansion.recurrence_id();
 
         InstanceResolution::Instance(InstanceTarget {
             is_override,
-            recurrence_id,
-            recurrence_id_naive,
+            recurrence_id: recurrence_id.utc,
+            recurrence_id_naive: recurrence_id.naive,
             start_naive: expansion.start_naive,
             duration: expansion.end - expansion.start,
         })
-    }
-
-    fn is_own_occurrence(
-        component: &ICalendarComponent,
-        data: &CalendarEventData,
-        expansion: &CalendarEventExpansion,
-    ) -> bool {
-        !component
-            .property(&ICalendarProperty::RecurrenceId)
-            .is_some_and(|entry| {
-                entry
-                    .parameters(&ICalendarParameterName::Range)
-                    .next()
-                    .is_some()
-            })
-            || data
-                .expand_single(expansion.comp_id, Tz::UTC)
-                .is_some_and(|first| first.start_naive == expansion.start_naive)
-    }
-
-    fn recurrence_id(
-        component: &ICalendarComponent,
-        data: &CalendarEventData,
-        comp_id: u32,
-    ) -> Option<(i64, i64)> {
-        let entry = component.property(&ICalendarProperty::RecurrenceId)?;
-        let tz = entry
-            .tz_id()
-            .and_then(|tz| Tz::from_str(tz).ok())
-            .or_else(|| {
-                data.time_ranges
-                    .iter()
-                    .find(|range| range.id as u32 == comp_id)
-                    .and_then(|range| Tz::from_id(range.start_tz))
-            })
-            .unwrap_or(Tz::UTC);
-        let date_time = entry
-            .values
-            .first()?
-            .as_partial_date_time()?
-            .to_date_time()?
-            .to_date_time_with_tz(tz)?;
-
-        Some((
-            date_time.timestamp(),
-            date_time.naive_local().and_utc().timestamp(),
-        ))
     }
 
     fn find_override(
