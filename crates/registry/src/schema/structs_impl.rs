@@ -27565,10 +27565,6 @@ impl ObjectImpl for MtaQueueQuota {
                 errors.push(ValidationError::required(Property::Description));
             }
         }
-        let value = &self.key;
-        if value.len() < 1 {
-            errors.push(ValidationError::min_items(Property::Key, 1));
-        }
         let value = &self.match_;
         if !value.match_.is_empty() || !value.else_.is_empty() {
             value.validate(errors);
