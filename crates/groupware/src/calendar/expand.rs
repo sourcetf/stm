@@ -340,6 +340,12 @@ impl Default for CalendarEventExpansion {
     }
 }
 
+pub fn resolve_local(tz: Tz, naive_secs: i64) -> Option<i64> {
+    tz.from_local_datetime(&DateTime::from_timestamp(naive_secs, 0)?.naive_local())
+        .earliest()
+        .map(|dt| dt.timestamp())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -474,10 +480,4 @@ mod tests {
         assert_eq!(expansion.len(), 1);
         assert_eq!(keys.into_iter().collect::<Vec<_>>(), [missing]);
     }
-}
-
-pub fn resolve_local(tz: Tz, naive_secs: i64) -> Option<i64> {
-    tz.from_local_datetime(&DateTime::from_timestamp(naive_secs, 0)?.naive_local())
-        .earliest()
-        .map(|dt| dt.timestamp())
 }

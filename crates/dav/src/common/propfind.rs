@@ -377,6 +377,10 @@ impl PropFindRequestHandler for Server {
                     _ => unreachable!(),
                 };
 
+                for property in container_props.iter().chain(children_props) {
+                    response.set_namespace(property.namespace());
+                }
+
                 for item in paths {
                     let props = if item.is_container {
                         container_props
@@ -411,6 +415,10 @@ impl PropFindRequestHandler for Server {
             }
             PropFind::Prop(items) => items.clone(),
         };
+
+        for property in &properties {
+            response.set_namespace(property.namespace());
+        }
 
         let is_scheduling = collection_container == Collection::CalendarEventNotification;
         let account_info = self
@@ -559,7 +567,6 @@ impl PropFindRequestHandler for Server {
                             } else {
                                 fields_not_found.push(DavPropertyValue::empty(property.clone()));
                             }
-                            response.set_namespace(Namespace::CalendarServer);
                         }
                         WebDavProperty::GetLastModified => {
                             fields.push(DavPropertyValue::new(
@@ -1062,7 +1069,6 @@ impl PropFindRequestHandler for Server {
 
                         _ => {
                             if !skip_not_found {
-                                response.set_namespace(property.namespace());
                                 fields_not_found.push(DavPropertyValue::empty(property.clone()));
                             }
                         }
@@ -1070,7 +1076,6 @@ impl PropFindRequestHandler for Server {
 
                     property => {
                         if !skip_not_found {
-                            response.set_namespace(property.namespace());
                             fields_not_found.push(DavPropertyValue::empty(property.clone()));
                         }
                     }
@@ -1737,6 +1742,7 @@ async fn add_base_collection_response(
         .caused_by(trc::location!())?;
 
     for prop in properties {
+        response.set_namespace(prop.namespace());
         match &prop {
             DavProperty::WebDav(WebDavProperty::ResourceType) => {
                 fields.push(DavPropertyValue::new(
@@ -1762,7 +1768,6 @@ async fn add_base_collection_response(
                 .caused_by(trc::location!())?;
 
                 fields.push(DavPropertyValue::new(prop.clone(), hrefs));
-                response.set_namespace(Namespace::CalDav);
             }
             DavProperty::Principal(PrincipalProperty::AddressbookHomeSet) => {
                 let hrefs = build_home_set(
@@ -1776,7 +1781,6 @@ async fn add_base_collection_response(
                 .caused_by(trc::location!())?;
 
                 fields.push(DavPropertyValue::new(prop.clone(), hrefs));
-                response.set_namespace(Namespace::CardDav);
             }
             DavProperty::WebDav(WebDavProperty::SupportedReportSet) => {
                 let reports = match collection {
@@ -1787,9 +1791,9 @@ async fn add_base_collection_response(
                 };
 
                 fields.push(DavPropertyValue::new(prop.clone(), reports));
+                response.set_namespace(collection.namespace());
             }
             _ => {
-                response.set_namespace(prop.namespace());
                 fields_not_found.push(DavPropertyValue::empty(prop.clone()));
             }
         }
