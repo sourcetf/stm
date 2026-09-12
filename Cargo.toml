@@ -77,6 +77,3 @@ incremental = false
 debug-assertions = false
 overflow-checks = false
 rpath = false
-
-[patch.crates-io]
-mail-auth = { path = "../mail-auth" }
