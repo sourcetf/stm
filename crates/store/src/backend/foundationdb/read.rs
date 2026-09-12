@@ -296,6 +296,10 @@ impl FdbStore {
 
         Ok(trx)
     }
+
+    pub(crate) fn invalidate_read_snapshot(&self) {
+        self.version.expire();
+    }
 }
 
 pub(crate) async fn read_chunked_value(

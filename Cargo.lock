@@ -2212,9 +2212,9 @@ dependencies = [
 
 [[package]]
 name = "dns-update"
-version = "0.5.7"
+version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27f674bed2a1e07024dea9c52ce8c354aaf03de25438963d1e7fae9e237ba2cc"
+checksum = "887fbd45d910c4dd5808f65c0cd686d4f0f756450b9a6c7ecce4a9f450657509"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
@@ -4692,6 +4692,8 @@ dependencies = [
 [[package]]
 name = "mail-auth"
 version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b75697a18e5a34b6e69627e683836723b1661fcf4296f1881651bcbe8dbb42f"
 dependencies = [
  "aws-lc-rs",
  "flate2",
@@ -8878,9 +8880,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.25.13+spec-1.1.0"
+version = "0.25.15+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6975367e4d2ef766d86af01ffad14b622fecc8d4357a998fbc4deb6e9bacaf9b"
+checksum = "1340ea94a5856333492c9064b02c778b191dd2c853778d9609debdcdfea3a614"
 dependencies = [
  "indexmap 2.14.2",
  "toml_datetime",
