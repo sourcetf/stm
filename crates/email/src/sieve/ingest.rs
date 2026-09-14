@@ -554,7 +554,7 @@ impl SieveScriptIngest for Server {
                         source: IngestSource::Smtp {
                             deliver_to: envelope_to.address.as_str(),
                             is_sender_authenticated: envelope_from_authenticated,
-                            is_spam: envelope_to.is_spam(),
+                            is_spam: envelope_to.is_spam() && !sieve_message.did_file_into,
                         },
                         session_id,
                     })

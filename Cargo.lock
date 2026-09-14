@@ -1116,9 +1116,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.4.5"
+version = "1.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "005ec2760ca554fae18df7a11195552ec576cd665632a881bc011d5bb2fd4d80"
+checksum = "a3eb0f42d6c360dc3f8a821f6bf2fdea7f72bfd36b3076eb0e6d1e9e0752fff4"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -2527,9 +2527,9 @@ dependencies = [
 
 [[package]]
 name = "fancy-regex"
-version = "0.19.1"
+version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52e0387578e845beb7a1acff126228499f26cb18edf12919cc513bb863266464"
+checksum = "d301f5bf187b3c295fce6468d3875037a0bccc5f6b151c63cac2f85babf21912"
 dependencies = [
  "bit-set 0.8.0",
  "regex-automata",
@@ -4692,9 +4692,9 @@ dependencies = [
 
 [[package]]
 name = "mail-auth"
-version = "0.13.1"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91467164efd189faa2b8e5ac72198d536c5a42a1d61c40a9dd2af75cdfa1e102"
+checksum = "e11f19d98aac923fc5b7ee30c3509733a013ef546a226acb959b9202f5ca58f0"
 dependencies = [
  "aws-lc-rs",
  "flate2",
@@ -7902,7 +7902,7 @@ checksum = "bd00a548fde57bd0c8e7c13ae65fc5fe30bd923ff8655c81e010f3f02a90997b"
 dependencies = [
  "ahash",
  "arc-swap",
- "fancy-regex 0.19.1",
+ "fancy-regex 0.19.2",
  "hashify",
  "mail-builder 0.5.0",
  "mail-parser",
