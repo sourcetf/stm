@@ -277,9 +277,9 @@ dependencies = [
 
 [[package]]
 name = "async-compression"
-version = "0.4.46"
+version = "0.4.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f10dafd0c8d2e51ae9a748805777613ed0bbe17bf586b76c8311f45c020a32f"
+checksum = "ef217a77a86a6e3dab9a5b3c81dc445b603fe743a90c1cb10a2f2144628d8cfa"
 dependencies = [
  "compression-codecs",
  "compression-core",
@@ -596,12 +596,6 @@ name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
-
-[[package]]
-name = "base64"
-version = "0.21.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
 name = "base64"
@@ -1041,16 +1035,16 @@ dependencies = [
 
 [[package]]
 name = "calcard"
-version = "0.3.13"
+version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75b779382e675380a1ff8a4873acee5ba60158be7a00458fb98e6b85aad1f2ee"
+checksum = "c601473ec15a875626bce73db1a1f0fc81e9c949ca25f1463b714947c0a70a1f"
 dependencies = [
  "ahash",
  "chrono",
  "chrono-tz",
  "hashify",
  "jmap-tools",
- "mail-builder 0.5.0",
+ "mail-builder 1.0.0",
  "mail-parser",
  "rkyv",
  "serde",
@@ -1308,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "aes-gcm-siv",
  "ahash",
@@ -1407,9 +1401,9 @@ dependencies = [
 
 [[package]]
 name = "compression-codecs"
-version = "0.4.41"
+version = "0.4.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58a6d0db8759036a783bc7c3f7a07f8cef3bf9470eb1db3bc86e8bcd1c5d0fe8"
+checksum = "257c7085cbb71be72d8fb97edff08b03d86d5d9f2222b9cc34a6bec87093bc10"
 dependencies = [
  "compression-core",
  "flate2",
@@ -1492,7 +1486,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "coordinator"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "async-nats",
  "futures",
@@ -1904,7 +1898,7 @@ checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
 name = "dav"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "calcard",
  "chrono",
@@ -1927,7 +1921,7 @@ dependencies = [
 
 [[package]]
 name = "dav-proto"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "calcard",
  "chrono",
@@ -2141,7 +2135,7 @@ dependencies = [
 
 [[package]]
 name = "directory"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "argon2 0.6.0",
@@ -2308,11 +2302,11 @@ dependencies = [
 
 [[package]]
 name = "ece"
-version = "2.3.1"
+version = "2.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2ea1d2f2cc974957a4e2575d8e5bb494549bab66338d6320c2789abcfff5746"
+checksum = "c2467bac73e5a36d75e16cab0fa8d40676f075db6afde7d78b35f033e1f66e37"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "byteorder",
  "hex",
  "hkdf 0.12.4",
@@ -2321,7 +2315,7 @@ dependencies = [
  "openssl",
  "serde",
  "sha2 0.10.9",
- "thiserror 1.0.69",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -2382,7 +2376,7 @@ dependencies = [
 
 [[package]]
 name = "email"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "aes 0.9.3",
  "aes-gcm 0.11.1",
@@ -2490,7 +2484,7 @@ dependencies = [
 
 [[package]]
 name = "event_macro"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "quote",
  "syn 3.0.5",
@@ -3018,7 +3012,7 @@ dependencies = [
 
 [[package]]
 name = "groupware"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "calcard",
@@ -3306,7 +3300,7 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "async-stream",
  "base64 0.23.1",
@@ -3400,7 +3394,7 @@ dependencies = [
 
 [[package]]
 name = "http_proto"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "common",
  "compact_str",
@@ -3886,7 +3880,7 @@ checksum = "65b27460c2c92b037f3f94c538ed9a3342f3fdf923606781629ccb35f82d042a"
 
 [[package]]
 name = "imap"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "common",
@@ -3910,7 +3904,7 @@ dependencies = [
 
 [[package]]
 name = "imap_proto"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "base64 0.23.1",
@@ -4086,25 +4080,24 @@ checksum = "4d3667095d64c3ecffc96463a21157b04bf3e252f6e8d5750b20c02e33c194e3"
 
 [[package]]
 name = "jieba-macros"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34904340bc65749a9e9a02fcc7f3368e675427c18447b9bbe02df52c15c9a36a"
+checksum = "455f837e9d0255b68a712200db247c68fdad4941b72471b76bfa61c3b0c1f79f"
 dependencies = [
  "phf_codegen",
 ]
 
 [[package]]
 name = "jieba-rs"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb5bdea4dc241d589e179f39d2a778f31490f3370aa2f626223dbd930ebc5c9d"
+checksum = "b6a8bbb0f77ee810f0689a30b7cec56b875751ef4ec2e74fd995613dc52b3ae1"
 dependencies = [
  "bytecount",
  "cedarwood",
  "include-flate",
  "jieba-macros",
  "phf 0.13.1",
- "regex",
  "rustc-hash",
 ]
 
@@ -4164,7 +4157,7 @@ dependencies = [
 
 [[package]]
 name = "jmap"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "async-stream",
  "base64 0.23.1",
@@ -4245,7 +4238,7 @@ dependencies = [
 
 [[package]]
 name = "jmap_proto"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "calcard",
@@ -4649,9 +4642,9 @@ dependencies = [
 
 [[package]]
 name = "lru-slab"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
+checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "lz4-sys"
@@ -4750,7 +4743,7 @@ dependencies = [
 
 [[package]]
 name = "managesieve"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "common",
  "compact_str",
@@ -4885,7 +4878,7 @@ checksum = "c797b9d6bb23aab2fc369c65f871be49214f5c759af65bde26ffaaa2b646b492"
 
 [[package]]
 name = "migration"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "common",
  "email",
@@ -5156,7 +5149,7 @@ dependencies = [
 
 [[package]]
 name = "nlp"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "hashify",
@@ -5476,8 +5469,8 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry"
-version = "0.31.0"
-source = "git+https://github.com/stalwartlabs/opentelemetry-rust#274b4d324794280ce6f4def095a3428197a9e6e3"
+version = "0.32.0"
+source = "git+https://github.com/stalwartlabs/opentelemetry-rust#80a14a3b6846f62f85506d68d2600c948fccc9d2"
 dependencies = [
  "futures-core",
  "futures-sink",
@@ -5489,8 +5482,8 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-http"
-version = "0.31.0"
-source = "git+https://github.com/stalwartlabs/opentelemetry-rust#274b4d324794280ce6f4def095a3428197a9e6e3"
+version = "0.32.0"
+source = "git+https://github.com/stalwartlabs/opentelemetry-rust#80a14a3b6846f62f85506d68d2600c948fccc9d2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -5501,10 +5494,11 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-otlp"
-version = "0.31.0"
-source = "git+https://github.com/stalwartlabs/opentelemetry-rust#274b4d324794280ce6f4def095a3428197a9e6e3"
+version = "0.32.0"
+source = "git+https://github.com/stalwartlabs/opentelemetry-rust#80a14a3b6846f62f85506d68d2600c948fccc9d2"
 dependencies = [
  "http 1.5.0",
+ "httpdate",
  "opentelemetry",
  "opentelemetry-http",
  "opentelemetry-proto",
@@ -5519,8 +5513,8 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-proto"
-version = "0.31.0"
-source = "git+https://github.com/stalwartlabs/opentelemetry-rust#274b4d324794280ce6f4def095a3428197a9e6e3"
+version = "0.32.0"
+source = "git+https://github.com/stalwartlabs/opentelemetry-rust#80a14a3b6846f62f85506d68d2600c948fccc9d2"
 dependencies = [
  "opentelemetry",
  "opentelemetry_sdk",
@@ -5531,13 +5525,13 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-semantic-conventions"
-version = "0.31.0"
-source = "git+https://github.com/stalwartlabs/opentelemetry-rust#274b4d324794280ce6f4def095a3428197a9e6e3"
+version = "0.32.1"
+source = "git+https://github.com/stalwartlabs/opentelemetry-rust#80a14a3b6846f62f85506d68d2600c948fccc9d2"
 
 [[package]]
 name = "opentelemetry_sdk"
-version = "0.31.0"
-source = "git+https://github.com/stalwartlabs/opentelemetry-rust#274b4d324794280ce6f4def095a3428197a9e6e3"
+version = "0.32.1"
+source = "git+https://github.com/stalwartlabs/opentelemetry-rust#80a14a3b6846f62f85506d68d2600c948fccc9d2"
 dependencies = [
  "futures-channel",
  "futures-executor",
@@ -5987,7 +5981,7 @@ dependencies = [
 
 [[package]]
 name = "pop3"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "common",
  "directory",
@@ -6068,9 +6062,9 @@ checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
 name = "ppmd-rust"
-version = "1.4.1"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e9219bcb9d7aca6b2f63c83cf100cf78bcd619ac46e6ecbd0dd90869a39345d"
+checksum = "196a7c80b9a7652aba7cc070827516c2abe4ccdf53d128e1944003cf5726cff1"
 
 [[package]]
 name = "ppv-lite86"
@@ -6337,9 +6331,9 @@ dependencies = [
 
 [[package]]
 name = "quinn"
-version = "0.11.11"
+version = "0.11.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c1a41e437b6bbd489372cd4971de128e85c855f56c57f283d20ff016cf7c0a8"
+checksum = "4051e23e9185c255a7e33ef59cdbca87a22d359052eecd22fc6b901fb37d9d11"
 dependencies = [
  "bytes",
  "cfg_aliases",
@@ -6357,9 +6351,9 @@ dependencies = [
 
 [[package]]
 name = "quinn-proto"
-version = "0.11.17"
+version = "0.11.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04759210543be93709136e28212294a659ef5001836ff4eab4d663e4529bba83"
+checksum = "a9746dbde176634f4f2f1faf2404e30a31b2bc1e9cafb5329c95d8177a18c9fc"
 dependencies = [
  "aws-lc-rs",
  "bytes",
@@ -6809,7 +6803,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "registry"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "hashify",
@@ -7181,9 +7175,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.44"
+version = "0.23.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6725596c3f2c3a0aef021139e145d4eafe314a6623e4680ca83852b2c67ab2ba"
+checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "aws-lc-rs",
  "log",
@@ -7360,7 +7354,7 @@ dependencies = [
 
 [[package]]
 name = "scim"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "common",
  "directory",
@@ -7382,7 +7376,7 @@ dependencies = [
 
 [[package]]
 name = "scim-proto"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "hashify",
  "serde",
@@ -7708,7 +7702,7 @@ dependencies = [
 
 [[package]]
 name = "services"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "aes-gcm 0.11.1",
  "aho-corasick",
@@ -8021,7 +8015,7 @@ checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 
 [[package]]
 name = "smtp"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "base64 0.23.1",
@@ -8111,7 +8105,7 @@ dependencies = [
 
 [[package]]
 name = "spam-filter"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "common",
  "compact_str",
@@ -8224,7 +8218,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "stalwart"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "common",
  "coordinator",
@@ -8232,7 +8226,7 @@ dependencies = [
  "directory",
  "email",
  "groupware",
- "http 0.16.22",
+ "http 0.16.23",
  "http_proto",
  "imap",
  "jmap",
@@ -8262,7 +8256,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "arc-swap",
@@ -8511,7 +8505,7 @@ dependencies = [
 
 [[package]]
 name = "tests"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "aws-lc-rs",
@@ -8533,7 +8527,7 @@ dependencies = [
  "form_urlencoded",
  "futures",
  "groupware",
- "http 0.16.22",
+ "http 0.16.23",
  "http_proto",
  "hyper",
  "hyper-util",
@@ -8703,18 +8697,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.13.2"
+version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cf0ded5c4e56918d8f8a339e1bb67d038d3bc6d144ac407904015ba2e4cde9b"
-dependencies = [
- "tinyvec_macros",
-]
-
-[[package]]
-name = "tinyvec_macros"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tls-listener"
@@ -9111,7 +9096,7 @@ dependencies = [
 
 [[package]]
 name = "trc"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "base64 0.23.1",
@@ -9220,7 +9205,7 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "types"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "blake3",
  "compact_str",
@@ -9389,7 +9374,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "utils"
-version = "0.16.22"
+version = "0.16.23"
 dependencies = [
  "ahash",
  "arcstr",
@@ -10724,9 +10709,9 @@ dependencies = [
 
 [[package]]
 name = "zlib-rs"
-version = "0.6.7"
+version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34b31d188d9d685a4f9c7b46d6e36631b07058d2cfe190267adce54dc230bf12"
+checksum = "b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112"
 
 [[package]]
 name = "zmij"
