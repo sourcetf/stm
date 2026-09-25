@@ -1302,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "aes-gcm-siv",
  "ahash",
@@ -1486,7 +1486,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "coordinator"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "async-nats",
  "futures",
@@ -1898,7 +1898,7 @@ checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
 name = "dav"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "calcard",
  "chrono",
@@ -1921,7 +1921,7 @@ dependencies = [
 
 [[package]]
 name = "dav-proto"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "calcard",
  "chrono",
@@ -2135,7 +2135,7 @@ dependencies = [
 
 [[package]]
 name = "directory"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "argon2 0.6.0",
@@ -2376,7 +2376,7 @@ dependencies = [
 
 [[package]]
 name = "email"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "aes 0.9.3",
  "aes-gcm 0.11.1",
@@ -2484,7 +2484,7 @@ dependencies = [
 
 [[package]]
 name = "event_macro"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "quote",
  "syn 3.0.6",
@@ -3012,7 +3012,7 @@ dependencies = [
 
 [[package]]
 name = "groupware"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "calcard",
@@ -3300,7 +3300,7 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "async-stream",
  "base64 0.23.1",
@@ -3394,7 +3394,7 @@ dependencies = [
 
 [[package]]
 name = "http_proto"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "common",
  "compact_str",
@@ -3880,7 +3880,7 @@ checksum = "65b27460c2c92b037f3f94c538ed9a3342f3fdf923606781629ccb35f82d042a"
 
 [[package]]
 name = "imap"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "common",
@@ -3904,7 +3904,7 @@ dependencies = [
 
 [[package]]
 name = "imap_proto"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "base64 0.23.1",
@@ -4157,7 +4157,7 @@ dependencies = [
 
 [[package]]
 name = "jmap"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "async-stream",
  "base64 0.23.1",
@@ -4238,7 +4238,7 @@ dependencies = [
 
 [[package]]
 name = "jmap_proto"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "calcard",
@@ -4743,7 +4743,7 @@ dependencies = [
 
 [[package]]
 name = "managesieve"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "common",
  "compact_str",
@@ -4878,7 +4878,7 @@ checksum = "c797b9d6bb23aab2fc369c65f871be49214f5c759af65bde26ffaaa2b646b492"
 
 [[package]]
 name = "migration"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "common",
  "email",
@@ -5149,7 +5149,7 @@ dependencies = [
 
 [[package]]
 name = "nlp"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "hashify",
@@ -5981,7 +5981,7 @@ dependencies = [
 
 [[package]]
 name = "pop3"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "common",
  "directory",
@@ -6802,7 +6802,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "registry"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "hashify",
@@ -7353,7 +7353,7 @@ dependencies = [
 
 [[package]]
 name = "scim"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "common",
  "directory",
@@ -7375,7 +7375,7 @@ dependencies = [
 
 [[package]]
 name = "scim-proto"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "hashify",
  "serde",
@@ -7701,7 +7701,7 @@ dependencies = [
 
 [[package]]
 name = "services"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "aes-gcm 0.11.1",
  "aho-corasick",
@@ -8014,7 +8014,7 @@ checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 
 [[package]]
 name = "smtp"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "base64 0.23.1",
@@ -8104,7 +8104,7 @@ dependencies = [
 
 [[package]]
 name = "spam-filter"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "common",
  "compact_str",
@@ -8217,7 +8217,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "stalwart"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "common",
  "coordinator",
@@ -8225,7 +8225,7 @@ dependencies = [
  "directory",
  "email",
  "groupware",
- "http 0.16.23",
+ "http 0.16.24",
  "http_proto",
  "imap",
  "jmap",
@@ -8255,7 +8255,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "arc-swap",
@@ -8515,7 +8515,7 @@ dependencies = [
 
 [[package]]
 name = "tests"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "aws-lc-rs",
@@ -8537,7 +8537,7 @@ dependencies = [
  "form_urlencoded",
  "futures",
  "groupware",
- "http 0.16.23",
+ "http 0.16.24",
  "http_proto",
  "hyper",
  "hyper-util",
@@ -9106,7 +9106,7 @@ dependencies = [
 
 [[package]]
 name = "trc"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "base64 0.23.1",
@@ -9215,7 +9215,7 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "types"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "blake3",
  "compact_str",
@@ -9384,7 +9384,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "utils"
-version = "0.16.23"
+version = "0.16.24"
 dependencies = [
  "ahash",
  "arcstr",
