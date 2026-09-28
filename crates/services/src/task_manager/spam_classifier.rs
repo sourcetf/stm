@@ -280,6 +280,10 @@ async fn apply_upstream<T: UpstreamObject>(
             {
                 existing_id
             }
+            RegistryWriteResult::PrimaryKeyConflict { .. } => {
+                result.unchanged += 1;
+                continue;
+            }
             _ => {
                 result.failed += 1;
                 continue;

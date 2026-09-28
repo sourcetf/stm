@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.16.24] - 2026-09-XX
+## [0.16.24] - 2026-09-27
 
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
@@ -25,10 +25,15 @@ If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If
   - Changes made while a push request is in flight are not delivered until the next change reaches the same subscription, since a successful delivery cancels the pending retry.
   - The VAPID `aud` claim is derived from a hand-written parse of the push URL, so a crafted push URL can make the server sign a token for a push service other than the one the request is sent to.
   - `Email/import` rejects a `blobId` that refers to a `Blob/upload` creation id in the same request (`"#u0"`) with `Invalid blob id.`.
+  - `Email/set` with a full `mailboxIds` object identical to the current mailboxes, together with a keyword change, stores the message with IMAP UID 0, so IMAP clients stop seeing it.
 - MTA:
   - A node without the `outboundMta` role stops replying to `DATA` and to JMAP submissions once about 1024 messages have been queued on it.
   - MX records are resolved through the DNSSEC-validating resolver even when DANE is disabled.
+  - A `DATA` stage Sieve script does not see headers added by milters or MTA hooks, and discards every milter and MTA hook change when it edits the message.
 - MySQL: Range deletions and search index removals start with a single unbounded `DELETE` and switch to chunks only after a timeout.
+- IMAP: `COPY` and `MOVE` fail with `NO [CONTACTADMIN]` when another session changes the same message at the same time.
+- Autodiscover: Implicit TLS ports (993, 995, 465) are advertised with `<Encryption>TLS</Encryption>`, which Outlook reads as STARTTLS.
+- HTTP: Idle keep-alive connections are never closed.
 
 ## [0.16.23] - 2026-09-21
 
