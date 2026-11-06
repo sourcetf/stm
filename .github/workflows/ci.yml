@@ -137,11 +137,14 @@ jobs:
             # OpenBSD ports USE_NOEXECONLY -> ld --no-execute-only (aws-lc / s2n-bignum)
             # 7.9 的 pkg rust 是 1.94.1，而 v1.0 用到了 1.95/1.98 才稳定的特性：
             #   lock_api/parking_lot* 的 cfg_select、ptr_as_ref_unchecked、atomic_try_update，
-            #   common 里的 if-let guard，groupware 的 push_mut。
+            #   common 的 if-let guard。
             # 用 RUSTC_BOOTSTRAP=1 + -Zcrate-attr 打开这些 gate；已用 1.94.1 在本地
             # 全量 cargo check -p stalwart（含 enterprise 等全部 feature）验证可编过。
+            # 注意：-Zcrate-attr 会注入到所有 crate（含 no_std 依赖），而 push_mut 这类
+            # 依赖 std 的特性在 no_std crate 里会被判为 unknown feature（E0635），
+            # 所以 groupware 里那两处 push_mut 改成等价的 push + 索引。
             export RUSTC_BOOTSTRAP=1
-            export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-Wl,--no-execute-only -C link-arg=-fuse-ld=lld -C debuginfo=0 -Zcrate-attr=feature(cfg_select) -Zcrate-attr=feature(ptr_as_ref_unchecked) -Zcrate-attr=feature(atomic_try_update) -Zcrate-attr=feature(if_let_guard) -Zcrate-attr=feature(push_mut)"
+            export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-Wl,--no-execute-only -C link-arg=-fuse-ld=lld -C debuginfo=0 -Zcrate-attr=feature(cfg_select) -Zcrate-attr=feature(ptr_as_ref_unchecked) -Zcrate-attr=feature(atomic_try_update) -Zcrate-attr=feature(if_let_guard)"
             export DEP_BZIP2_INCLUDE=/usr/local/include
             # Cargo.toml release: lto=true, codegen-units=1, strip=true, opt-level=3.
             # Lower opt-level + no link-time strip to keep final link within RAM+swap.

@@ -488,7 +488,9 @@ impl Calendar {
             time_zone: inherited.time_zone.clone(),
             ..Default::default()
         };
-        self.preferences.push_mut(preferences)
+        let index = self.preferences.len();
+        self.preferences.push(preferences);
+        &mut self.preferences[index]
     }
 }
 

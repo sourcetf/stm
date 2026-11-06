@@ -206,7 +206,9 @@ impl<'a> ComponentTokens<'a, '_> {
                 true
             });
         }
-        &self.fields.push_mut((field, tokens)).1
+        let index = self.fields.len();
+        self.fields.push((field, tokens));
+        &self.fields[index].1
     }
 }
 
