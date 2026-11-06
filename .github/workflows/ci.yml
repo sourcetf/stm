@@ -136,11 +136,12 @@ jobs:
             export ROCKSDB_DISABLE_ZSTD=1
             # OpenBSD ports USE_NOEXECONLY -> ld --no-execute-only (aws-lc / s2n-bignum)
             # 7.9 的 rust 是 1.94.1，而 v1.0 的依赖用到了 1.95/1.98 才稳定的特性
-            # （lock_api/parking_lot* 的 cfg_select、ptr_as_ref_unchecked、atomic_try_update）。
+            # （lock_api/parking_lot* 的 cfg_select、ptr_as_ref_unchecked、atomic_try_update，
+            #  以及项目自己代码里的 if-let guard）。
             # 用 RUSTC_BOOTSTRAP=1 + -Zcrate-attr 打开这些 gate；已在本地用 1.94.1 验证
             # lock_api / parking_lot / parking_lot_core / mail-parser 都能编过。
             export RUSTC_BOOTSTRAP=1
-            export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-Wl,--no-execute-only -C link-arg=-fuse-ld=lld -C debuginfo=0 -Zcrate-attr=feature(cfg_select) -Zcrate-attr=feature(ptr_as_ref_unchecked) -Zcrate-attr=feature(atomic_try_update)"
+            export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-Wl,--no-execute-only -C link-arg=-fuse-ld=lld -C debuginfo=0 -Zcrate-attr=feature(cfg_select) -Zcrate-attr=feature(ptr_as_ref_unchecked) -Zcrate-attr=feature(atomic_try_update) -Zcrate-attr=feature(if_let_guard)"
             export DEP_BZIP2_INCLUDE=/usr/local/include
             # Cargo.toml release: lto=true, codegen-units=1, strip=true, opt-level=3.
             # Lower opt-level + no link-time strip to keep final link within RAM+swap.
