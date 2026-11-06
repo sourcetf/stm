@@ -125,6 +125,9 @@ jobs:
             ulimit -d unlimited 2>/dev/null || ulimit -d hard
             # Prefer /home over /tmp (OpenBSD /tmp may be mfs / share the root FS).
             mkdir -p /home/build
+            # VM 根分区只有 986M（可用 ~800M），cargo 默认把 registry 解包到
+            # /root/.cargo，v1.0 依赖变多后直接 ENOSPC。放到 /home（113G）上。
+            export CARGO_HOME=/home/build/.cargo
             export CARGO_TARGET_DIR=/home/build/target
             export CARGO_TERM_COLOR=always
             export CARGO_INCREMENTAL=0
