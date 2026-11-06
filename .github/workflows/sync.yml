@@ -1,10 +1,26 @@
 name: Sync Upstream
+
+# 本仓库是 sourcetf/stalwart 的下游构建仓库：main 跟随上游，另外保留了少量本仓库
+# 自己的差异（删掉上游文档/安装脚本、自己的 CI 工作流、协议里的品牌串）。
+#
+# 合并策略：
+#   - 本仓库有意删除、上游又改动了的文件（README/SECURITY/UPGRADING/LICENSES/install.sh 等）
+#     -> 保持删除
+#   - 本仓库自己的 workflow -> 保留本地版本
+#   - 其它任何冲突 -> 直接失败并列出文件，绝不静默跳过
+#
+# 之前的问题：冲突只处理了 .md 和两个 workflow，剩下的没解决就 `git commit`，
+# 失败被 `|| echo "Nothing to commit"` 吞掉，`git push` 又显示 Everything up-to-date，
+# 于是工作流永远绿、main 却一直停在旧版本。
+
 on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -13,27 +29,52 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+
       - name: Configure Git
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+
       - name: Add upstream and sync
         run: |
-          git remote add upstream https://github.com/sourcetf/stalwart.git
+          set -u
+          git remote add upstream https://github.com/sourcetf/stalwart.git 2>/dev/null || true
           git fetch upstream
           git checkout main
+
           if git merge upstream/main --no-edit; then
             echo "Merge succeeded without conflicts"
           else
-            echo "Merge conflicts detected, resolving automatically..."
-            git diff --name-only --diff-filter=U | grep '\.md$' | while read -r file; do
-              echo "Resolving .md conflict: accepting local deletion for $file"
-              git rm -f "$file" || true
+            echo "Merge conflicts detected, resolving the expected ones..."
+
+            # 1) 本仓库删掉的文件（上游又改了）：继续删除
+            for f in $(git diff --name-only --diff-filter=U); do
+              if [ -z "$(git ls-tree -r --name-only HEAD -- "$f")" ]; then
+                echo "  keep deleted: $f"
+                git rm -q -f --ignore-unmatch -- "$f"
+              fi
             done
-            git checkout --ours .github/workflows/ci.yml 2>/dev/null || true
-            git add .github/workflows/ci.yml 2>/dev/null || true
-            git checkout --ours .github/workflows/sync.yml 2>/dev/null || true
-            git add .github/workflows/sync.yml 2>/dev/null || true
-            git commit -m "Sync upstream (auto-resolved conflicts)" || echo "Nothing to commit"
+
+            # 2) 本仓库自己的 workflow：保留本地版本，不让上游覆盖
+            for f in .github/workflows/ci.yml .github/workflows/sync.yml \
+                     .github/workflows/test.yml .github/workflows/trivy.yml \
+                     .github/workflows/scorecard.yml; do
+              if git ls-files -u -- "$f" | grep -q .; then
+                echo "  keep ours: $f"
+                git checkout --ours -- "$f" && git add -- "$f"
+              fi
+            done
+
+            # 3) 其它冲突一律失败，交给人处理
+            unresolved=$(git diff --name-only --diff-filter=U)
+            if [ -n "$unresolved" ]; then
+              echo "::error::以下文件存在冲突，需要人工合并（同步已中止，main 未被修改）："
+              echo "$unresolved" | while read -r f; do echo "::error::  $f"; done
+              git merge --abort || true
+              exit 1
+            fi
+
+            git commit -m "Sync upstream (auto-resolved conflicts)"
           fi
+
           git push origin main

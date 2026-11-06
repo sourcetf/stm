@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
+use super::{StoredIdentities, get::IdentityGet};
 use common::{Server, storage::index::ObjectIndexBuilder};
 use email::identity::{EmailAddress, Identity};
 use jmap_proto::{
@@ -19,15 +20,49 @@ use registry::schema::enums::StorageQuota;
 use std::future::Future;
 use store::{
     ValueKey,
-    write::{AlignedBytes, Archive, BatchBuilder},
+    write::{Archive, ArchiveBytes, BatchBuilder},
 };
 use trc::AddContext;
 use types::{
     collection::{Collection, SyncCollection},
-    field::{Field, IdentityField},
     id::Id,
 };
 use utils::sanitize_email;
+
+type CreatedValue = Value<'static, IdentityProperty, IdentityValue>;
+
+const DEFAULTED: [IdentityProperty; 5] = [
+    IdentityProperty::Name,
+    IdentityProperty::ReplyTo,
+    IdentityProperty::Bcc,
+    IdentityProperty::TextSignature,
+    IdentityProperty::HtmlSignature,
+];
+
+#[derive(Clone, Copy)]
+struct Omitted([bool; DEFAULTED.len()]);
+
+impl Omitted {
+    fn from_create(object: &Value<'_, IdentityProperty, IdentityValue>) -> Self {
+        Omitted(
+            DEFAULTED.map(|property| object.as_object_and_get(&Key::Property(property)).is_none()),
+        )
+    }
+
+    fn server_set(self) -> impl Iterator<Item = (IdentityProperty, CreatedValue)> {
+        [
+            (IdentityProperty::Name, Value::Str("".into())),
+            (IdentityProperty::ReplyTo, Value::Null),
+            (IdentityProperty::Bcc, Value::Null),
+            (IdentityProperty::TextSignature, Value::Str("".into())),
+            (IdentityProperty::HtmlSignature, Value::Str("".into())),
+        ]
+        .into_iter()
+        .zip(self.0)
+        .filter_map(|(entry, is_omitted)| is_omitted.then_some(entry))
+        .chain([(IdentityProperty::MayDelete, Value::Bool(true))])
+    }
+}
 
 pub trait IdentitySet: Sync + Send {
     fn identity_set(
@@ -42,11 +77,14 @@ impl IdentitySet for Server {
         mut request: SetRequest<'_, identity::Identity>,
     ) -> trc::Result<SetResponse<identity::Identity>> {
         let account_id = request.account_id.document_id();
-        let identity_ids = self
-            .document_ids(account_id, Collection::Identity, IdentityField::DocumentId)
-            .await?;
         let mut response = SetResponse::from_request(&request, self.core.jmap.set_max_objects)?;
         let will_destroy = response.collect_will_destroy(request.unwrap_destroy());
+        let identities = if request.has_creates() || !will_destroy.is_empty() {
+            self.identities(account_id).await?
+        } else {
+            StoredIdentities::default()
+        };
+        let mut identity_count = identities.len() as u64;
         let account_info = self
             .account_info(account_id)
             .await
@@ -54,8 +92,10 @@ impl IdentitySet for Server {
 
         // Process creates
         let mut batch = BatchBuilder::new();
+        let mut pending_creates = Vec::new();
         'create: for (id, object) in request.unwrap_create() {
             let mut identity = Identity::default();
+            let omitted = Omitted::from_create(&object);
 
             for (property, mut value) in object.into_expanded_object() {
                 if let Err(err) = response
@@ -97,7 +137,7 @@ impl IdentitySet for Server {
             }
 
             // Validate quota
-            if identity_ids.len()
+            if identity_count
                 >= self.object_quota(
                     account_info.object_quotas(),
                     StorageQuota::MaxEmailIdentities,
@@ -114,20 +154,16 @@ impl IdentitySet for Server {
             }
 
             // Insert record
-            let document_id = self
-                .store()
-                .assign_document_ids(account_id, Collection::Identity, 1)
-                .await
-                .caused_by(trc::location!())?;
+            let slot = batch.reserve_document_id(account_id, Collection::Identity);
             batch
                 .with_account_id(account_id)
                 .with_collection(Collection::Identity)
-                .with_document(document_id)
-                .tag(IdentityField::DocumentId)
+                .create_document(slot)
                 .custom(ObjectIndexBuilder::<(), _>::new().with_changes(identity))
                 .caused_by(trc::location!())?
                 .commit_point();
-            response.created(id, document_id);
+            identity_count += 1;
+            pending_creates.push((id, slot, omitted));
         }
 
         // Process updates
@@ -149,7 +185,7 @@ impl IdentitySet for Server {
             let document_id = id.document_id();
             let identity_ = if let Some(identity_) = self
                 .store()
-                .get_value::<Archive<AlignedBytes>>(ValueKey::archive(
+                .get_value::<Archive<ArchiveBytes>>(ValueKey::archive(
                     account_id,
                     Collection::Identity,
                     document_id,
@@ -204,15 +240,19 @@ impl IdentitySet for Server {
         // Process deletions
         for id in will_destroy {
             let document_id = id.document_id();
-            if identity_ids.contains(document_id) {
-                // Update record
+            if let Some(identity) = identities.get(document_id) {
                 batch
                     .with_account_id(account_id)
                     .with_collection(Collection::Identity)
                     .with_document(document_id)
-                    .untag(IdentityField::DocumentId)
-                    .clear(Field::ARCHIVE)
-                    .log_item_delete(SyncCollection::Identity, None)
+                    .custom(
+                        ObjectIndexBuilder::<_, ()>::new().with_current(
+                            identity
+                                .to_unarchived::<Identity>()
+                                .caused_by(trc::location!())?,
+                        ),
+                    )
+                    .caused_by(trc::location!())?
                     .commit_point();
                 response.destroyed.push(id);
             } else {
@@ -222,13 +262,15 @@ impl IdentitySet for Server {
 
         // Write changes
         if !batch.is_empty() {
-            let change_id = self
-                .commit_batch(batch)
-                .await
-                .and_then(|ids| ids.last_change_id(account_id))
-                .caused_by(trc::location!())?;
+            let assigned_ids = self.commit_batch(batch).await.caused_by(trc::location!())?;
 
-            response.new_state = State::Exact(change_id).into();
+            response.new_state =
+                State::Exact(assigned_ids.last_change_id(account_id, SyncCollection::Identity))
+                    .into();
+
+            for (id, slot, omitted) in pending_creates {
+                response.created_with_properties(id, assigned_ids.slot(slot), omitted.server_set());
+            }
         }
 
         Ok(response)

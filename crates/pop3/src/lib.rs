@@ -22,7 +22,7 @@ pub mod op;
 pub mod protocol;
 pub mod session;
 
-static SERVER_GREETING: &str = "+OK Stalwart POP3 at your service.\r\n";
+static SERVER_GREETING: &str = "+OK POP3 Server at your service.\r\n";
 
 #[derive(Clone)]
 pub struct Pop3SessionManager {
@@ -50,6 +50,7 @@ pub enum State {
     NotAuthenticated {
         auth_failures: u32,
         username: Option<String>,
+        sasl_failure: Option<trc::Error>,
     },
     Authenticated {
         mailbox: Mailbox,
@@ -59,6 +60,13 @@ pub enum State {
 }
 
 impl State {
+    pub fn take_sasl_failure(&mut self) -> Option<trc::Error> {
+        match self {
+            State::NotAuthenticated { sasl_failure, .. } => sasl_failure.take(),
+            _ => None,
+        }
+    }
+
     pub fn mailbox(&self) -> &Mailbox {
         match self {
             State::Authenticated { mailbox, .. } => mailbox,

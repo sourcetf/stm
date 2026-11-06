@@ -4,12 +4,16 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
+pub mod cimd;
+pub mod client;
 pub mod client_id;
 pub mod config;
 pub mod crypto;
+pub mod grant;
 pub mod introspect;
 pub mod oidc;
 pub mod registration;
+pub mod scope;
 pub mod token;
 
 pub const DEVICE_CODE_LEN: usize = 40;
@@ -24,14 +28,29 @@ pub const SCOPE_OFFLINE_ACCESS: &str = "offline_access";
 pub const SCOPE_MAIL: &str = "urn:ietf:params:oauth:scope:mail";
 pub const SCOPE_CONTACTS: &str = "urn:ietf:params:oauth:scope:contacts";
 pub const SCOPE_CALENDARS: &str = "urn:ietf:params:oauth:scope:calendars";
+pub const SCOPE_FILES: &str = "urn:ietf:params:oauth:scope:files";
+pub const SCOPE_SECURITY: &str = "urn:stalwart:oauth:scope:security";
+pub const SCOPE_SETTINGS: &str = "urn:stalwart:oauth:scope:settings";
+pub const SCOPE_FULL: &str = "urn:stalwart:oauth:scope:full";
 
-pub const SUPPORTED_SCOPES: &[&str] = &[
+const SUPPORTED_SCOPES: &[&str] = &[
     SCOPE_OPENID,
     SCOPE_OFFLINE_ACCESS,
     SCOPE_MAIL,
     SCOPE_CONTACTS,
     SCOPE_CALENDARS,
+    SCOPE_SECURITY,
+    SCOPE_SETTINGS,
+    SCOPE_FULL,
+    SCOPE_FILES,
 ];
+
+pub fn supported_scopes(serves_files: bool) -> &'static [&'static str] {
+    match SUPPORTED_SCOPES.split_last() {
+        Some((_, without_files)) if !serves_files => without_files,
+        _ => SUPPORTED_SCOPES,
+    }
+}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum GrantType {

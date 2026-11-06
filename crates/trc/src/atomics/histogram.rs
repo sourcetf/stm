@@ -8,11 +8,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::MetricType;
 
-use super::array::AtomicU32Array;
+use super::array::AtomicU64Array;
 
 pub struct AtomicHistogram<const N: usize> {
     id: MetricType,
-    buckets: AtomicU32Array<N>,
+    buckets: AtomicU64Array<N>,
     upper_bounds: [u64; N],
     sum: AtomicU64,
     count: AtomicU64,
@@ -23,7 +23,7 @@ pub struct AtomicHistogram<const N: usize> {
 impl<const N: usize> AtomicHistogram<N> {
     pub const fn new(id: MetricType, upper_bounds: [u64; N]) -> Self {
         Self {
-            buckets: AtomicU32Array::new(),
+            buckets: AtomicU64Array::new(),
             upper_bounds,
             sum: AtomicU64::new(0),
             count: AtomicU64::new(0),
@@ -36,17 +36,19 @@ impl<const N: usize> AtomicHistogram<N> {
     pub fn observe(&self, value: u64) {
         self.sum.fetch_add(value, Ordering::Relaxed);
         self.count.fetch_add(1, Ordering::Relaxed);
-        self.min.fetch_min(value, Ordering::Relaxed);
-        self.max.fetch_max(value, Ordering::Relaxed);
-
-        for (idx, upper_bound) in self.upper_bounds.iter().enumerate() {
-            if value < *upper_bound {
-                self.buckets.add(idx, 1);
-                return;
-            }
+        if value < self.min.load(Ordering::Relaxed) {
+            self.min.fetch_min(value, Ordering::Relaxed);
+        }
+        if value > self.max.load(Ordering::Relaxed) {
+            self.max.fetch_max(value, Ordering::Relaxed);
         }
 
-        unreachable!()
+        let bucket = self
+            .upper_bounds
+            .iter()
+            .position(|upper_bound| value <= *upper_bound)
+            .unwrap_or(N - 1);
+        self.buckets.add(bucket, 1);
     }
 
     pub fn id(&self) -> MetricType {
@@ -85,13 +87,13 @@ impl<const N: usize> AtomicHistogram<N> {
         self.buckets
             .inner()
             .iter()
-            .map(|bucket| bucket.load(Ordering::Relaxed) as u64)
+            .map(|bucket| bucket.load(Ordering::Relaxed))
     }
 
     pub fn buckets_vec(&self) -> Vec<u64> {
         let mut vec = Vec::with_capacity(N);
         for bucket in self.buckets.inner().iter() {
-            vec.push(bucket.load(Ordering::Relaxed) as u64);
+            vec.push(bucket.load(Ordering::Relaxed));
         }
         vec
     }
@@ -132,6 +134,26 @@ impl<const N: usize> AtomicHistogram<N> {
                 100_000_000, // 100 MB
                 500_000_000, // 500 MB
                 u64::MAX,    // Catch-all for any larger sizes
+            ],
+        )
+    }
+
+    pub const fn new_token_counts(id: MetricType) -> AtomicHistogram<12> {
+        AtomicHistogram::new(
+            id,
+            [
+                10,
+                50,
+                100,
+                250,
+                500,
+                1_000,
+                2_000,
+                4_000,
+                8_000,
+                16_000,
+                64_000,
+                u64::MAX,
             ],
         )
     }
