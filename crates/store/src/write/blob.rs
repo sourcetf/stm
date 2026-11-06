@@ -8,7 +8,7 @@ use super::{BlobOp, Operation, ValueClass, ValueOp, key::DeserializeBigEndian, n
 use crate::{
     BlobStore, Deserialize, IterateParams, SerializeInfallible, Store, U16_LEN, U32_LEN, U64_LEN,
     ValueKey,
-    write::{BatchBuilder, BlobLink, RegistryClass},
+    write::{BatchBuilder, BlobLink, RegistryClass, SetValue, SizedSetValue},
 };
 use registry::{
     schema::prelude::Property,
@@ -16,15 +16,84 @@ use registry::{
 };
 use std::time::Instant;
 use trc::{AddContext, StoreEvent};
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
+use registry::schema::prelude::ObjectType;
+// SPDX-SnippetEnd
 use types::{
     blob::BlobClass,
     blob_hash::{BLOB_HASH_LEN, BlobHash},
+    collection::Collection,
 };
+use utils::codec::leb128::{Leb128, Leb128Reader, Leb128Writer};
+
+const OBJECT_ID_LEN: usize = U16_LEN + U64_LEN;
+const MAX_LEB128_U64_LEN: usize = 10;
+const BLOB_DELETE_CHUNK: usize = 1_000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BlobLinkValue {
+    pub size: u64,
+    pub object_id: Option<ObjectId>,
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct BlobQuota {
     pub bytes: usize,
     pub count: usize,
+}
+
+impl BlobLinkValue {
+    pub fn new(size: impl TryInto<u64>) -> Self {
+        BlobLinkValue {
+            size: size.try_into().unwrap_or(u64::MAX),
+            object_id: None,
+        }
+    }
+
+    pub fn with_object_id(mut self, object_id: ObjectId) -> Self {
+        self.object_id = Some(object_id);
+        self
+    }
+}
+
+impl SerializeInfallible for BlobLinkValue {
+    fn serialize(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(
+            self.size.leb128_len() + self.object_id.map_or(0, |_| OBJECT_ID_LEN),
+        );
+        bytes.push_leb128(self.size);
+        if let Some(object_id) = &self.object_id {
+            bytes.extend_from_slice(&object_id.serialize());
+        }
+        bytes
+    }
+}
+
+impl Deserialize for BlobLinkValue {
+    fn deserialize(bytes: &[u8]) -> trc::Result<Self> {
+        let mut remaining = bytes;
+        let size = remaining.read_leb128::<u64>();
+        match (size, remaining.len()) {
+            (Some(size), 0) => Ok(BlobLinkValue::new(size)),
+            (Some(size), OBJECT_ID_LEN) => {
+                Ok(BlobLinkValue::new(size).with_object_id(ObjectId::deserialize(remaining)?))
+            }
+            _ => Err(trc::StoreEvent::DataCorruption
+                .into_err()
+                .details("Invalid blob link value")
+                .ctx(trc::Key::Value, bytes)
+                .caused_by(trc::location!())),
+        }
+    }
+}
+
+impl From<BlobLinkValue> for SizedSetValue {
+    fn from(value: BlobLinkValue) -> Self {
+        SetValue::fixed(value.serialize())
+    }
 }
 
 impl Store {
@@ -41,11 +110,11 @@ impl Store {
         .caused_by(trc::location!())
     }
 
-    pub async fn blob_has_access(
+    pub async fn blob_link_size(
         &self,
         hash: impl AsRef<BlobHash> + Sync + Send,
         class: impl AsRef<BlobClass> + Sync + Send,
-    ) -> trc::Result<bool> {
+    ) -> trc::Result<Option<u64>> {
         let key = match class.as_ref() {
             BlobClass::Reserved {
                 account_id,
@@ -72,10 +141,12 @@ impl Store {
                     to: BlobLink::Document,
                 }),
             },
-            _ => return Ok(false),
+            _ => return Ok(None),
         };
 
-        self.key_exists(key).await
+        self.get_value::<BlobLinkValue>(key)
+            .await
+            .map(|value| value.map(|value| value.size))
     }
 
     pub async fn purge_blobs_all_shards(&self, blob_store: BlobStore) -> trc::Result<()> {
@@ -133,20 +204,31 @@ impl Store {
         state.finalize(BlobHash::default());
 
         // Delete expired or unlinked blobs
+        let mut hashes = Vec::with_capacity(BLOB_DELETE_CHUNK.min(state.delete_keys.len()));
         for (_, op) in &state.delete_keys {
             if let BlobOp::Commit { hash } = op {
-                blob_store
-                    .delete_blob(hash.as_ref())
-                    .await
-                    .caused_by(trc::location!())?;
+                hashes.push(hash.as_ref());
+                if hashes.len() == BLOB_DELETE_CHUNK {
+                    blob_store
+                        .delete_blobs(&hashes)
+                        .await
+                        .caused_by(trc::location!())?;
+                    hashes.clear();
+                }
             }
+        }
+        if !hashes.is_empty() {
+            blob_store
+                .delete_blobs(&hashes)
+                .await
+                .caused_by(trc::location!())?;
         }
 
         // Delete hashes
         let mut batch = BatchBuilder::new();
         for (account_id, op) in state.delete_keys {
-            if batch.is_large_batch() {
-                self.write(batch.build_all())
+            if batch.is_large_bulk_batch() {
+                self.write_batch(&mut batch)
                     .await
                     .caused_by(trc::location!())?;
                 batch = BatchBuilder::new();
@@ -162,8 +244,8 @@ impl Store {
             });
         }
         for (account_id, object_id) in state.delete_registry {
-            if batch.is_large_batch() {
-                self.write(batch.build_all())
+            if batch.is_large_bulk_batch() {
+                self.write_batch(&mut batch)
                     .await
                     .caused_by(trc::location!())?;
                 batch = BatchBuilder::new();
@@ -185,7 +267,7 @@ impl Store {
                 }));
         }
         if !batch.is_empty() {
-            self.write(batch.build_all())
+            self.write_batch(&mut batch)
                 .await
                 .caused_by(trc::location!())?;
         }
@@ -195,13 +277,100 @@ impl Store {
 
         trc::event!(
             Store(StoreEvent::BlobStorePurged),
-            Id = shard_index as u16,
-            Expires = total_deleted,
-            Total = total_active,
+            Partition = shard_index as u16,
+            Total = total_deleted,
+            Used = total_active,
             Elapsed = started.elapsed()
         );
 
         Ok(())
+    }
+}
+
+impl Store {
+    pub async fn user_blob_hashes(&self, shard_index: u8) -> trc::Result<Vec<BlobHash>> {
+        const TEMP_LINK: usize = BLOB_HASH_LEN + U32_LEN + U64_LEN;
+        const DOC_LINK: usize = BLOB_HASH_LEN + U64_LEN + 1;
+        const ID_LINK: usize = BLOB_HASH_LEN + U64_LEN;
+        const COLLECTION_OFFSET: usize = BLOB_HASH_LEN + U32_LEN;
+
+        let mut from_hash = BlobHash::default();
+        let mut to_hash = BlobHash::new_max();
+        from_hash.0[0] = shard_index;
+        to_hash.0[0] = shard_index;
+        let from_key = ValueKey {
+            account_id: 0,
+            collection: 0,
+            document_id: 0,
+            class: ValueClass::Blob(BlobOp::Commit { hash: from_hash }),
+        };
+        let to_key = ValueKey {
+            account_id: u32::MAX,
+            collection: u8::MAX,
+            document_id: u32::MAX,
+            class: ValueClass::Blob(BlobOp::Link {
+                hash: to_hash,
+                to: BlobLink::Document,
+            }),
+        };
+
+        let mut hashes: Vec<BlobHash> = Vec::new();
+        let mut committed: Option<BlobHash> = None;
+        self.iterate(
+            IterateParams::new(from_key, to_key).ascending(),
+            |key, value| {
+                let hash = key
+                    .get(0..BLOB_HASH_LEN)
+                    .and_then(|hash| BlobHash::try_from_hash_slice(hash).ok())
+                    .ok_or_else(|| {
+                        trc::Error::corrupted_key(key, value.into(), trc::location!())
+                    })?;
+                let is_user_data = match key.len() {
+                    BLOB_HASH_LEN => {
+                        committed = Some(hash);
+                        return Ok(true);
+                    }
+                    DOC_LINK => key.get(COLLECTION_OFFSET).is_some_and(|collection| {
+                        matches!(
+                            Collection::from(*collection),
+                            Collection::Email | Collection::SieveScript | Collection::FileNode
+                        )
+                    }),
+                    ID_LINK => true,
+                    TEMP_LINK => BlobLinkValue::is_archived_item(value),
+                    _ => false,
+                };
+                if is_user_data && committed.as_ref() == Some(&hash) && hashes.last() != Some(&hash)
+                {
+                    hashes.push(hash);
+                }
+                Ok(true)
+            },
+        )
+        .await
+        .caused_by(trc::location!())?;
+
+        Ok(hashes)
+    }
+}
+
+impl BlobLinkValue {
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
+    fn is_archived_item(value: &[u8]) -> bool {
+        value.len() > MAX_LEB128_U64_LEN
+            && value
+                .split_last_chunk::<OBJECT_ID_LEN>()
+                .and_then(|(_, object_id)| ObjectId::deserialize(object_id).ok())
+                .is_some_and(|object_id| object_id.object() == ObjectType::ArchivedItem)
+    }
+    // SPDX-SnippetEnd
+
+    #[cfg(not(feature = "enterprise"))]
+    fn is_archived_item(_value: &[u8]) -> bool {
+        false
     }
 }
 
@@ -272,9 +441,11 @@ impl BlobPurgeState {
                             to: BlobLink::Temporary { until },
                         },
                     ));
-                    if value.len() == U16_LEN + U64_LEN {
+                    if value.len() > MAX_LEB128_U64_LEN
+                        && let Some((_, object_id)) = value.split_last_chunk::<OBJECT_ID_LEN>()
+                    {
                         self.delete_registry
-                            .push((account_id, ObjectId::deserialize(value)?));
+                            .push((account_id, ObjectId::deserialize(object_id)?));
                     }
                 } else {
                     self.last_hash_is_linked = true;
@@ -294,3 +465,8 @@ impl BlobPurgeState {
         }
     }
 }
+
+#[cfg(all(test, stalwart_tests))]
+#[rustfmt::skip]
+#[path = "../../../../../stalwart-tests/unit/store/src/write/blob/tests.rs"]
+mod tests;

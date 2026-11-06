@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use std::sync::Arc;
-
 use sieve::{Envelope, runtime::Variable};
+use std::borrow::Cow;
 use store::Value;
 use unicode_security::mixed_script::AugmentedScriptSet;
 
@@ -19,39 +18,33 @@ pub mod plugins;
 #[serde(tag = "action")]
 #[serde(rename_all = "camelCase")]
 pub enum ScriptModification {
-    SetEnvelope {
-        name: Envelope,
-        value: String,
-    },
-    AddHeader {
-        name: Arc<String>,
-        value: Arc<String>,
-    },
+    SetEnvelope { name: Envelope, value: String },
+    AddHeader { name: String, value: String },
 }
 
-pub fn into_sieve_value(value: Value) -> Variable {
+pub fn into_sieve_value(value: Value<'_>) -> Variable<'_> {
     match value {
         Value::Integer(v) => Variable::Integer(v),
         Value::Bool(v) => Variable::Integer(i64::from(v)),
         Value::Float(v) => Variable::Float(v),
-        Value::Text(v) => Variable::String(v.into_owned().into()),
+        Value::Text(v) => Variable::String(v),
         Value::Blob(v) => Variable::String(v.into_owned().into_string().into()),
         Value::Null => Variable::default(),
     }
 }
 
-pub fn into_store_value(value: Variable) -> Value<'static> {
+pub fn into_store_value(value: Variable<'_>) -> Value<'static> {
     match value {
-        Variable::String(v) => Value::Text(v.to_string().into()),
+        Variable::String(v) => Value::Text(v.into_owned().into()),
         Variable::Integer(v) => Value::Integer(v),
         Variable::Float(v) => Value::Float(v),
         v => Value::Text(v.to_string().into_owned().into()),
     }
 }
 
-pub fn to_store_value(value: &Variable) -> Value<'static> {
+pub fn to_store_value<'x>(value: &'x Variable<'_>) -> Value<'x> {
     match value {
-        Variable::String(v) => Value::Text(v.to_string().into()),
+        Variable::String(v) => Value::Text(Cow::Borrowed(v.as_ref())),
         Variable::Integer(v) => Value::Integer(*v),
         Variable::Float(v) => Value::Float(*v),
         v => Value::Text(v.to_string().into_owned().into()),
@@ -67,7 +60,7 @@ impl<T: AsRef<str>> IsMixedCharset for T {
         let mut set: Option<AugmentedScriptSet> = None;
 
         for ch in self.as_ref().chars() {
-            if !ch.is_ascii() {
+            if !ch.is_ascii() && ch.is_alphabetic() {
                 set.get_or_insert_default().intersect_with(ch.into());
             }
         }
@@ -75,3 +68,8 @@ impl<T: AsRef<str>> IsMixedCharset for T {
         set.is_some_and(|set| set.is_empty())
     }
 }
+
+#[cfg(all(test, stalwart_tests))]
+#[rustfmt::skip]
+#[path = "../../../../../stalwart-tests/unit/common/src/scripts/tests.rs"]
+mod tests;

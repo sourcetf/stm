@@ -5,8 +5,11 @@
  */
 
 use crate::{
-    schema::prelude::{ObjectType, Property},
-    types::{id::ObjectId, ipmask::IpAddrOrMask},
+    schema::{
+        enums::{ExternalPublicKeyStatus, PublicKeyKind},
+        prelude::{ObjectType, Property},
+    },
+    types::{EnumImpl, datetime::UTCDateTime, id::ObjectId, ipmask::IpAddrOrMask},
 };
 use ahash::AHashSet;
 use std::borrow::Cow;
@@ -42,6 +45,7 @@ pub enum IndexValue<'x> {
     Bytes(Vec<u8>),
     U64(u64),
     I64(i64),
+    U32(u32),
     U16(u16),
     None,
 }
@@ -161,6 +165,28 @@ impl<'x> IndexBuilder<'x> {
     }
 }
 
+impl IndexKey<'_> {
+    pub fn text_with_nul(&self) -> Option<Property> {
+        match self {
+            IndexKey::Unique {
+                property,
+                value_1,
+                value_2,
+                ..
+            } => (value_1.has_nul() || value_2.has_nul()).then_some(*property),
+            IndexKey::Search { property, value } => value.has_nul().then_some(*property),
+            IndexKey::ForeignKey { .. } => None,
+        }
+    }
+}
+
+impl IndexValue<'_> {
+    #[inline]
+    pub fn has_nul(&self) -> bool {
+        matches!(self, IndexValue::Text(text) if text.as_bytes().contains(&0))
+    }
+}
+
 impl IndexSchema {
     pub const fn new(prop: Property, typ: IndexSchemaType, value: IndexSchemaValueType) -> Self {
         Self { prop, typ, value }
@@ -199,6 +225,24 @@ impl<'x> From<&'x IpAddrOrMask> for IndexValue<'x> {
 
 impl<'x> From<&'x trc::EventType> for IndexValue<'x> {
     fn from(value: &'x trc::EventType) -> Self {
+        IndexValue::U16(value.to_id())
+    }
+}
+
+impl From<&UTCDateTime> for IndexValue<'_> {
+    fn from(value: &UTCDateTime) -> Self {
+        IndexValue::U64(value.timestamp() as u64)
+    }
+}
+
+impl From<&ExternalPublicKeyStatus> for IndexValue<'_> {
+    fn from(value: &ExternalPublicKeyStatus) -> Self {
+        IndexValue::U16(value.to_id())
+    }
+}
+
+impl From<&PublicKeyKind> for IndexValue<'_> {
+    fn from(value: &PublicKeyKind) -> Self {
         IndexValue::U16(value.to_id())
     }
 }

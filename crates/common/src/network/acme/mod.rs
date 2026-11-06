@@ -9,12 +9,12 @@ pub mod directory;
 pub mod http;
 pub mod jose;
 pub mod order;
+pub mod persist;
 pub mod renew;
 pub mod resolver;
 
 use crate::network::dns::update::DnsUpdater;
-use chrono::{DateTime, Utc};
-use registry::schema::enums::AcmeChallengeType;
+use registry::{schema::enums::AcmeChallengeType, types::datetime::UTCDateTime};
 use rustls::sign::CertifiedKey;
 use serde::Deserialize;
 use std::{
@@ -23,6 +23,7 @@ use std::{
     time::Duration,
 };
 use store::registry::write::RegistryWriteResult;
+use utils::error_chain;
 
 pub type AcmeResult<T> = Result<T, AcmeError>;
 
@@ -32,7 +33,10 @@ pub enum AcmeError {
     Json(serde_json::Error),
     Crypto(String),
     Invalid(String),
-    NotDue(String),
+    NotDue {
+        domain: String,
+        renew_at: u64,
+    },
     Dns(String),
     AuthInvalid(String),
     OrderInvalid(String),
@@ -42,14 +46,9 @@ pub enum AcmeError {
     },
     Internal(trc::Error),
     Registry(RegistryWriteResult),
-    OrderTimeout {
-        max_retries: u32,
-    },
-    AuthTimeout {
-        max_retries: u32,
-    },
+    OrderTimeout,
+    AuthTimeout,
     Backoff {
-        max_retries: u32,
         wait: Option<Duration>,
     },
 }
@@ -62,6 +61,10 @@ pub struct SerializedCert {
     pub private_key: Vec<u8>,
 }
 
+impl store::write::ArchiveCompression for SerializedCert {
+    const COMPRESSION: store::write::Compression = store::write::Compression::None;
+}
+
 pub struct PemCert {
     pub certificate: String,
     pub private_key: String,
@@ -70,8 +73,8 @@ pub struct PemCert {
 pub struct ParsedCert {
     pub sans: Vec<String>,
     pub issuer: String,
-    pub valid_not_before: DateTime<Utc>,
-    pub valid_not_after: DateTime<Utc>,
+    pub valid_not_before: UTCDateTime,
+    pub valid_not_after: UTCDateTime,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -80,6 +83,19 @@ pub struct Directory {
     pub new_nonce: String,
     pub new_account: String,
     pub new_order: String,
+    #[serde(default)]
+    pub meta: DirectoryMeta,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectoryMeta {
+    #[serde(default)]
+    pub caa_identities: Vec<String>,
+    #[serde(default)]
+    pub issuer_domain_names: Vec<String>,
+    #[serde(default)]
+    pub account_hash_prefix: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Clone, Copy)]
@@ -138,7 +154,7 @@ pub enum AuthStatus {
 
 pub struct AcmeDnsParameters {
     pub updater: DnsUpdater,
-    pub origin: Option<String>,
+    pub zone: String,
 }
 
 #[derive(Clone, Debug, serde::Serialize, Deserialize)]
@@ -154,6 +170,8 @@ pub struct Challenge {
     pub url: String,
     pub token: Option<String>,
     pub error: Option<Problem>,
+    #[serde(default, rename = "issuerDomainNames")]
+    pub issuer_domain_names: Vec<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, Deserialize)]
@@ -260,17 +278,21 @@ impl Display for Problem {
 impl Display for AcmeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AcmeError::Http(err) => write!(f, "HTTP error: {}", err),
+            AcmeError::Http(err) => write!(f, "HTTP error: {}", error_chain(err)),
             AcmeError::HttpStatus(status) => write!(f, "HTTP error: {}", status),
             AcmeError::Json(err) => write!(f, "JSON error: {}", err),
             AcmeError::Dns(err) => write!(f, "DNS error: {}", err),
             AcmeError::Crypto(err) => write!(f, "Cryptographic error: {}", err),
             AcmeError::Invalid(err) => write!(f, "Invalid request: {}", err),
-            AcmeError::NotDue(err) => write!(f, "{}", err),
+            AcmeError::NotDue { domain, renew_at } => write!(
+                f,
+                "Certificate for domain {domain} is still valid; renewal is not due until {}",
+                UTCDateTime::from_timestamp(*renew_at as i64)
+            ),
             AcmeError::AuthInvalid(status) => write!(f, "Authentication failed: {:?}", status),
-            AcmeError::OrderTimeout { .. } => write!(f, "Order processing timed out"),
+            AcmeError::OrderTimeout => write!(f, "Order processing timed out"),
             AcmeError::OrderInvalid(reason) => write!(f, "Order is invalid: {}", reason),
-            AcmeError::AuthTimeout { .. } => write!(f, "Authentication timed out"),
+            AcmeError::AuthTimeout => write!(f, "Authentication timed out"),
             AcmeError::ChallengeNotSupported {
                 requested,
                 supported,
@@ -283,7 +305,7 @@ impl Display for AcmeError {
             }
             AcmeError::Internal(err) => write!(f, "Internal error: {}", err),
             AcmeError::Registry(err) => write!(f, "Registry error: {:?}", err),
-            AcmeError::Backoff { wait, .. } => {
+            AcmeError::Backoff { wait } => {
                 if let Some(time) = wait {
                     write!(f, "Rate limited. Retry after {} seconds", time.as_secs())
                 } else {

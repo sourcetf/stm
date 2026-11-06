@@ -10,11 +10,13 @@ use crate::schema::prelude::*;
 
 impl EnumImpl for AccountType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            AccountType,
             b"User" => AccountType::User,
             b"Group" => AccountType::Group,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -60,13 +62,15 @@ impl<'de> serde::Deserialize<'de> for AccountType {
 
 impl EnumImpl for AcmeChallengeType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            AcmeChallengeType,
             b"TlsAlpn01" => AcmeChallengeType::TlsAlpn01,
             b"DnsPersist01" => AcmeChallengeType::DnsPersist01,
             b"Dns01" => AcmeChallengeType::Dns01,
             b"Http01" => AcmeChallengeType::Http01,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -116,13 +120,15 @@ impl<'de> serde::Deserialize<'de> for AcmeChallengeType {
 
 impl EnumImpl for AcmeRenewBefore {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            AcmeRenewBefore,
             b"R12" => AcmeRenewBefore::R12,
             b"R23" => AcmeRenewBefore::R23,
             b"R34" => AcmeRenewBefore::R34,
             b"R45" => AcmeRenewBefore::R45,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -172,8 +178,9 @@ impl<'de> serde::Deserialize<'de> for AcmeRenewBefore {
 
 impl EnumImpl for ActionType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ActionType,
             b"ReloadSettings" => ActionType::ReloadSettings,
             b"ReloadTlsCertificates" => ActionType::ReloadTlsCertificates,
             b"ReloadLookupStores" => ActionType::ReloadLookupStores,
@@ -186,6 +193,7 @@ impl EnumImpl for ActionType {
             b"PauseMtaQueue" => ActionType::PauseMtaQueue,
             b"ResumeMtaQueue" => ActionType::ResumeMtaQueue,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -247,19 +255,31 @@ impl<'de> serde::Deserialize<'de> for ActionType {
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 impl EnumImpl for AiModelType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
-            b"Chat" => AiModelType::Chat,
-            b"Text" => AiModelType::Text,
+            AiModelType,
+            b"OpenAi" => AiModelType::OpenAi,
+            b"Anthropic" => AiModelType::Anthropic,
+            b"Gemini" => AiModelType::Gemini,
+            b"Ollama" => AiModelType::Ollama,
+            b"TypeSafe" => AiModelType::TypeSafe,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
         match self {
-            AiModelType::Chat => "Chat",
-            AiModelType::Text => "Text",
+            AiModelType::OpenAi => "OpenAi",
+            AiModelType::Anthropic => "Anthropic",
+            AiModelType::Gemini => "Gemini",
+            AiModelType::Ollama => "Ollama",
+            AiModelType::TypeSafe => "TypeSafe",
         }
     }
 
@@ -269,15 +289,19 @@ impl EnumImpl for AiModelType {
 
     fn from_id(id: u16) -> Option<Self> {
         match id {
-            0 => Some(AiModelType::Chat),
-            1 => Some(AiModelType::Text),
+            0 => Some(AiModelType::OpenAi),
+            1 => Some(AiModelType::Anthropic),
+            2 => Some(AiModelType::Gemini),
+            3 => Some(AiModelType::Ollama),
+            4 => Some(AiModelType::TypeSafe),
             _ => None,
         }
     }
 
-    const COUNT: usize = 2;
+    const COUNT: usize = 5;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for AiModelType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -287,6 +311,7 @@ impl serde::Serialize for AiModelType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for AiModelType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -297,13 +322,144 @@ impl<'de> serde::Deserialize<'de> for AiModelType {
     }
 }
 
+#[cfg(feature = "enterprise")]
+impl EnumImpl for AiOpenAiProfile {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            AiOpenAiProfile,
+            b"OpenAi" => AiOpenAiProfile::OpenAi,
+            b"Azure" => AiOpenAiProfile::Azure,
+            b"Vllm" => AiOpenAiProfile::Vllm,
+            b"LlamaCpp" => AiOpenAiProfile::LlamaCpp,
+            b"Generic" => AiOpenAiProfile::Generic,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            AiOpenAiProfile::OpenAi => "OpenAi",
+            AiOpenAiProfile::Azure => "Azure",
+            AiOpenAiProfile::Vllm => "Vllm",
+            AiOpenAiProfile::LlamaCpp => "LlamaCpp",
+            AiOpenAiProfile::Generic => "Generic",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(AiOpenAiProfile::OpenAi),
+            1 => Some(AiOpenAiProfile::Azure),
+            2 => Some(AiOpenAiProfile::Vllm),
+            3 => Some(AiOpenAiProfile::LlamaCpp),
+            4 => Some(AiOpenAiProfile::Generic),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 5;
+}
+
+#[cfg(feature = "enterprise")]
+impl serde::Serialize for AiOpenAiProfile {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl<'de> serde::Deserialize<'de> for AiOpenAiProfile {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl EnumImpl for AiReasoning {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            AiReasoning,
+            b"Default" => AiReasoning::Default,
+            b"Off" => AiReasoning::Off,
+            b"Low" => AiReasoning::Low,
+            b"Medium" => AiReasoning::Medium,
+            b"High" => AiReasoning::High,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            AiReasoning::Default => "Default",
+            AiReasoning::Off => "Off",
+            AiReasoning::Low => "Low",
+            AiReasoning::Medium => "Medium",
+            AiReasoning::High => "High",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(AiReasoning::Default),
+            1 => Some(AiReasoning::Off),
+            2 => Some(AiReasoning::Low),
+            3 => Some(AiReasoning::Medium),
+            4 => Some(AiReasoning::High),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 5;
+}
+
+#[cfg(feature = "enterprise")]
+impl serde::Serialize for AiReasoning {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl<'de> serde::Deserialize<'de> for AiReasoning {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+#[cfg(feature = "enterprise")]
 impl EnumImpl for AlertEmailType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            AlertEmailType,
             b"Disabled" => AlertEmailType::Disabled,
             b"Enabled" => AlertEmailType::Enabled,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -328,6 +484,7 @@ impl EnumImpl for AlertEmailType {
     const COUNT: usize = 2;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for AlertEmailType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -337,6 +494,7 @@ impl serde::Serialize for AlertEmailType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for AlertEmailType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -347,13 +505,16 @@ impl<'de> serde::Deserialize<'de> for AlertEmailType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl EnumImpl for AlertEventType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            AlertEventType,
             b"Disabled" => AlertEventType::Disabled,
             b"Enabled" => AlertEventType::Enabled,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -378,6 +539,7 @@ impl EnumImpl for AlertEventType {
     const COUNT: usize = 2;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for AlertEventType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -387,6 +549,7 @@ impl serde::Serialize for AlertEventType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for AlertEventType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -397,13 +560,16 @@ impl<'de> serde::Deserialize<'de> for AlertEventType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl EnumImpl for ArchivedItemStatus {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ArchivedItemStatus,
             b"archived" => ArchivedItemStatus::Archived,
             b"requestRestore" => ArchivedItemStatus::RequestRestore,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -428,6 +594,7 @@ impl EnumImpl for ArchivedItemStatus {
     const COUNT: usize = 2;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for ArchivedItemStatus {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -437,6 +604,7 @@ impl serde::Serialize for ArchivedItemStatus {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for ArchivedItemStatus {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -447,16 +615,19 @@ impl<'de> serde::Deserialize<'de> for ArchivedItemStatus {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl EnumImpl for ArchivedItemType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ArchivedItemType,
             b"Email" => ArchivedItemType::Email,
             b"FileNode" => ArchivedItemType::FileNode,
             b"CalendarEvent" => ArchivedItemType::CalendarEvent,
             b"ContactCard" => ArchivedItemType::ContactCard,
             b"SieveScript" => ArchivedItemType::SieveScript,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -487,6 +658,7 @@ impl EnumImpl for ArchivedItemType {
     const COUNT: usize = 5;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for ArchivedItemType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -496,6 +668,7 @@ impl serde::Serialize for ArchivedItemType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for ArchivedItemType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -506,10 +679,12 @@ impl<'de> serde::Deserialize<'de> for ArchivedItemType {
     }
 }
 
+// SPDX-SnippetEnd
 impl EnumImpl for ArfAuthFailureType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ArfAuthFailureType,
             b"adsp" => ArfAuthFailureType::Adsp,
             b"bodyHash" => ArfAuthFailureType::BodyHash,
             b"revoked" => ArfAuthFailureType::Revoked,
@@ -518,6 +693,7 @@ impl EnumImpl for ArfAuthFailureType {
             b"dmarc" => ArfAuthFailureType::Dmarc,
             b"unspecified" => ArfAuthFailureType::Unspecified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -573,8 +749,9 @@ impl<'de> serde::Deserialize<'de> for ArfAuthFailureType {
 
 impl EnumImpl for ArfDeliveryResult {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ArfDeliveryResult,
             b"delivered" => ArfDeliveryResult::Delivered,
             b"spam" => ArfDeliveryResult::Spam,
             b"policy" => ArfDeliveryResult::Policy,
@@ -582,6 +759,7 @@ impl EnumImpl for ArfDeliveryResult {
             b"other" => ArfDeliveryResult::Other,
             b"unspecified" => ArfDeliveryResult::Unspecified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -635,8 +813,9 @@ impl<'de> serde::Deserialize<'de> for ArfDeliveryResult {
 
 impl EnumImpl for ArfFeedbackType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ArfFeedbackType,
             b"abuse" => ArfFeedbackType::Abuse,
             b"authFailure" => ArfFeedbackType::AuthFailure,
             b"fraud" => ArfFeedbackType::Fraud,
@@ -644,6 +823,7 @@ impl EnumImpl for ArfFeedbackType {
             b"virus" => ArfFeedbackType::Virus,
             b"other" => ArfFeedbackType::Other,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -697,14 +877,16 @@ impl<'de> serde::Deserialize<'de> for ArfFeedbackType {
 
 impl EnumImpl for ArfIdentityAlignment {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ArfIdentityAlignment,
             b"none" => ArfIdentityAlignment::None,
             b"spf" => ArfIdentityAlignment::Spf,
             b"dkim" => ArfIdentityAlignment::Dkim,
             b"dkimSpf" => ArfIdentityAlignment::DkimSpf,
             b"unspecified" => ArfIdentityAlignment::Unspecified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -756,12 +938,14 @@ impl<'de> serde::Deserialize<'de> for ArfIdentityAlignment {
 
 impl EnumImpl for AsnType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            AsnType,
             b"Disabled" => AsnType::Disabled,
             b"Resource" => AsnType::Resource,
             b"Dns" => AsnType::Dns,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -807,14 +991,77 @@ impl<'de> serde::Deserialize<'de> for AsnType {
     }
 }
 
+impl EnumImpl for AzureAuthType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            AzureAuthType,
+            b"SharedKey" => AzureAuthType::SharedKey,
+            b"SasToken" => AzureAuthType::SasToken,
+            b"ClientSecret" => AzureAuthType::ClientSecret,
+            b"ManagedIdentity" => AzureAuthType::ManagedIdentity,
+            b"WorkloadIdentity" => AzureAuthType::WorkloadIdentity,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            AzureAuthType::SharedKey => "SharedKey",
+            AzureAuthType::SasToken => "SasToken",
+            AzureAuthType::ClientSecret => "ClientSecret",
+            AzureAuthType::ManagedIdentity => "ManagedIdentity",
+            AzureAuthType::WorkloadIdentity => "WorkloadIdentity",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(AzureAuthType::SharedKey),
+            1 => Some(AzureAuthType::SasToken),
+            2 => Some(AzureAuthType::ClientSecret),
+            3 => Some(AzureAuthType::ManagedIdentity),
+            4 => Some(AzureAuthType::WorkloadIdentity),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 5;
+}
+
+impl serde::Serialize for AzureAuthType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for AzureAuthType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for AzureEnvironment {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            AzureEnvironment,
             b"public" => AzureEnvironment::Public,
             b"china" => AzureEnvironment::China,
             b"us-government" => AzureEnvironment::UsGovernment,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -860,10 +1107,15 @@ impl<'de> serde::Deserialize<'de> for AzureEnvironment {
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 impl EnumImpl for BlobStoreBaseType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            BlobStoreBaseType,
             b"S3" => BlobStoreBaseType::S3,
             b"Azure" => BlobStoreBaseType::Azure,
             b"FileSystem" => BlobStoreBaseType::FileSystem,
@@ -871,6 +1123,7 @@ impl EnumImpl for BlobStoreBaseType {
             b"PostgreSql" => BlobStoreBaseType::PostgreSql,
             b"MySql" => BlobStoreBaseType::MySql,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -903,6 +1156,7 @@ impl EnumImpl for BlobStoreBaseType {
     const COUNT: usize = 6;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for BlobStoreBaseType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -912,6 +1166,7 @@ impl serde::Serialize for BlobStoreBaseType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for BlobStoreBaseType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -922,10 +1177,16 @@ impl<'de> serde::Deserialize<'de> for BlobStoreBaseType {
     }
 }
 
+// SPDX-SnippetEnd
 impl EnumImpl for BlobStoreType {
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            BlobStoreType,
             b"Default" => BlobStoreType::Default,
             b"Sharded" => BlobStoreType::Sharded,
             b"S3" => BlobStoreType::S3,
@@ -935,12 +1196,35 @@ impl EnumImpl for BlobStoreType {
             b"PostgreSql" => BlobStoreType::PostgreSql,
             b"MySql" => BlobStoreType::MySql,
         }
+        .copied()
+    }
+
+    // SPDX-SnippetEnd
+    #[cfg(not(feature = "enterprise"))]
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            BlobStoreType,
+            b"Default" => BlobStoreType::Default,
+            b"S3" => BlobStoreType::S3,
+            b"Azure" => BlobStoreType::Azure,
+            b"FileSystem" => BlobStoreType::FileSystem,
+            b"FoundationDb" => BlobStoreType::FoundationDb,
+            b"PostgreSql" => BlobStoreType::PostgreSql,
+            b"MySql" => BlobStoreType::MySql,
+        }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
         match self {
             BlobStoreType::Default => "Default",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             BlobStoreType::Sharded => "Sharded",
+            // SPDX-SnippetEnd
             BlobStoreType::S3 => "S3",
             BlobStoreType::Azure => "Azure",
             BlobStoreType::FileSystem => "FileSystem",
@@ -957,7 +1241,12 @@ impl EnumImpl for BlobStoreType {
     fn from_id(id: u16) -> Option<Self> {
         match id {
             0 => Some(BlobStoreType::Default),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             1 => Some(BlobStoreType::Sharded),
+            // SPDX-SnippetEnd
             2 => Some(BlobStoreType::S3),
             3 => Some(BlobStoreType::Azure),
             4 => Some(BlobStoreType::FileSystem),
@@ -990,10 +1279,78 @@ impl<'de> serde::Deserialize<'de> for BlobStoreType {
     }
 }
 
+impl EnumImpl for BlobSwapStoreType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            BlobSwapStoreType,
+            b"Default" => BlobSwapStoreType::Default,
+            b"S3" => BlobSwapStoreType::S3,
+            b"Azure" => BlobSwapStoreType::Azure,
+            b"FileSystem" => BlobSwapStoreType::FileSystem,
+            b"FoundationDb" => BlobSwapStoreType::FoundationDb,
+            b"PostgreSql" => BlobSwapStoreType::PostgreSql,
+            b"MySql" => BlobSwapStoreType::MySql,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            BlobSwapStoreType::Default => "Default",
+            BlobSwapStoreType::S3 => "S3",
+            BlobSwapStoreType::Azure => "Azure",
+            BlobSwapStoreType::FileSystem => "FileSystem",
+            BlobSwapStoreType::FoundationDb => "FoundationDb",
+            BlobSwapStoreType::PostgreSql => "PostgreSql",
+            BlobSwapStoreType::MySql => "MySql",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(BlobSwapStoreType::Default),
+            1 => Some(BlobSwapStoreType::S3),
+            2 => Some(BlobSwapStoreType::Azure),
+            3 => Some(BlobSwapStoreType::FileSystem),
+            4 => Some(BlobSwapStoreType::FoundationDb),
+            5 => Some(BlobSwapStoreType::PostgreSql),
+            6 => Some(BlobSwapStoreType::MySql),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 7;
+}
+
+impl serde::Serialize for BlobSwapStoreType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for BlobSwapStoreType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for BlockReason {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            BlockReason,
             b"rcptToFailure" => BlockReason::RcptToFailure,
             b"authFailure" => BlockReason::AuthFailure,
             b"loitering" => BlockReason::Loitering,
@@ -1001,6 +1358,7 @@ impl EnumImpl for BlockReason {
             b"manual" => BlockReason::Manual,
             b"other" => BlockReason::Other,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1052,13 +1410,73 @@ impl<'de> serde::Deserialize<'de> for BlockReason {
     }
 }
 
+impl EnumImpl for CacheSwapType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            CacheSwapType,
+            b"Disabled" => CacheSwapType::Disabled,
+            b"LocalFile" => CacheSwapType::LocalFile,
+            b"Redis" => CacheSwapType::Redis,
+            b"BlobStore" => CacheSwapType::BlobStore,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            CacheSwapType::Disabled => "Disabled",
+            CacheSwapType::LocalFile => "LocalFile",
+            CacheSwapType::Redis => "Redis",
+            CacheSwapType::BlobStore => "BlobStore",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(CacheSwapType::Disabled),
+            1 => Some(CacheSwapType::LocalFile),
+            2 => Some(CacheSwapType::Redis),
+            3 => Some(CacheSwapType::BlobStore),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 4;
+}
+
+impl serde::Serialize for CacheSwapType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CacheSwapType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for CertificateManagementType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            CertificateManagementType,
             b"Manual" => CertificateManagementType::Manual,
             b"Automatic" => CertificateManagementType::Automatic,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1102,15 +1520,72 @@ impl<'de> serde::Deserialize<'de> for CertificateManagementType {
     }
 }
 
+impl EnumImpl for ClientIpSource {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            ClientIpSource,
+            b"peer" => ClientIpSource::Peer,
+            b"xForwardedFor" => ClientIpSource::XForwardedFor,
+            b"forwarded" => ClientIpSource::Forwarded,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            ClientIpSource::Peer => "peer",
+            ClientIpSource::XForwardedFor => "xForwardedFor",
+            ClientIpSource::Forwarded => "forwarded",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(ClientIpSource::Peer),
+            1 => Some(ClientIpSource::XForwardedFor),
+            2 => Some(ClientIpSource::Forwarded),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 3;
+}
+
+impl serde::Serialize for ClientIpSource {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ClientIpSource {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for ClusterListenerGroupType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ClusterListenerGroupType,
             b"EnableAll" => ClusterListenerGroupType::EnableAll,
             b"DisableAll" => ClusterListenerGroupType::DisableAll,
             b"EnableSome" => ClusterListenerGroupType::EnableSome,
             b"DisableSome" => ClusterListenerGroupType::DisableSome,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1160,12 +1635,14 @@ impl<'de> serde::Deserialize<'de> for ClusterListenerGroupType {
 
 impl EnumImpl for ClusterNodeStatus {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ClusterNodeStatus,
             b"active" => ClusterNodeStatus::Active,
             b"stale" => ClusterNodeStatus::Stale,
             b"inactive" => ClusterNodeStatus::Inactive,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1213,13 +1690,15 @@ impl<'de> serde::Deserialize<'de> for ClusterNodeStatus {
 
 impl EnumImpl for ClusterTaskGroupType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ClusterTaskGroupType,
             b"EnableAll" => ClusterTaskGroupType::EnableAll,
             b"DisableAll" => ClusterTaskGroupType::DisableAll,
             b"EnableSome" => ClusterTaskGroupType::EnableSome,
             b"DisableSome" => ClusterTaskGroupType::DisableSome,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1269,8 +1748,9 @@ impl<'de> serde::Deserialize<'de> for ClusterTaskGroupType {
 
 impl EnumImpl for ClusterTaskType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ClusterTaskType,
             b"storeMaintenance" => ClusterTaskType::StoreMaintenance,
             b"accountMaintenance" => ClusterTaskType::AccountMaintenance,
             b"metricsCalculate" => ClusterTaskType::MetricsCalculate,
@@ -1282,6 +1762,7 @@ impl EnumImpl for ClusterTaskType {
             b"taskQueueProcessing" => ClusterTaskType::TaskQueueProcessing,
             b"taskScheduler" => ClusterTaskType::TaskScheduler,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1343,17 +1824,21 @@ impl<'de> serde::Deserialize<'de> for ClusterTaskType {
 
 impl EnumImpl for CompressionAlgo {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            CompressionAlgo,
             b"lz4" => CompressionAlgo::Lz4,
             b"none" => CompressionAlgo::None,
+            b"zstd" => CompressionAlgo::Zstd,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
         match self {
             CompressionAlgo::Lz4 => "lz4",
             CompressionAlgo::None => "none",
+            CompressionAlgo::Zstd => "zstd",
         }
     }
 
@@ -1365,11 +1850,12 @@ impl EnumImpl for CompressionAlgo {
         match id {
             0 => Some(CompressionAlgo::Lz4),
             1 => Some(CompressionAlgo::None),
+            2 => Some(CompressionAlgo::Zstd),
             _ => None,
         }
     }
 
-    const COUNT: usize = 2;
+    const COUNT: usize = 3;
 }
 
 impl serde::Serialize for CompressionAlgo {
@@ -1393,8 +1879,9 @@ impl<'de> serde::Deserialize<'de> for CompressionAlgo {
 
 impl EnumImpl for CoordinatorType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            CoordinatorType,
             b"Disabled" => CoordinatorType::Disabled,
             b"Default" => CoordinatorType::Default,
             b"Kafka" => CoordinatorType::Kafka,
@@ -1404,6 +1891,7 @@ impl EnumImpl for CoordinatorType {
             b"RedisCluster" => CoordinatorType::RedisCluster,
             b"RedisSentinel" => CoordinatorType::RedisSentinel,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1461,12 +1949,14 @@ impl<'de> serde::Deserialize<'de> for CoordinatorType {
 
 impl EnumImpl for CredentialPermissionsType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            CredentialPermissionsType,
             b"Inherit" => CredentialPermissionsType::Inherit,
             b"Disable" => CredentialPermissionsType::Disable,
             b"Replace" => CredentialPermissionsType::Replace,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1514,12 +2004,14 @@ impl<'de> serde::Deserialize<'de> for CredentialPermissionsType {
 
 impl EnumImpl for CredentialType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            CredentialType,
             b"Password" => CredentialType::Password,
             b"AppPassword" => CredentialType::AppPassword,
             b"ApiKey" => CredentialType::ApiKey,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1567,12 +2059,14 @@ impl<'de> serde::Deserialize<'de> for CredentialType {
 
 impl EnumImpl for CronType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            CronType,
             b"Daily" => CronType::Daily,
             b"Weekly" => CronType::Weekly,
             b"Hourly" => CronType::Hourly,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1620,14 +2114,16 @@ impl<'de> serde::Deserialize<'de> for CronType {
 
 impl EnumImpl for DataStoreType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DataStoreType,
             b"RocksDb" => DataStoreType::RocksDb,
             b"Sqlite" => DataStoreType::Sqlite,
             b"FoundationDb" => DataStoreType::FoundationDb,
             b"PostgreSql" => DataStoreType::PostgreSql,
             b"MySql" => DataStoreType::MySql,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1679,8 +2175,9 @@ impl<'de> serde::Deserialize<'de> for DataStoreType {
 
 impl EnumImpl for DeliveryErrorType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DeliveryErrorType,
             b"dnsError" => DeliveryErrorType::DnsError,
             b"unexpectedResponse" => DeliveryErrorType::UnexpectedResponse,
             b"connectionError" => DeliveryErrorType::ConnectionError,
@@ -1690,7 +2187,9 @@ impl EnumImpl for DeliveryErrorType {
             b"rateLimited" => DeliveryErrorType::RateLimited,
             b"concurrencyLimited" => DeliveryErrorType::ConcurrencyLimited,
             b"io" => DeliveryErrorType::Io,
+            b"encryptionError" => DeliveryErrorType::EncryptionError,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1704,6 +2203,7 @@ impl EnumImpl for DeliveryErrorType {
             DeliveryErrorType::RateLimited => "rateLimited",
             DeliveryErrorType::ConcurrencyLimited => "concurrencyLimited",
             DeliveryErrorType::Io => "io",
+            DeliveryErrorType::EncryptionError => "encryptionError",
         }
     }
 
@@ -1722,11 +2222,12 @@ impl EnumImpl for DeliveryErrorType {
             6 => Some(DeliveryErrorType::RateLimited),
             7 => Some(DeliveryErrorType::ConcurrencyLimited),
             8 => Some(DeliveryErrorType::Io),
+            9 => Some(DeliveryErrorType::EncryptionError),
             _ => None,
         }
     }
 
-    const COUNT: usize = 9;
+    const COUNT: usize = 10;
 }
 
 impl serde::Serialize for DeliveryErrorType {
@@ -1750,13 +2251,15 @@ impl<'de> serde::Deserialize<'de> for DeliveryErrorType {
 
 impl EnumImpl for DirectoryBootstrapType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DirectoryBootstrapType,
             b"Internal" => DirectoryBootstrapType::Internal,
             b"Ldap" => DirectoryBootstrapType::Ldap,
             b"Sql" => DirectoryBootstrapType::Sql,
             b"Oidc" => DirectoryBootstrapType::Oidc,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1806,12 +2309,14 @@ impl<'de> serde::Deserialize<'de> for DirectoryBootstrapType {
 
 impl EnumImpl for DirectoryType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DirectoryType,
             b"Ldap" => DirectoryType::Ldap,
             b"Sql" => DirectoryType::Sql,
             b"Oidc" => DirectoryType::Oidc,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1859,18 +2364,16 @@ impl<'de> serde::Deserialize<'de> for DirectoryType {
 
 impl EnumImpl for Dkim2Flag {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
-            b"donotmodify" => Dkim2Flag::Donotmodify,
-            b"donotexplode" => Dkim2Flag::Donotexplode,
+            Dkim2Flag,
             b"feedback" => Dkim2Flag::Feedback,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
         match self {
-            Dkim2Flag::Donotmodify => "donotmodify",
-            Dkim2Flag::Donotexplode => "donotexplode",
             Dkim2Flag::Feedback => "feedback",
         }
     }
@@ -1881,14 +2384,12 @@ impl EnumImpl for Dkim2Flag {
 
     fn from_id(id: u16) -> Option<Self> {
         match id {
-            0 => Some(Dkim2Flag::Donotmodify),
-            1 => Some(Dkim2Flag::Donotexplode),
-            2 => Some(Dkim2Flag::Feedback),
+            0 => Some(Dkim2Flag::Feedback),
             _ => None,
         }
     }
 
-    const COUNT: usize = 3;
+    const COUNT: usize = 1;
 }
 
 impl serde::Serialize for Dkim2Flag {
@@ -1910,10 +2411,63 @@ impl<'de> serde::Deserialize<'de> for Dkim2Flag {
     }
 }
 
+impl EnumImpl for Dkim2HashAlgorithm {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            Dkim2HashAlgorithm,
+            b"sha256" => Dkim2HashAlgorithm::Sha256,
+            b"sha512" => Dkim2HashAlgorithm::Sha512,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            Dkim2HashAlgorithm::Sha256 => "sha256",
+            Dkim2HashAlgorithm::Sha512 => "sha512",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(Dkim2HashAlgorithm::Sha256),
+            1 => Some(Dkim2HashAlgorithm::Sha512),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 2;
+}
+
+impl serde::Serialize for Dkim2HashAlgorithm {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Dkim2HashAlgorithm {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for DkimAuthResult {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DkimAuthResult,
             b"none" => DkimAuthResult::None,
             b"pass" => DkimAuthResult::Pass,
             b"fail" => DkimAuthResult::Fail,
@@ -1922,6 +2476,7 @@ impl EnumImpl for DkimAuthResult {
             b"tempError" => DkimAuthResult::TempError,
             b"permError" => DkimAuthResult::PermError,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -1977,13 +2532,15 @@ impl<'de> serde::Deserialize<'de> for DkimAuthResult {
 
 impl EnumImpl for DkimCanonicalization {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DkimCanonicalization,
             b"relaxed/relaxed" => DkimCanonicalization::RelaxedRelaxed,
             b"simple/simple" => DkimCanonicalization::SimpleSimple,
             b"relaxed/simple" => DkimCanonicalization::RelaxedSimple,
             b"simple/relaxed" => DkimCanonicalization::SimpleRelaxed,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2033,11 +2590,13 @@ impl<'de> serde::Deserialize<'de> for DkimCanonicalization {
 
 impl EnumImpl for DkimHash {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DkimHash,
             b"sha256" => DkimHash::Sha256,
             b"sha1" => DkimHash::Sha1,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2083,11 +2642,13 @@ impl<'de> serde::Deserialize<'de> for DkimHash {
 
 impl EnumImpl for DkimManagementType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DkimManagementType,
             b"Automatic" => DkimManagementType::Automatic,
             b"Manual" => DkimManagementType::Manual,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2133,13 +2694,15 @@ impl<'de> serde::Deserialize<'de> for DkimManagementType {
 
 impl EnumImpl for DkimRotationStage {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DkimRotationStage,
             b"active" => DkimRotationStage::Active,
             b"pending" => DkimRotationStage::Pending,
             b"retiring" => DkimRotationStage::Retiring,
             b"retired" => DkimRotationStage::Retired,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2189,13 +2752,16 @@ impl<'de> serde::Deserialize<'de> for DkimRotationStage {
 
 impl EnumImpl for DkimSignatureType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DkimSignatureType,
             b"Dkim1Ed25519Sha256" => DkimSignatureType::Dkim1Ed25519Sha256,
             b"Dkim1RsaSha256" => DkimSignatureType::Dkim1RsaSha256,
             b"Dkim2Ed25519Sha256" => DkimSignatureType::Dkim2Ed25519Sha256,
             b"Dkim2RsaSha256" => DkimSignatureType::Dkim2RsaSha256,
+            b"Dkim2MlDsa44" => DkimSignatureType::Dkim2MlDsa44,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2204,6 +2770,7 @@ impl EnumImpl for DkimSignatureType {
             DkimSignatureType::Dkim1RsaSha256 => "Dkim1RsaSha256",
             DkimSignatureType::Dkim2Ed25519Sha256 => "Dkim2Ed25519Sha256",
             DkimSignatureType::Dkim2RsaSha256 => "Dkim2RsaSha256",
+            DkimSignatureType::Dkim2MlDsa44 => "Dkim2MlDsa44",
         }
     }
 
@@ -2217,11 +2784,12 @@ impl EnumImpl for DkimSignatureType {
             1 => Some(DkimSignatureType::Dkim1RsaSha256),
             2 => Some(DkimSignatureType::Dkim2Ed25519Sha256),
             3 => Some(DkimSignatureType::Dkim2RsaSha256),
+            4 => Some(DkimSignatureType::Dkim2MlDsa44),
             _ => None,
         }
     }
 
-    const COUNT: usize = 4;
+    const COUNT: usize = 5;
 }
 
 impl serde::Serialize for DkimSignatureType {
@@ -2245,14 +2813,16 @@ impl<'de> serde::Deserialize<'de> for DkimSignatureType {
 
 impl EnumImpl for DmarcActionDisposition {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DmarcActionDisposition,
             b"none" => DmarcActionDisposition::None,
             b"pass" => DmarcActionDisposition::Pass,
             b"quarantine" => DmarcActionDisposition::Quarantine,
             b"reject" => DmarcActionDisposition::Reject,
             b"unspecified" => DmarcActionDisposition::Unspecified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2304,12 +2874,14 @@ impl<'de> serde::Deserialize<'de> for DmarcActionDisposition {
 
 impl EnumImpl for DmarcAlignment {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DmarcAlignment,
             b"relaxed" => DmarcAlignment::Relaxed,
             b"strict" => DmarcAlignment::Strict,
             b"unspecified" => DmarcAlignment::Unspecified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2357,12 +2929,14 @@ impl<'de> serde::Deserialize<'de> for DmarcAlignment {
 
 impl EnumImpl for DmarcDiscovery {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DmarcDiscovery,
             b"psl" => DmarcDiscovery::Psl,
             b"treewalk" => DmarcDiscovery::Treewalk,
             b"unspecified" => DmarcDiscovery::Unspecified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2410,13 +2984,15 @@ impl<'de> serde::Deserialize<'de> for DmarcDiscovery {
 
 impl EnumImpl for DmarcDisposition {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DmarcDisposition,
             b"none" => DmarcDisposition::None,
             b"quarantine" => DmarcDisposition::Quarantine,
             b"reject" => DmarcDisposition::Reject,
             b"unspecified" => DmarcDisposition::Unspecified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2466,8 +3042,9 @@ impl<'de> serde::Deserialize<'de> for DmarcDisposition {
 
 impl EnumImpl for DmarcPolicyOverride {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DmarcPolicyOverride,
             b"Forwarded" => DmarcPolicyOverride::Forwarded,
             b"SampledOut" => DmarcPolicyOverride::SampledOut,
             b"TrustedForwarder" => DmarcPolicyOverride::TrustedForwarder,
@@ -2476,6 +3053,7 @@ impl EnumImpl for DmarcPolicyOverride {
             b"Other" => DmarcPolicyOverride::Other,
             b"PolicyTestMode" => DmarcPolicyOverride::PolicyTestMode,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2531,12 +3109,14 @@ impl<'de> serde::Deserialize<'de> for DmarcPolicyOverride {
 
 impl EnumImpl for DmarcResult {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DmarcResult,
             b"pass" => DmarcResult::Pass,
             b"fail" => DmarcResult::Fail,
             b"unspecified" => DmarcResult::Unspecified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2584,8 +3164,9 @@ impl<'de> serde::Deserialize<'de> for DmarcResult {
 
 impl EnumImpl for DmarcTroubleshootAuthResultType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DmarcTroubleshootAuthResultType,
             b"Pass" => DmarcTroubleshootAuthResultType::Pass,
             b"Fail" => DmarcTroubleshootAuthResultType::Fail,
             b"SoftFail" => DmarcTroubleshootAuthResultType::SoftFail,
@@ -2594,6 +3175,7 @@ impl EnumImpl for DmarcTroubleshootAuthResultType {
             b"Neutral" => DmarcTroubleshootAuthResultType::Neutral,
             b"None" => DmarcTroubleshootAuthResultType::None,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2649,11 +3231,13 @@ impl<'de> serde::Deserialize<'de> for DmarcTroubleshootAuthResultType {
 
 impl EnumImpl for DnsManagementType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DnsManagementType,
             b"Manual" => DnsManagementType::Manual,
             b"Automatic" => DnsManagementType::Automatic,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2699,13 +3283,15 @@ impl<'de> serde::Deserialize<'de> for DnsManagementType {
 
 impl EnumImpl for DnsPublishStatus {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DnsPublishStatus,
             b"synced" => DnsPublishStatus::Synced,
             b"pending" => DnsPublishStatus::Pending,
             b"failed" => DnsPublishStatus::Failed,
             b"unknown" => DnsPublishStatus::Unknown,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2755,8 +3341,9 @@ impl<'de> serde::Deserialize<'de> for DnsPublishStatus {
 
 impl EnumImpl for DnsRecordType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DnsRecordType,
             b"dkim" => DnsRecordType::Dkim,
             b"tlsa" => DnsRecordType::Tlsa,
             b"spf" => DnsRecordType::Spf,
@@ -2770,6 +3357,7 @@ impl EnumImpl for DnsRecordType {
             b"autoConfigLegacy" => DnsRecordType::AutoConfigLegacy,
             b"autoDiscover" => DnsRecordType::AutoDiscover,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2835,12 +3423,14 @@ impl<'de> serde::Deserialize<'de> for DnsRecordType {
 
 impl EnumImpl for DnsResolverProtocol {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DnsResolverProtocol,
             b"tls" => DnsResolverProtocol::Tls,
             b"udp" => DnsResolverProtocol::Udp,
             b"tcp" => DnsResolverProtocol::Tcp,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2888,14 +3478,16 @@ impl<'de> serde::Deserialize<'de> for DnsResolverProtocol {
 
 impl EnumImpl for DnsResolverType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            DnsResolverType,
             b"System" => DnsResolverType::System,
             b"Custom" => DnsResolverType::Custom,
             b"Cloudflare" => DnsResolverType::Cloudflare,
             b"Quad9" => DnsResolverType::Quad9,
             b"Google" => DnsResolverType::Google,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -2952,7 +3544,6 @@ impl EnumImpl for DnsServerBootstrapType {
             DnsServerBootstrapType,
             b"Manual" => DnsServerBootstrapType::Manual,
             b"Tsig" => DnsServerBootstrapType::Tsig,
-            b"Deprecated1" => DnsServerBootstrapType::Deprecated1,
             b"Cloudflare" => DnsServerBootstrapType::Cloudflare,
             b"DigitalOcean" => DnsServerBootstrapType::DigitalOcean,
             b"DeSEC" => DnsServerBootstrapType::DeSEC,
@@ -3030,7 +3621,6 @@ impl EnumImpl for DnsServerBootstrapType {
         match self {
             DnsServerBootstrapType::Manual => "Manual",
             DnsServerBootstrapType::Tsig => "Tsig",
-            DnsServerBootstrapType::Deprecated1 => "Deprecated1",
             DnsServerBootstrapType::Cloudflare => "Cloudflare",
             DnsServerBootstrapType::DigitalOcean => "DigitalOcean",
             DnsServerBootstrapType::DeSEC => "DeSEC",
@@ -3111,81 +3701,80 @@ impl EnumImpl for DnsServerBootstrapType {
         match id {
             0 => Some(DnsServerBootstrapType::Manual),
             1 => Some(DnsServerBootstrapType::Tsig),
-            2 => Some(DnsServerBootstrapType::Deprecated1),
-            3 => Some(DnsServerBootstrapType::Cloudflare),
-            4 => Some(DnsServerBootstrapType::DigitalOcean),
-            5 => Some(DnsServerBootstrapType::DeSEC),
-            6 => Some(DnsServerBootstrapType::Ovh),
-            7 => Some(DnsServerBootstrapType::Bunny),
-            8 => Some(DnsServerBootstrapType::Porkbun),
-            9 => Some(DnsServerBootstrapType::Dnsimple),
-            10 => Some(DnsServerBootstrapType::Spaceship),
-            11 => Some(DnsServerBootstrapType::Route53),
-            12 => Some(DnsServerBootstrapType::GoogleCloudDns),
-            13 => Some(DnsServerBootstrapType::Alidns),
-            14 => Some(DnsServerBootstrapType::ArvanCloud),
-            15 => Some(DnsServerBootstrapType::Autodns),
-            16 => Some(DnsServerBootstrapType::AzureDns),
-            17 => Some(DnsServerBootstrapType::BaiduCloud),
-            18 => Some(DnsServerBootstrapType::BluecatV2),
-            19 => Some(DnsServerBootstrapType::ClouDns),
-            20 => Some(DnsServerBootstrapType::Constellix),
-            21 => Some(DnsServerBootstrapType::Cpanel),
-            22 => Some(DnsServerBootstrapType::Ddnss),
-            23 => Some(DnsServerBootstrapType::DnsMadeEasy),
-            24 => Some(DnsServerBootstrapType::Domeneshop),
-            25 => Some(DnsServerBootstrapType::Dreamhost),
-            26 => Some(DnsServerBootstrapType::DuckDns),
-            27 => Some(DnsServerBootstrapType::Dynu),
-            28 => Some(DnsServerBootstrapType::EasyDns),
-            29 => Some(DnsServerBootstrapType::EdgeDns),
-            30 => Some(DnsServerBootstrapType::Exoscale),
-            31 => Some(DnsServerBootstrapType::FreeMyIp),
-            32 => Some(DnsServerBootstrapType::GandiV5),
-            33 => Some(DnsServerBootstrapType::Gcore),
-            34 => Some(DnsServerBootstrapType::Glesys),
-            35 => Some(DnsServerBootstrapType::Godaddy),
-            36 => Some(DnsServerBootstrapType::Hetzner),
-            37 => Some(DnsServerBootstrapType::HostingDe),
-            38 => Some(DnsServerBootstrapType::Hostinger),
-            39 => Some(DnsServerBootstrapType::HuaweiCloud),
-            40 => Some(DnsServerBootstrapType::Hurricane),
-            41 => Some(DnsServerBootstrapType::IbmCloud),
-            42 => Some(DnsServerBootstrapType::Infoblox),
-            43 => Some(DnsServerBootstrapType::Infomaniak),
-            44 => Some(DnsServerBootstrapType::Inwx),
-            45 => Some(DnsServerBootstrapType::Ionos),
-            46 => Some(DnsServerBootstrapType::Ipv64),
-            47 => Some(DnsServerBootstrapType::Joker),
-            48 => Some(DnsServerBootstrapType::Lightsail),
-            49 => Some(DnsServerBootstrapType::Linode),
-            50 => Some(DnsServerBootstrapType::LuaDns),
-            51 => Some(DnsServerBootstrapType::MythicBeasts),
-            52 => Some(DnsServerBootstrapType::Namecheap),
-            53 => Some(DnsServerBootstrapType::NameDotCom),
-            54 => Some(DnsServerBootstrapType::NameSilo),
-            55 => Some(DnsServerBootstrapType::Netcup),
-            56 => Some(DnsServerBootstrapType::Netlify),
-            57 => Some(DnsServerBootstrapType::Nifcloud),
-            58 => Some(DnsServerBootstrapType::Ns1),
-            59 => Some(DnsServerBootstrapType::OracleCloud),
-            60 => Some(DnsServerBootstrapType::Plesk),
-            61 => Some(DnsServerBootstrapType::Safedns),
-            62 => Some(DnsServerBootstrapType::Scaleway),
-            63 => Some(DnsServerBootstrapType::TencentCloud),
-            64 => Some(DnsServerBootstrapType::Transip),
-            65 => Some(DnsServerBootstrapType::UltraDns),
-            66 => Some(DnsServerBootstrapType::Vercel),
-            67 => Some(DnsServerBootstrapType::Volcengine),
-            68 => Some(DnsServerBootstrapType::Vultr),
-            69 => Some(DnsServerBootstrapType::WebSupport),
-            70 => Some(DnsServerBootstrapType::YandexCloud),
-            71 => Some(DnsServerBootstrapType::PowerDns),
+            2 => Some(DnsServerBootstrapType::Cloudflare),
+            3 => Some(DnsServerBootstrapType::DigitalOcean),
+            4 => Some(DnsServerBootstrapType::DeSEC),
+            5 => Some(DnsServerBootstrapType::Ovh),
+            6 => Some(DnsServerBootstrapType::Bunny),
+            7 => Some(DnsServerBootstrapType::Porkbun),
+            8 => Some(DnsServerBootstrapType::Dnsimple),
+            9 => Some(DnsServerBootstrapType::Spaceship),
+            10 => Some(DnsServerBootstrapType::Route53),
+            11 => Some(DnsServerBootstrapType::GoogleCloudDns),
+            12 => Some(DnsServerBootstrapType::Alidns),
+            13 => Some(DnsServerBootstrapType::ArvanCloud),
+            14 => Some(DnsServerBootstrapType::Autodns),
+            15 => Some(DnsServerBootstrapType::AzureDns),
+            16 => Some(DnsServerBootstrapType::BaiduCloud),
+            17 => Some(DnsServerBootstrapType::BluecatV2),
+            18 => Some(DnsServerBootstrapType::ClouDns),
+            19 => Some(DnsServerBootstrapType::Constellix),
+            20 => Some(DnsServerBootstrapType::Cpanel),
+            21 => Some(DnsServerBootstrapType::Ddnss),
+            22 => Some(DnsServerBootstrapType::DnsMadeEasy),
+            23 => Some(DnsServerBootstrapType::Domeneshop),
+            24 => Some(DnsServerBootstrapType::Dreamhost),
+            25 => Some(DnsServerBootstrapType::DuckDns),
+            26 => Some(DnsServerBootstrapType::Dynu),
+            27 => Some(DnsServerBootstrapType::EasyDns),
+            28 => Some(DnsServerBootstrapType::EdgeDns),
+            29 => Some(DnsServerBootstrapType::Exoscale),
+            30 => Some(DnsServerBootstrapType::FreeMyIp),
+            31 => Some(DnsServerBootstrapType::GandiV5),
+            32 => Some(DnsServerBootstrapType::Gcore),
+            33 => Some(DnsServerBootstrapType::Glesys),
+            34 => Some(DnsServerBootstrapType::Godaddy),
+            35 => Some(DnsServerBootstrapType::Hetzner),
+            36 => Some(DnsServerBootstrapType::HostingDe),
+            37 => Some(DnsServerBootstrapType::Hostinger),
+            38 => Some(DnsServerBootstrapType::HuaweiCloud),
+            39 => Some(DnsServerBootstrapType::Hurricane),
+            40 => Some(DnsServerBootstrapType::IbmCloud),
+            41 => Some(DnsServerBootstrapType::Infoblox),
+            42 => Some(DnsServerBootstrapType::Infomaniak),
+            43 => Some(DnsServerBootstrapType::Inwx),
+            44 => Some(DnsServerBootstrapType::Ionos),
+            45 => Some(DnsServerBootstrapType::Ipv64),
+            46 => Some(DnsServerBootstrapType::Joker),
+            47 => Some(DnsServerBootstrapType::Lightsail),
+            48 => Some(DnsServerBootstrapType::Linode),
+            49 => Some(DnsServerBootstrapType::LuaDns),
+            50 => Some(DnsServerBootstrapType::MythicBeasts),
+            51 => Some(DnsServerBootstrapType::Namecheap),
+            52 => Some(DnsServerBootstrapType::NameDotCom),
+            53 => Some(DnsServerBootstrapType::NameSilo),
+            54 => Some(DnsServerBootstrapType::Netcup),
+            55 => Some(DnsServerBootstrapType::Netlify),
+            56 => Some(DnsServerBootstrapType::Nifcloud),
+            57 => Some(DnsServerBootstrapType::Ns1),
+            58 => Some(DnsServerBootstrapType::OracleCloud),
+            59 => Some(DnsServerBootstrapType::Plesk),
+            60 => Some(DnsServerBootstrapType::Safedns),
+            61 => Some(DnsServerBootstrapType::Scaleway),
+            62 => Some(DnsServerBootstrapType::TencentCloud),
+            63 => Some(DnsServerBootstrapType::Transip),
+            64 => Some(DnsServerBootstrapType::UltraDns),
+            65 => Some(DnsServerBootstrapType::Vercel),
+            66 => Some(DnsServerBootstrapType::Volcengine),
+            67 => Some(DnsServerBootstrapType::Vultr),
+            68 => Some(DnsServerBootstrapType::WebSupport),
+            69 => Some(DnsServerBootstrapType::YandexCloud),
+            70 => Some(DnsServerBootstrapType::PowerDns),
             _ => None,
         }
     }
 
-    const COUNT: usize = 72;
+    const COUNT: usize = 71;
 }
 
 impl serde::Serialize for DnsServerBootstrapType {
@@ -3213,7 +3802,6 @@ impl EnumImpl for DnsServerType {
             value.as_bytes(),
             DnsServerType,
             b"Tsig" => DnsServerType::Tsig,
-            b"Deprecated1" => DnsServerType::Deprecated1,
             b"Cloudflare" => DnsServerType::Cloudflare,
             b"DigitalOcean" => DnsServerType::DigitalOcean,
             b"DeSEC" => DnsServerType::DeSEC,
@@ -3290,7 +3878,6 @@ impl EnumImpl for DnsServerType {
     fn as_str(&self) -> &'static str {
         match self {
             DnsServerType::Tsig => "Tsig",
-            DnsServerType::Deprecated1 => "Deprecated1",
             DnsServerType::Cloudflare => "Cloudflare",
             DnsServerType::DigitalOcean => "DigitalOcean",
             DnsServerType::DeSEC => "DeSEC",
@@ -3370,81 +3957,80 @@ impl EnumImpl for DnsServerType {
     fn from_id(id: u16) -> Option<Self> {
         match id {
             0 => Some(DnsServerType::Tsig),
-            1 => Some(DnsServerType::Deprecated1),
-            2 => Some(DnsServerType::Cloudflare),
-            3 => Some(DnsServerType::DigitalOcean),
-            4 => Some(DnsServerType::DeSEC),
-            5 => Some(DnsServerType::Ovh),
-            6 => Some(DnsServerType::Bunny),
-            7 => Some(DnsServerType::Porkbun),
-            8 => Some(DnsServerType::Dnsimple),
-            9 => Some(DnsServerType::Spaceship),
-            10 => Some(DnsServerType::Route53),
-            11 => Some(DnsServerType::GoogleCloudDns),
-            12 => Some(DnsServerType::Alidns),
-            13 => Some(DnsServerType::ArvanCloud),
-            14 => Some(DnsServerType::Autodns),
-            15 => Some(DnsServerType::AzureDns),
-            16 => Some(DnsServerType::BaiduCloud),
-            17 => Some(DnsServerType::BluecatV2),
-            18 => Some(DnsServerType::ClouDns),
-            19 => Some(DnsServerType::Constellix),
-            20 => Some(DnsServerType::Cpanel),
-            21 => Some(DnsServerType::Ddnss),
-            22 => Some(DnsServerType::DnsMadeEasy),
-            23 => Some(DnsServerType::Domeneshop),
-            24 => Some(DnsServerType::Dreamhost),
-            25 => Some(DnsServerType::DuckDns),
-            26 => Some(DnsServerType::Dynu),
-            27 => Some(DnsServerType::EasyDns),
-            28 => Some(DnsServerType::EdgeDns),
-            29 => Some(DnsServerType::Exoscale),
-            30 => Some(DnsServerType::FreeMyIp),
-            31 => Some(DnsServerType::GandiV5),
-            32 => Some(DnsServerType::Gcore),
-            33 => Some(DnsServerType::Glesys),
-            34 => Some(DnsServerType::Godaddy),
-            35 => Some(DnsServerType::Hetzner),
-            36 => Some(DnsServerType::HostingDe),
-            37 => Some(DnsServerType::Hostinger),
-            38 => Some(DnsServerType::HuaweiCloud),
-            39 => Some(DnsServerType::Hurricane),
-            40 => Some(DnsServerType::IbmCloud),
-            41 => Some(DnsServerType::Infoblox),
-            42 => Some(DnsServerType::Infomaniak),
-            43 => Some(DnsServerType::Inwx),
-            44 => Some(DnsServerType::Ionos),
-            45 => Some(DnsServerType::Ipv64),
-            46 => Some(DnsServerType::Joker),
-            47 => Some(DnsServerType::Lightsail),
-            48 => Some(DnsServerType::Linode),
-            49 => Some(DnsServerType::LuaDns),
-            50 => Some(DnsServerType::MythicBeasts),
-            51 => Some(DnsServerType::Namecheap),
-            52 => Some(DnsServerType::NameDotCom),
-            53 => Some(DnsServerType::NameSilo),
-            54 => Some(DnsServerType::Netcup),
-            55 => Some(DnsServerType::Netlify),
-            56 => Some(DnsServerType::Nifcloud),
-            57 => Some(DnsServerType::Ns1),
-            58 => Some(DnsServerType::OracleCloud),
-            59 => Some(DnsServerType::Plesk),
-            60 => Some(DnsServerType::Safedns),
-            61 => Some(DnsServerType::Scaleway),
-            62 => Some(DnsServerType::TencentCloud),
-            63 => Some(DnsServerType::Transip),
-            64 => Some(DnsServerType::UltraDns),
-            65 => Some(DnsServerType::Vercel),
-            66 => Some(DnsServerType::Volcengine),
-            67 => Some(DnsServerType::Vultr),
-            68 => Some(DnsServerType::WebSupport),
-            69 => Some(DnsServerType::YandexCloud),
-            70 => Some(DnsServerType::PowerDns),
+            1 => Some(DnsServerType::Cloudflare),
+            2 => Some(DnsServerType::DigitalOcean),
+            3 => Some(DnsServerType::DeSEC),
+            4 => Some(DnsServerType::Ovh),
+            5 => Some(DnsServerType::Bunny),
+            6 => Some(DnsServerType::Porkbun),
+            7 => Some(DnsServerType::Dnsimple),
+            8 => Some(DnsServerType::Spaceship),
+            9 => Some(DnsServerType::Route53),
+            10 => Some(DnsServerType::GoogleCloudDns),
+            11 => Some(DnsServerType::Alidns),
+            12 => Some(DnsServerType::ArvanCloud),
+            13 => Some(DnsServerType::Autodns),
+            14 => Some(DnsServerType::AzureDns),
+            15 => Some(DnsServerType::BaiduCloud),
+            16 => Some(DnsServerType::BluecatV2),
+            17 => Some(DnsServerType::ClouDns),
+            18 => Some(DnsServerType::Constellix),
+            19 => Some(DnsServerType::Cpanel),
+            20 => Some(DnsServerType::Ddnss),
+            21 => Some(DnsServerType::DnsMadeEasy),
+            22 => Some(DnsServerType::Domeneshop),
+            23 => Some(DnsServerType::Dreamhost),
+            24 => Some(DnsServerType::DuckDns),
+            25 => Some(DnsServerType::Dynu),
+            26 => Some(DnsServerType::EasyDns),
+            27 => Some(DnsServerType::EdgeDns),
+            28 => Some(DnsServerType::Exoscale),
+            29 => Some(DnsServerType::FreeMyIp),
+            30 => Some(DnsServerType::GandiV5),
+            31 => Some(DnsServerType::Gcore),
+            32 => Some(DnsServerType::Glesys),
+            33 => Some(DnsServerType::Godaddy),
+            34 => Some(DnsServerType::Hetzner),
+            35 => Some(DnsServerType::HostingDe),
+            36 => Some(DnsServerType::Hostinger),
+            37 => Some(DnsServerType::HuaweiCloud),
+            38 => Some(DnsServerType::Hurricane),
+            39 => Some(DnsServerType::IbmCloud),
+            40 => Some(DnsServerType::Infoblox),
+            41 => Some(DnsServerType::Infomaniak),
+            42 => Some(DnsServerType::Inwx),
+            43 => Some(DnsServerType::Ionos),
+            44 => Some(DnsServerType::Ipv64),
+            45 => Some(DnsServerType::Joker),
+            46 => Some(DnsServerType::Lightsail),
+            47 => Some(DnsServerType::Linode),
+            48 => Some(DnsServerType::LuaDns),
+            49 => Some(DnsServerType::MythicBeasts),
+            50 => Some(DnsServerType::Namecheap),
+            51 => Some(DnsServerType::NameDotCom),
+            52 => Some(DnsServerType::NameSilo),
+            53 => Some(DnsServerType::Netcup),
+            54 => Some(DnsServerType::Netlify),
+            55 => Some(DnsServerType::Nifcloud),
+            56 => Some(DnsServerType::Ns1),
+            57 => Some(DnsServerType::OracleCloud),
+            58 => Some(DnsServerType::Plesk),
+            59 => Some(DnsServerType::Safedns),
+            60 => Some(DnsServerType::Scaleway),
+            61 => Some(DnsServerType::TencentCloud),
+            62 => Some(DnsServerType::Transip),
+            63 => Some(DnsServerType::UltraDns),
+            64 => Some(DnsServerType::Vercel),
+            65 => Some(DnsServerType::Volcengine),
+            66 => Some(DnsServerType::Vultr),
+            67 => Some(DnsServerType::WebSupport),
+            68 => Some(DnsServerType::YandexCloud),
+            69 => Some(DnsServerType::PowerDns),
             _ => None,
         }
     }
 
-    const COUNT: usize = 71;
+    const COUNT: usize = 70;
 }
 
 impl serde::Serialize for DnsServerType {
@@ -3468,23 +4054,19 @@ impl<'de> serde::Deserialize<'de> for DnsServerType {
 
 impl EnumImpl for EncryptionAtRestType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            EncryptionAtRestType,
             b"Disabled" => EncryptionAtRestType::Disabled,
-            b"Aes128" => EncryptionAtRestType::Aes128,
-            b"Aes256" => EncryptionAtRestType::Aes256,
-            b"Aes256Gcm" => EncryptionAtRestType::Aes256Gcm,
-            b"ChaCha20Poly1305" => EncryptionAtRestType::ChaCha20Poly1305,
+            b"Enabled" => EncryptionAtRestType::Enabled,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
         match self {
             EncryptionAtRestType::Disabled => "Disabled",
-            EncryptionAtRestType::Aes128 => "Aes128",
-            EncryptionAtRestType::Aes256 => "Aes256",
-            EncryptionAtRestType::Aes256Gcm => "Aes256Gcm",
-            EncryptionAtRestType::ChaCha20Poly1305 => "ChaCha20Poly1305",
+            EncryptionAtRestType::Enabled => "Enabled",
         }
     }
 
@@ -3495,15 +4077,13 @@ impl EnumImpl for EncryptionAtRestType {
     fn from_id(id: u16) -> Option<Self> {
         match id {
             0 => Some(EncryptionAtRestType::Disabled),
-            1 => Some(EncryptionAtRestType::Aes128),
-            2 => Some(EncryptionAtRestType::Aes256),
-            3 => Some(EncryptionAtRestType::Aes256Gcm),
-            4 => Some(EncryptionAtRestType::ChaCha20Poly1305),
+            5 => Some(EncryptionAtRestType::Enabled),
+            1..=4 => Some(EncryptionAtRestType::Disabled),
             _ => None,
         }
     }
 
-    const COUNT: usize = 5;
+    const COUNT: usize = 6;
 }
 
 impl serde::Serialize for EncryptionAtRestType {
@@ -3527,11 +4107,13 @@ impl<'de> serde::Deserialize<'de> for EncryptionAtRestType {
 
 impl EnumImpl for EventPolicy {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            EventPolicy,
             b"include" => EventPolicy::Include,
             b"exclude" => EventPolicy::Exclude,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -3577,17 +4159,12 @@ impl<'de> serde::Deserialize<'de> for EventPolicy {
 
 impl EnumImpl for ExpressionConstant {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ExpressionConstant,
             b"relaxed" => ExpressionConstant::Relaxed,
             b"strict" => ExpressionConstant::Strict,
             b"disable" => ExpressionConstant::Disable,
-            b"optional" => ExpressionConstant::Optional,
-            b"require" => ExpressionConstant::Require,
-            b"ipv4_only" => ExpressionConstant::Ipv4Only,
-            b"ipv6_only" => ExpressionConstant::Ipv6Only,
-            b"ipv6_then_ipv4" => ExpressionConstant::Ipv6ThenIpv4,
-            b"ipv4_then_ipv6" => ExpressionConstant::Ipv4ThenIpv6,
             b"hourly" => ExpressionConstant::Hourly,
             b"daily" => ExpressionConstant::Daily,
             b"weekly" => ExpressionConstant::Weekly,
@@ -3598,7 +4175,15 @@ impl EnumImpl for ExpressionConstant {
             b"mixer" => ExpressionConstant::Mixer,
             b"stanag4406" => ExpressionConstant::Stanag4406,
             b"nsep" => ExpressionConstant::Nsep,
+            b"opportunistic" => ExpressionConstant::Opportunistic,
+            b"required" => ExpressionConstant::Required,
+            b"manual" => ExpressionConstant::Manual,
+            b"verified" => ExpressionConstant::Verified,
+            b"discovered" => ExpressionConstant::Discovered,
+            b"harvested" => ExpressionConstant::Harvested,
+            b"unverified" => ExpressionConstant::Unverified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -3606,12 +4191,6 @@ impl EnumImpl for ExpressionConstant {
             ExpressionConstant::Relaxed => "relaxed",
             ExpressionConstant::Strict => "strict",
             ExpressionConstant::Disable => "disable",
-            ExpressionConstant::Optional => "optional",
-            ExpressionConstant::Require => "require",
-            ExpressionConstant::Ipv4Only => "ipv4_only",
-            ExpressionConstant::Ipv6Only => "ipv6_only",
-            ExpressionConstant::Ipv6ThenIpv4 => "ipv6_then_ipv4",
-            ExpressionConstant::Ipv4ThenIpv6 => "ipv4_then_ipv6",
             ExpressionConstant::Hourly => "hourly",
             ExpressionConstant::Daily => "daily",
             ExpressionConstant::Weekly => "weekly",
@@ -3622,6 +4201,13 @@ impl EnumImpl for ExpressionConstant {
             ExpressionConstant::Mixer => "mixer",
             ExpressionConstant::Stanag4406 => "stanag4406",
             ExpressionConstant::Nsep => "nsep",
+            ExpressionConstant::Opportunistic => "opportunistic",
+            ExpressionConstant::Required => "required",
+            ExpressionConstant::Manual => "manual",
+            ExpressionConstant::Verified => "verified",
+            ExpressionConstant::Discovered => "discovered",
+            ExpressionConstant::Harvested => "harvested",
+            ExpressionConstant::Unverified => "unverified",
         }
     }
 
@@ -3634,27 +4220,28 @@ impl EnumImpl for ExpressionConstant {
             0 => Some(ExpressionConstant::Relaxed),
             1 => Some(ExpressionConstant::Strict),
             2 => Some(ExpressionConstant::Disable),
-            3 => Some(ExpressionConstant::Optional),
-            4 => Some(ExpressionConstant::Require),
-            5 => Some(ExpressionConstant::Ipv4Only),
-            6 => Some(ExpressionConstant::Ipv6Only),
-            7 => Some(ExpressionConstant::Ipv6ThenIpv4),
-            8 => Some(ExpressionConstant::Ipv4ThenIpv6),
-            9 => Some(ExpressionConstant::Hourly),
-            10 => Some(ExpressionConstant::Daily),
-            11 => Some(ExpressionConstant::Weekly),
-            12 => Some(ExpressionConstant::Login),
-            13 => Some(ExpressionConstant::Plain),
-            14 => Some(ExpressionConstant::Xoauth2),
-            15 => Some(ExpressionConstant::Oauthbearer),
-            16 => Some(ExpressionConstant::Mixer),
-            17 => Some(ExpressionConstant::Stanag4406),
-            18 => Some(ExpressionConstant::Nsep),
+            3 => Some(ExpressionConstant::Hourly),
+            4 => Some(ExpressionConstant::Daily),
+            5 => Some(ExpressionConstant::Weekly),
+            6 => Some(ExpressionConstant::Login),
+            7 => Some(ExpressionConstant::Plain),
+            8 => Some(ExpressionConstant::Xoauth2),
+            9 => Some(ExpressionConstant::Oauthbearer),
+            10 => Some(ExpressionConstant::Mixer),
+            11 => Some(ExpressionConstant::Stanag4406),
+            12 => Some(ExpressionConstant::Nsep),
+            13 => Some(ExpressionConstant::Opportunistic),
+            14 => Some(ExpressionConstant::Required),
+            15 => Some(ExpressionConstant::Manual),
+            16 => Some(ExpressionConstant::Verified),
+            17 => Some(ExpressionConstant::Discovered),
+            18 => Some(ExpressionConstant::Harvested),
+            19 => Some(ExpressionConstant::Unverified),
             _ => None,
         }
     }
 
-    const COUNT: usize = 19;
+    const COUNT: usize = 20;
 }
 
 impl serde::Serialize for ExpressionConstant {
@@ -3755,7 +4342,6 @@ impl EnumImpl for ExpressionVariable {
             b"reply_to.local" => ExpressionVariable::ReplyToLocal,
             b"reply_to.name" => ExpressionVariable::ReplyToName,
             b"retry_num" => ExpressionVariable::RetryNum,
-            b"reverse_ip" => ExpressionVariable::ReverseIp,
             b"scheme" => ExpressionVariable::Scheme,
             b"sender" => ExpressionVariable::Sender,
             b"sender_domain" => ExpressionVariable::SenderDomain,
@@ -3773,6 +4359,10 @@ impl EnumImpl for ExpressionVariable {
             b"url_original" => ExpressionVariable::UrlOriginal,
             b"value" => ExpressionVariable::Value,
             b"value_lower" => ExpressionVariable::ValueLower,
+            b"spam_score" => ExpressionVariable::SpamScore,
+            b"spam_probability" => ExpressionVariable::SpamProbability,
+            b"spam_threshold" => ExpressionVariable::SpamThreshold,
+            b"is_signed" => ExpressionVariable::IsSigned,
         }
         .copied()
     }
@@ -3853,7 +4443,6 @@ impl EnumImpl for ExpressionVariable {
             ExpressionVariable::ReplyToLocal => "reply_to.local",
             ExpressionVariable::ReplyToName => "reply_to.name",
             ExpressionVariable::RetryNum => "retry_num",
-            ExpressionVariable::ReverseIp => "reverse_ip",
             ExpressionVariable::Scheme => "scheme",
             ExpressionVariable::Sender => "sender",
             ExpressionVariable::SenderDomain => "sender_domain",
@@ -3871,6 +4460,10 @@ impl EnumImpl for ExpressionVariable {
             ExpressionVariable::UrlOriginal => "url_original",
             ExpressionVariable::Value => "value",
             ExpressionVariable::ValueLower => "value_lower",
+            ExpressionVariable::SpamScore => "spam_score",
+            ExpressionVariable::SpamProbability => "spam_probability",
+            ExpressionVariable::SpamThreshold => "spam_threshold",
+            ExpressionVariable::IsSigned => "is_signed",
         }
     }
 
@@ -3954,29 +4547,32 @@ impl EnumImpl for ExpressionVariable {
             71 => Some(ExpressionVariable::ReplyToLocal),
             72 => Some(ExpressionVariable::ReplyToName),
             73 => Some(ExpressionVariable::RetryNum),
-            74 => Some(ExpressionVariable::ReverseIp),
-            75 => Some(ExpressionVariable::Scheme),
-            76 => Some(ExpressionVariable::Sender),
-            77 => Some(ExpressionVariable::SenderDomain),
-            78 => Some(ExpressionVariable::Size),
-            79 => Some(ExpressionVariable::Sld),
-            80 => Some(ExpressionVariable::Source),
-            81 => Some(ExpressionVariable::Subject),
-            82 => Some(ExpressionVariable::SubjectThread),
-            83 => Some(ExpressionVariable::SubjectWords),
-            84 => Some(ExpressionVariable::To),
-            85 => Some(ExpressionVariable::ToDomain),
-            86 => Some(ExpressionVariable::ToLocal),
-            87 => Some(ExpressionVariable::ToName),
-            88 => Some(ExpressionVariable::Url),
-            89 => Some(ExpressionVariable::UrlOriginal),
-            90 => Some(ExpressionVariable::Value),
-            91 => Some(ExpressionVariable::ValueLower),
+            74 => Some(ExpressionVariable::Scheme),
+            75 => Some(ExpressionVariable::Sender),
+            76 => Some(ExpressionVariable::SenderDomain),
+            77 => Some(ExpressionVariable::Size),
+            78 => Some(ExpressionVariable::Sld),
+            79 => Some(ExpressionVariable::Source),
+            80 => Some(ExpressionVariable::Subject),
+            81 => Some(ExpressionVariable::SubjectThread),
+            82 => Some(ExpressionVariable::SubjectWords),
+            83 => Some(ExpressionVariable::To),
+            84 => Some(ExpressionVariable::ToDomain),
+            85 => Some(ExpressionVariable::ToLocal),
+            86 => Some(ExpressionVariable::ToName),
+            87 => Some(ExpressionVariable::Url),
+            88 => Some(ExpressionVariable::UrlOriginal),
+            89 => Some(ExpressionVariable::Value),
+            90 => Some(ExpressionVariable::ValueLower),
+            91 => Some(ExpressionVariable::SpamScore),
+            92 => Some(ExpressionVariable::SpamProbability),
+            93 => Some(ExpressionVariable::SpamThreshold),
+            94 => Some(ExpressionVariable::IsSigned),
             _ => None,
         }
     }
 
-    const COUNT: usize = 92;
+    const COUNT: usize = 95;
 }
 
 impl serde::Serialize for ExpressionVariable {
@@ -3998,15 +4594,75 @@ impl<'de> serde::Deserialize<'de> for ExpressionVariable {
     }
 }
 
+impl EnumImpl for ExternalPublicKeyStatus {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            ExternalPublicKeyStatus,
+            b"active" => ExternalPublicKeyStatus::Active,
+            b"disabled" => ExternalPublicKeyStatus::Disabled,
+            b"pendingApproval" => ExternalPublicKeyStatus::PendingApproval,
+            b"rejected" => ExternalPublicKeyStatus::Rejected,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            ExternalPublicKeyStatus::Active => "active",
+            ExternalPublicKeyStatus::Disabled => "disabled",
+            ExternalPublicKeyStatus::PendingApproval => "pendingApproval",
+            ExternalPublicKeyStatus::Rejected => "rejected",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(ExternalPublicKeyStatus::Active),
+            1 => Some(ExternalPublicKeyStatus::Disabled),
+            2 => Some(ExternalPublicKeyStatus::PendingApproval),
+            3 => Some(ExternalPublicKeyStatus::Rejected),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 4;
+}
+
+impl serde::Serialize for ExternalPublicKeyStatus {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ExternalPublicKeyStatus {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for FailureReportingOption {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            FailureReportingOption,
             b"all" => FailureReportingOption::All,
             b"any" => FailureReportingOption::Any,
             b"dkimFailure" => FailureReportingOption::DkimFailure,
             b"spfFailure" => FailureReportingOption::SpfFailure,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -4054,14 +4710,71 @@ impl<'de> serde::Deserialize<'de> for FailureReportingOption {
     }
 }
 
+impl EnumImpl for HeaderProtection {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            HeaderProtection,
+            b"none" => HeaderProtection::None,
+            b"noConfidentiality" => HeaderProtection::NoConfidentiality,
+            b"baseline" => HeaderProtection::Baseline,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            HeaderProtection::None => "none",
+            HeaderProtection::NoConfidentiality => "noConfidentiality",
+            HeaderProtection::Baseline => "baseline",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(HeaderProtection::None),
+            1 => Some(HeaderProtection::NoConfidentiality),
+            2 => Some(HeaderProtection::Baseline),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 3;
+}
+
+impl serde::Serialize for HeaderProtection {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for HeaderProtection {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for HttpAuthType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            HttpAuthType,
             b"Unauthenticated" => HttpAuthType::Unauthenticated,
             b"Basic" => HttpAuthType::Basic,
             b"Bearer" => HttpAuthType::Bearer,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -4109,11 +4822,13 @@ impl<'de> serde::Deserialize<'de> for HttpAuthType {
 
 impl EnumImpl for HttpLookupFormatType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            HttpLookupFormatType,
             b"Csv" => HttpLookupFormatType::Csv,
             b"List" => HttpLookupFormatType::List,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -4157,14 +4872,20 @@ impl<'de> serde::Deserialize<'de> for HttpLookupFormatType {
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 impl EnumImpl for InMemoryStoreBaseType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            InMemoryStoreBaseType,
             b"Redis" => InMemoryStoreBaseType::Redis,
             b"RedisCluster" => InMemoryStoreBaseType::RedisCluster,
             b"RedisSentinel" => InMemoryStoreBaseType::RedisSentinel,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -4191,6 +4912,7 @@ impl EnumImpl for InMemoryStoreBaseType {
     const COUNT: usize = 3;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for InMemoryStoreBaseType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -4200,6 +4922,7 @@ impl serde::Serialize for InMemoryStoreBaseType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for InMemoryStoreBaseType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -4210,22 +4933,48 @@ impl<'de> serde::Deserialize<'de> for InMemoryStoreBaseType {
     }
 }
 
+// SPDX-SnippetEnd
 impl EnumImpl for InMemoryStoreType {
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            InMemoryStoreType,
             b"Default" => InMemoryStoreType::Default,
             b"Sharded" => InMemoryStoreType::Sharded,
             b"Redis" => InMemoryStoreType::Redis,
             b"RedisCluster" => InMemoryStoreType::RedisCluster,
             b"RedisSentinel" => InMemoryStoreType::RedisSentinel,
         }
+        .copied()
+    }
+
+    // SPDX-SnippetEnd
+    #[cfg(not(feature = "enterprise"))]
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            InMemoryStoreType,
+            b"Default" => InMemoryStoreType::Default,
+            b"Redis" => InMemoryStoreType::Redis,
+            b"RedisCluster" => InMemoryStoreType::RedisCluster,
+            b"RedisSentinel" => InMemoryStoreType::RedisSentinel,
+        }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
         match self {
             InMemoryStoreType::Default => "Default",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             InMemoryStoreType::Sharded => "Sharded",
+            // SPDX-SnippetEnd
             InMemoryStoreType::Redis => "Redis",
             InMemoryStoreType::RedisCluster => "RedisCluster",
             InMemoryStoreType::RedisSentinel => "RedisSentinel",
@@ -4239,7 +4988,12 @@ impl EnumImpl for InMemoryStoreType {
     fn from_id(id: u16) -> Option<Self> {
         match id {
             0 => Some(InMemoryStoreType::Default),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             1 => Some(InMemoryStoreType::Sharded),
+            // SPDX-SnippetEnd
             2 => Some(InMemoryStoreType::Redis),
             3 => Some(InMemoryStoreType::RedisCluster),
             4 => Some(InMemoryStoreType::RedisSentinel),
@@ -4269,23 +5023,21 @@ impl<'de> serde::Deserialize<'de> for InMemoryStoreType {
     }
 }
 
-impl EnumImpl for IndexDocumentType {
+impl EnumImpl for IndexStatusType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
-            b"email" => IndexDocumentType::Email,
-            b"calendar" => IndexDocumentType::Calendar,
-            b"contacts" => IndexDocumentType::Contacts,
-            b"file" => IndexDocumentType::File,
+            IndexStatusType,
+            b"Running" => IndexStatusType::Running,
+            b"Failed" => IndexStatusType::Failed,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
         match self {
-            IndexDocumentType::Email => "email",
-            IndexDocumentType::Calendar => "calendar",
-            IndexDocumentType::Contacts => "contacts",
-            IndexDocumentType::File => "file",
+            IndexStatusType::Running => "Running",
+            IndexStatusType::Failed => "Failed",
         }
     }
 
@@ -4295,18 +5047,16 @@ impl EnumImpl for IndexDocumentType {
 
     fn from_id(id: u16) -> Option<Self> {
         match id {
-            0 => Some(IndexDocumentType::Email),
-            1 => Some(IndexDocumentType::Calendar),
-            2 => Some(IndexDocumentType::Contacts),
-            3 => Some(IndexDocumentType::File),
+            0 => Some(IndexStatusType::Running),
+            1 => Some(IndexStatusType::Failed),
             _ => None,
         }
     }
 
-    const COUNT: usize = 4;
+    const COUNT: usize = 2;
 }
 
-impl serde::Serialize for IndexDocumentType {
+impl serde::Serialize for IndexStatusType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -4315,7 +5065,96 @@ impl serde::Serialize for IndexDocumentType {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for IndexDocumentType {
+impl<'de> serde::Deserialize<'de> for IndexStatusType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for IndexType {
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            IndexType,
+            b"telemetry" => IndexType::Telemetry,
+            b"email" => IndexType::Email,
+            b"calendar" => IndexType::Calendar,
+            b"contacts" => IndexType::Contacts,
+            b"file" => IndexType::File,
+        }
+        .copied()
+    }
+
+    // SPDX-SnippetEnd
+    #[cfg(not(feature = "enterprise"))]
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            IndexType,
+            b"email" => IndexType::Email,
+            b"calendar" => IndexType::Calendar,
+            b"contacts" => IndexType::Contacts,
+            b"file" => IndexType::File,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            IndexType::Telemetry => "telemetry",
+            // SPDX-SnippetEnd
+            IndexType::Email => "email",
+            IndexType::Calendar => "calendar",
+            IndexType::Contacts => "contacts",
+            IndexType::File => "file",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            0 => Some(IndexType::Telemetry),
+            // SPDX-SnippetEnd
+            1 => Some(IndexType::Email),
+            2 => Some(IndexType::Calendar),
+            3 => Some(IndexType::Contacts),
+            4 => Some(IndexType::File),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 5;
+}
+
+impl serde::Serialize for IndexType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for IndexType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -4327,11 +5166,13 @@ impl<'de> serde::Deserialize<'de> for IndexDocumentType {
 
 impl EnumImpl for IpProtocol {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            IpProtocol,
             b"udp" => IpProtocol::Udp,
             b"tcp" => IpProtocol::Tcp,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -4377,11 +5218,13 @@ impl<'de> serde::Deserialize<'de> for IpProtocol {
 
 impl EnumImpl for JokerAuthType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            JokerAuthType,
             b"ApiKey" => JokerAuthType::ApiKey,
             b"UsernamePassword" => JokerAuthType::UsernamePassword,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -4427,8 +5270,9 @@ impl<'de> serde::Deserialize<'de> for JokerAuthType {
 
 impl EnumImpl for JwtSignatureAlgorithm {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            JwtSignatureAlgorithm,
             b"es256" => JwtSignatureAlgorithm::Es256,
             b"es384" => JwtSignatureAlgorithm::Es384,
             b"ps256" => JwtSignatureAlgorithm::Ps256,
@@ -4441,6 +5285,7 @@ impl EnumImpl for JwtSignatureAlgorithm {
             b"hs384" => JwtSignatureAlgorithm::Hs384,
             b"hs512" => JwtSignatureAlgorithm::Hs512,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -4493,6 +5338,186 @@ impl serde::Serialize for JwtSignatureAlgorithm {
 }
 
 impl<'de> serde::Deserialize<'de> for JwtSignatureAlgorithm {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for KeyDiscoverySource {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            KeyDiscoverySource,
+            b"dnssec" => KeyDiscoverySource::Dnssec,
+            b"wkd" => KeyDiscoverySource::Wkd,
+            b"vks" => KeyDiscoverySource::Vks,
+            b"hkp" => KeyDiscoverySource::Hkp,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            KeyDiscoverySource::Dnssec => "dnssec",
+            KeyDiscoverySource::Wkd => "wkd",
+            KeyDiscoverySource::Vks => "vks",
+            KeyDiscoverySource::Hkp => "hkp",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(KeyDiscoverySource::Dnssec),
+            1 => Some(KeyDiscoverySource::Wkd),
+            2 => Some(KeyDiscoverySource::Vks),
+            3 => Some(KeyDiscoverySource::Hkp),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 4;
+}
+
+impl serde::Serialize for KeyDiscoverySource {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for KeyDiscoverySource {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for KeySourceType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            KeySourceType,
+            b"Manual" => KeySourceType::Manual,
+            b"Automatic" => KeySourceType::Automatic,
+            b"HarvestedSmime" => KeySourceType::HarvestedSmime,
+            b"HarvestedPgp" => KeySourceType::HarvestedPgp,
+            b"Autocrypt" => KeySourceType::Autocrypt,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            KeySourceType::Manual => "Manual",
+            KeySourceType::Automatic => "Automatic",
+            KeySourceType::HarvestedSmime => "HarvestedSmime",
+            KeySourceType::HarvestedPgp => "HarvestedPgp",
+            KeySourceType::Autocrypt => "Autocrypt",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(KeySourceType::Manual),
+            1 => Some(KeySourceType::Automatic),
+            2 => Some(KeySourceType::HarvestedSmime),
+            3 => Some(KeySourceType::HarvestedPgp),
+            4 => Some(KeySourceType::Autocrypt),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 5;
+}
+
+impl serde::Serialize for KeySourceType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for KeySourceType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for KeyTrust {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            KeyTrust,
+            b"manual" => KeyTrust::Manual,
+            b"verified" => KeyTrust::Verified,
+            b"discovered" => KeyTrust::Discovered,
+            b"harvested" => KeyTrust::Harvested,
+            b"unverified" => KeyTrust::Unverified,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            KeyTrust::Manual => "manual",
+            KeyTrust::Verified => "verified",
+            KeyTrust::Discovered => "discovered",
+            KeyTrust::Harvested => "harvested",
+            KeyTrust::Unverified => "unverified",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(KeyTrust::Manual),
+            1 => Some(KeyTrust::Verified),
+            2 => Some(KeyTrust::Discovered),
+            3 => Some(KeyTrust::Harvested),
+            4 => Some(KeyTrust::Unverified),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 5;
+}
+
+impl serde::Serialize for KeyTrust {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for KeyTrust {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -5236,266 +6261,263 @@ impl EnumImpl for Locale {
             67 => Some(Locale::CyGB),
             68 => Some(Locale::DaDK),
             69 => Some(Locale::DeAT),
-            71 => Some(Locale::DeBE),
-            72 => Some(Locale::En001),
-            73 => Some(Locale::DeCH),
-            74 => Some(Locale::DeDE),
-            76 => Some(Locale::DeIT),
-            77 => Some(Locale::DeLI),
-            78 => Some(Locale::DeLU),
-            79 => Some(Locale::Ar001),
-            80 => Some(Locale::DoiIN),
-            81 => Some(Locale::DsbDE),
-            82 => Some(Locale::DvMV),
-            83 => Some(Locale::DzBT),
-            84 => Some(Locale::ElCY),
-            85 => Some(Locale::ElGR),
-            87 => Some(Locale::EnAG),
-            88 => Some(Locale::EnAU),
-            89 => Some(Locale::EnBW),
-            90 => Some(Locale::EnCA),
-            91 => Some(Locale::EnDK),
-            92 => Some(Locale::EnGB),
-            93 => Some(Locale::EnHK),
-            94 => Some(Locale::EnIE),
-            96 => Some(Locale::EnIL),
-            97 => Some(Locale::EnIN),
-            98 => Some(Locale::EnNG),
-            99 => Some(Locale::EnNZ),
-            100 => Some(Locale::EnPH),
-            101 => Some(Locale::EnSC),
-            102 => Some(Locale::EnSG),
-            104 => Some(Locale::EnZA),
-            105 => Some(Locale::EnZM),
-            106 => Some(Locale::EnZW),
-            107 => Some(Locale::Eo),
-            108 => Some(Locale::EsAR),
-            109 => Some(Locale::EsBO),
-            110 => Some(Locale::EsCL),
-            111 => Some(Locale::EsCO),
-            112 => Some(Locale::EsCR),
-            113 => Some(Locale::EsCU),
-            114 => Some(Locale::EsDO),
-            115 => Some(Locale::EsEC),
-            116 => Some(Locale::EsES),
-            118 => Some(Locale::EsGT),
-            119 => Some(Locale::EsHN),
-            120 => Some(Locale::EsMX),
-            121 => Some(Locale::EsNI),
-            122 => Some(Locale::EsPA),
-            123 => Some(Locale::EsPE),
-            124 => Some(Locale::EsPR),
-            125 => Some(Locale::EsPY),
-            126 => Some(Locale::EsSV),
-            127 => Some(Locale::EsUS),
-            128 => Some(Locale::EsUY),
-            129 => Some(Locale::EsVE),
-            130 => Some(Locale::EtEE),
-            131 => Some(Locale::EuES),
-            132 => Some(Locale::ZhHans),
-            133 => Some(Locale::FaIR),
-            134 => Some(Locale::FfSN),
-            135 => Some(Locale::FiFI),
-            137 => Some(Locale::FilPH),
-            138 => Some(Locale::FoFO),
-            139 => Some(Locale::FrBE),
-            141 => Some(Locale::FrCA),
-            142 => Some(Locale::FrCH),
-            143 => Some(Locale::FrFR),
-            145 => Some(Locale::FrLU),
-            146 => Some(Locale::ZhHant),
-            147 => Some(Locale::FurIT),
-            148 => Some(Locale::FyDE),
-            149 => Some(Locale::FyNL),
-            150 => Some(Locale::GaIE),
-            151 => Some(Locale::ZhHantHK),
-            152 => Some(Locale::GdGB),
-            153 => Some(Locale::GezER),
-            154 => Some(Locale::SrLatnBA),
-            155 => Some(Locale::GezET),
-            156 => Some(Locale::SrLatnME),
-            157 => Some(Locale::GlES),
-            158 => Some(Locale::AzLatnAZ),
-            159 => Some(Locale::GuIN),
-            160 => Some(Locale::GvGB),
-            161 => Some(Locale::HaNG),
-            162 => Some(Locale::HakTW),
-            163 => Some(Locale::HeIL),
-            164 => Some(Locale::HiIN),
-            165 => Some(Locale::HifFJ),
-            166 => Some(Locale::HneIN),
-            167 => Some(Locale::HrHR),
-            168 => Some(Locale::HsbDE),
-            169 => Some(Locale::HtHT),
-            170 => Some(Locale::HuHU),
-            171 => Some(Locale::HyAM),
-            172 => Some(Locale::IaFR),
-            173 => Some(Locale::IdID),
-            174 => Some(Locale::IgNG),
-            175 => Some(Locale::IkCA),
-            176 => Some(Locale::IsIS),
-            177 => Some(Locale::ItCH),
-            178 => Some(Locale::ItIT),
-            180 => Some(Locale::IuCA),
-            181 => Some(Locale::JaJP),
-            182 => Some(Locale::KaGE),
-            183 => Some(Locale::KabDZ),
-            184 => Some(Locale::KkKZ),
-            185 => Some(Locale::KlGL),
-            186 => Some(Locale::KmKH),
-            187 => Some(Locale::KnIN),
-            188 => Some(Locale::KoKR),
-            189 => Some(Locale::KokIN),
-            190 => Some(Locale::KsIN),
-            191 => Some(Locale::KsDevaIN),
-            192 => Some(Locale::KuTR),
-            193 => Some(Locale::KwGB),
-            194 => Some(Locale::KyKG),
-            195 => Some(Locale::LbLU),
-            196 => Some(Locale::LgUG),
-            197 => Some(Locale::LiBE),
-            198 => Some(Locale::LiNL),
-            199 => Some(Locale::LijIT),
-            200 => Some(Locale::LnCD),
-            201 => Some(Locale::LoLA),
-            202 => Some(Locale::LtLT),
-            203 => Some(Locale::LvLV),
-            204 => Some(Locale::LzhTW),
-            205 => Some(Locale::MagIN),
-            206 => Some(Locale::MaiIN),
-            207 => Some(Locale::MaiNP),
-            208 => Some(Locale::MfeMU),
-            209 => Some(Locale::MgMG),
-            210 => Some(Locale::MhrRU),
-            211 => Some(Locale::MiNZ),
-            212 => Some(Locale::MiqNI),
-            213 => Some(Locale::MjwIN),
-            214 => Some(Locale::MkMK),
-            215 => Some(Locale::MlIN),
-            216 => Some(Locale::MnMN),
-            217 => Some(Locale::MniIN),
-            218 => Some(Locale::MnwMM),
-            219 => Some(Locale::MrIN),
-            220 => Some(Locale::MsMY),
-            221 => Some(Locale::MtMT),
-            222 => Some(Locale::MyMM),
-            223 => Some(Locale::NanTW),
-            224 => Some(Locale::NanLatnTW),
-            225 => Some(Locale::NbNO),
-            226 => Some(Locale::NdsDE),
-            227 => Some(Locale::NdsNL),
-            228 => Some(Locale::NeNP),
-            229 => Some(Locale::NhnMX),
-            230 => Some(Locale::NiuNU),
-            231 => Some(Locale::NiuNZ),
-            232 => Some(Locale::NlAW),
-            233 => Some(Locale::NlBE),
-            235 => Some(Locale::NlNL),
-            237 => Some(Locale::NnNO),
-            238 => Some(Locale::NrZA),
-            239 => Some(Locale::NsoZA),
-            240 => Some(Locale::OcFR),
-            241 => Some(Locale::OmET),
-            242 => Some(Locale::OmKE),
-            243 => Some(Locale::OrIN),
-            244 => Some(Locale::OsRU),
-            245 => Some(Locale::PaIN),
-            246 => Some(Locale::PaPK),
-            247 => Some(Locale::PapAW),
-            248 => Some(Locale::PapCW),
-            249 => Some(Locale::PlPL),
-            250 => Some(Locale::PsAF),
-            251 => Some(Locale::PtBR),
-            252 => Some(Locale::PtPT),
-            254 => Some(Locale::QuzPE),
-            255 => Some(Locale::RajIN),
-            256 => Some(Locale::RoRO),
-            257 => Some(Locale::RuRU),
-            258 => Some(Locale::RuUA),
-            259 => Some(Locale::RwRW),
-            260 => Some(Locale::SaIN),
-            261 => Some(Locale::SahRU),
-            262 => Some(Locale::SatIN),
-            263 => Some(Locale::ScIT),
-            264 => Some(Locale::SdIN),
-            265 => Some(Locale::SdDevaIN),
-            266 => Some(Locale::SeNO),
-            267 => Some(Locale::SgsLT),
-            268 => Some(Locale::ShnMM),
-            269 => Some(Locale::ShsCA),
-            270 => Some(Locale::SiLK),
-            271 => Some(Locale::SidET),
-            272 => Some(Locale::SkSK),
-            273 => Some(Locale::SlSI),
-            274 => Some(Locale::SmWS),
-            275 => Some(Locale::SoDJ),
-            276 => Some(Locale::SoET),
-            277 => Some(Locale::SoKE),
-            278 => Some(Locale::SoSO),
-            279 => Some(Locale::SqAL),
-            280 => Some(Locale::SqMK),
-            281 => Some(Locale::SrME),
-            282 => Some(Locale::SrRS),
-            283 => Some(Locale::SrLatnRS),
-            284 => Some(Locale::SsZA),
-            285 => Some(Locale::StZA),
-            286 => Some(Locale::SvFI),
-            288 => Some(Locale::SvSE),
-            289 => Some(Locale::SwKE),
-            290 => Some(Locale::SwTZ),
-            291 => Some(Locale::SzlPL),
-            292 => Some(Locale::TaIN),
-            293 => Some(Locale::TaLK),
-            294 => Some(Locale::TcyIN),
-            295 => Some(Locale::TeIN),
-            296 => Some(Locale::TgTJ),
-            297 => Some(Locale::ThTH),
-            298 => Some(Locale::TheNP),
-            299 => Some(Locale::TiER),
-            300 => Some(Locale::TiET),
-            301 => Some(Locale::TigER),
-            302 => Some(Locale::TkTM),
-            303 => Some(Locale::TlPH),
-            304 => Some(Locale::TnZA),
-            305 => Some(Locale::ToTO),
-            306 => Some(Locale::TpiPG),
-            307 => Some(Locale::TrCY),
-            308 => Some(Locale::TrTR),
-            309 => Some(Locale::TsZA),
-            310 => Some(Locale::TtRU),
-            311 => Some(Locale::TtLatnRU),
-            312 => Some(Locale::UgCN),
-            313 => Some(Locale::UkUA),
-            314 => Some(Locale::UnmUS),
-            315 => Some(Locale::UrIN),
-            316 => Some(Locale::UrPK),
-            317 => Some(Locale::UzUZ),
-            318 => Some(Locale::UzCyrlUZ),
-            319 => Some(Locale::VeZA),
-            320 => Some(Locale::ViVN),
-            321 => Some(Locale::WaBE),
-            322 => Some(Locale::UzLatnUZ),
-            323 => Some(Locale::WaeCH),
-            324 => Some(Locale::WalET),
-            325 => Some(Locale::WoSN),
-            326 => Some(Locale::XhZA),
-            327 => Some(Locale::YiUS),
-            328 => Some(Locale::YoNG),
-            329 => Some(Locale::YueHK),
-            330 => Some(Locale::YuwPG),
-            331 => Some(Locale::ZhCN),
-            332 => Some(Locale::ZhHK),
-            333 => Some(Locale::ZhSG),
-            334 => Some(Locale::ZhTW),
-            335 => Some(Locale::ZuZA),
-            70 | 75 | 86 | 95 | 103 | 117 | 136 | 140 | 144 | 179 | 234 | 236 | 253 | 287 => {
-                Some(Locale::EnUS)
-            }
+            70 => Some(Locale::DeBE),
+            71 => Some(Locale::En001),
+            72 => Some(Locale::DeCH),
+            73 => Some(Locale::DeDE),
+            74 => Some(Locale::DeIT),
+            75 => Some(Locale::DeLI),
+            76 => Some(Locale::DeLU),
+            77 => Some(Locale::Ar001),
+            78 => Some(Locale::DoiIN),
+            79 => Some(Locale::DsbDE),
+            80 => Some(Locale::DvMV),
+            81 => Some(Locale::DzBT),
+            82 => Some(Locale::ElCY),
+            83 => Some(Locale::ElGR),
+            84 => Some(Locale::EnAG),
+            85 => Some(Locale::EnAU),
+            86 => Some(Locale::EnBW),
+            87 => Some(Locale::EnCA),
+            88 => Some(Locale::EnDK),
+            89 => Some(Locale::EnGB),
+            90 => Some(Locale::EnHK),
+            91 => Some(Locale::EnIE),
+            92 => Some(Locale::EnIL),
+            93 => Some(Locale::EnIN),
+            94 => Some(Locale::EnNG),
+            95 => Some(Locale::EnNZ),
+            96 => Some(Locale::EnPH),
+            97 => Some(Locale::EnSC),
+            98 => Some(Locale::EnSG),
+            99 => Some(Locale::EnZA),
+            100 => Some(Locale::EnZM),
+            101 => Some(Locale::EnZW),
+            102 => Some(Locale::Eo),
+            103 => Some(Locale::EsAR),
+            104 => Some(Locale::EsBO),
+            105 => Some(Locale::EsCL),
+            106 => Some(Locale::EsCO),
+            107 => Some(Locale::EsCR),
+            108 => Some(Locale::EsCU),
+            109 => Some(Locale::EsDO),
+            110 => Some(Locale::EsEC),
+            111 => Some(Locale::EsES),
+            112 => Some(Locale::EsGT),
+            113 => Some(Locale::EsHN),
+            114 => Some(Locale::EsMX),
+            115 => Some(Locale::EsNI),
+            116 => Some(Locale::EsPA),
+            117 => Some(Locale::EsPE),
+            118 => Some(Locale::EsPR),
+            119 => Some(Locale::EsPY),
+            120 => Some(Locale::EsSV),
+            121 => Some(Locale::EsUS),
+            122 => Some(Locale::EsUY),
+            123 => Some(Locale::EsVE),
+            124 => Some(Locale::EtEE),
+            125 => Some(Locale::EuES),
+            126 => Some(Locale::ZhHans),
+            127 => Some(Locale::FaIR),
+            128 => Some(Locale::FfSN),
+            129 => Some(Locale::FiFI),
+            130 => Some(Locale::FilPH),
+            131 => Some(Locale::FoFO),
+            132 => Some(Locale::FrBE),
+            133 => Some(Locale::FrCA),
+            134 => Some(Locale::FrCH),
+            135 => Some(Locale::FrFR),
+            136 => Some(Locale::FrLU),
+            137 => Some(Locale::ZhHant),
+            138 => Some(Locale::FurIT),
+            139 => Some(Locale::FyDE),
+            140 => Some(Locale::FyNL),
+            141 => Some(Locale::GaIE),
+            142 => Some(Locale::ZhHantHK),
+            143 => Some(Locale::GdGB),
+            144 => Some(Locale::GezER),
+            145 => Some(Locale::SrLatnBA),
+            146 => Some(Locale::GezET),
+            147 => Some(Locale::SrLatnME),
+            148 => Some(Locale::GlES),
+            149 => Some(Locale::AzLatnAZ),
+            150 => Some(Locale::GuIN),
+            151 => Some(Locale::GvGB),
+            152 => Some(Locale::HaNG),
+            153 => Some(Locale::HakTW),
+            154 => Some(Locale::HeIL),
+            155 => Some(Locale::HiIN),
+            156 => Some(Locale::HifFJ),
+            157 => Some(Locale::HneIN),
+            158 => Some(Locale::HrHR),
+            159 => Some(Locale::HsbDE),
+            160 => Some(Locale::HtHT),
+            161 => Some(Locale::HuHU),
+            162 => Some(Locale::HyAM),
+            163 => Some(Locale::IaFR),
+            164 => Some(Locale::IdID),
+            165 => Some(Locale::IgNG),
+            166 => Some(Locale::IkCA),
+            167 => Some(Locale::IsIS),
+            168 => Some(Locale::ItCH),
+            169 => Some(Locale::ItIT),
+            170 => Some(Locale::IuCA),
+            171 => Some(Locale::JaJP),
+            172 => Some(Locale::KaGE),
+            173 => Some(Locale::KabDZ),
+            174 => Some(Locale::KkKZ),
+            175 => Some(Locale::KlGL),
+            176 => Some(Locale::KmKH),
+            177 => Some(Locale::KnIN),
+            178 => Some(Locale::KoKR),
+            179 => Some(Locale::KokIN),
+            180 => Some(Locale::KsIN),
+            181 => Some(Locale::KsDevaIN),
+            182 => Some(Locale::KuTR),
+            183 => Some(Locale::KwGB),
+            184 => Some(Locale::KyKG),
+            185 => Some(Locale::LbLU),
+            186 => Some(Locale::LgUG),
+            187 => Some(Locale::LiBE),
+            188 => Some(Locale::LiNL),
+            189 => Some(Locale::LijIT),
+            190 => Some(Locale::LnCD),
+            191 => Some(Locale::LoLA),
+            192 => Some(Locale::LtLT),
+            193 => Some(Locale::LvLV),
+            194 => Some(Locale::LzhTW),
+            195 => Some(Locale::MagIN),
+            196 => Some(Locale::MaiIN),
+            197 => Some(Locale::MaiNP),
+            198 => Some(Locale::MfeMU),
+            199 => Some(Locale::MgMG),
+            200 => Some(Locale::MhrRU),
+            201 => Some(Locale::MiNZ),
+            202 => Some(Locale::MiqNI),
+            203 => Some(Locale::MjwIN),
+            204 => Some(Locale::MkMK),
+            205 => Some(Locale::MlIN),
+            206 => Some(Locale::MnMN),
+            207 => Some(Locale::MniIN),
+            208 => Some(Locale::MnwMM),
+            209 => Some(Locale::MrIN),
+            210 => Some(Locale::MsMY),
+            211 => Some(Locale::MtMT),
+            212 => Some(Locale::MyMM),
+            213 => Some(Locale::NanTW),
+            214 => Some(Locale::NanLatnTW),
+            215 => Some(Locale::NbNO),
+            216 => Some(Locale::NdsDE),
+            217 => Some(Locale::NdsNL),
+            218 => Some(Locale::NeNP),
+            219 => Some(Locale::NhnMX),
+            220 => Some(Locale::NiuNU),
+            221 => Some(Locale::NiuNZ),
+            222 => Some(Locale::NlAW),
+            223 => Some(Locale::NlBE),
+            224 => Some(Locale::NlNL),
+            225 => Some(Locale::NnNO),
+            226 => Some(Locale::NrZA),
+            227 => Some(Locale::NsoZA),
+            228 => Some(Locale::OcFR),
+            229 => Some(Locale::OmET),
+            230 => Some(Locale::OmKE),
+            231 => Some(Locale::OrIN),
+            232 => Some(Locale::OsRU),
+            233 => Some(Locale::PaIN),
+            234 => Some(Locale::PaPK),
+            235 => Some(Locale::PapAW),
+            236 => Some(Locale::PapCW),
+            237 => Some(Locale::PlPL),
+            238 => Some(Locale::PsAF),
+            239 => Some(Locale::PtBR),
+            240 => Some(Locale::PtPT),
+            241 => Some(Locale::QuzPE),
+            242 => Some(Locale::RajIN),
+            243 => Some(Locale::RoRO),
+            244 => Some(Locale::RuRU),
+            245 => Some(Locale::RuUA),
+            246 => Some(Locale::RwRW),
+            247 => Some(Locale::SaIN),
+            248 => Some(Locale::SahRU),
+            249 => Some(Locale::SatIN),
+            250 => Some(Locale::ScIT),
+            251 => Some(Locale::SdIN),
+            252 => Some(Locale::SdDevaIN),
+            253 => Some(Locale::SeNO),
+            254 => Some(Locale::SgsLT),
+            255 => Some(Locale::ShnMM),
+            256 => Some(Locale::ShsCA),
+            257 => Some(Locale::SiLK),
+            258 => Some(Locale::SidET),
+            259 => Some(Locale::SkSK),
+            260 => Some(Locale::SlSI),
+            261 => Some(Locale::SmWS),
+            262 => Some(Locale::SoDJ),
+            263 => Some(Locale::SoET),
+            264 => Some(Locale::SoKE),
+            265 => Some(Locale::SoSO),
+            266 => Some(Locale::SqAL),
+            267 => Some(Locale::SqMK),
+            268 => Some(Locale::SrME),
+            269 => Some(Locale::SrRS),
+            270 => Some(Locale::SrLatnRS),
+            271 => Some(Locale::SsZA),
+            272 => Some(Locale::StZA),
+            273 => Some(Locale::SvFI),
+            274 => Some(Locale::SvSE),
+            275 => Some(Locale::SwKE),
+            276 => Some(Locale::SwTZ),
+            277 => Some(Locale::SzlPL),
+            278 => Some(Locale::TaIN),
+            279 => Some(Locale::TaLK),
+            280 => Some(Locale::TcyIN),
+            281 => Some(Locale::TeIN),
+            282 => Some(Locale::TgTJ),
+            283 => Some(Locale::ThTH),
+            284 => Some(Locale::TheNP),
+            285 => Some(Locale::TiER),
+            286 => Some(Locale::TiET),
+            287 => Some(Locale::TigER),
+            288 => Some(Locale::TkTM),
+            289 => Some(Locale::TlPH),
+            290 => Some(Locale::TnZA),
+            291 => Some(Locale::ToTO),
+            292 => Some(Locale::TpiPG),
+            293 => Some(Locale::TrCY),
+            294 => Some(Locale::TrTR),
+            295 => Some(Locale::TsZA),
+            296 => Some(Locale::TtRU),
+            297 => Some(Locale::TtLatnRU),
+            298 => Some(Locale::UgCN),
+            299 => Some(Locale::UkUA),
+            300 => Some(Locale::UnmUS),
+            301 => Some(Locale::UrIN),
+            302 => Some(Locale::UrPK),
+            303 => Some(Locale::UzUZ),
+            304 => Some(Locale::UzCyrlUZ),
+            305 => Some(Locale::VeZA),
+            306 => Some(Locale::ViVN),
+            307 => Some(Locale::WaBE),
+            308 => Some(Locale::UzLatnUZ),
+            309 => Some(Locale::WaeCH),
+            310 => Some(Locale::WalET),
+            311 => Some(Locale::WoSN),
+            312 => Some(Locale::XhZA),
+            313 => Some(Locale::YiUS),
+            314 => Some(Locale::YoNG),
+            315 => Some(Locale::YueHK),
+            316 => Some(Locale::YuwPG),
+            317 => Some(Locale::ZhCN),
+            318 => Some(Locale::ZhHK),
+            319 => Some(Locale::ZhSG),
+            320 => Some(Locale::ZhTW),
+            321 => Some(Locale::ZuZA),
             _ => None,
         }
     }
 
-    const COUNT: usize = 336;
+    const COUNT: usize = 322;
 }
 
 impl serde::Serialize for Locale {
@@ -5519,13 +6541,15 @@ impl<'de> serde::Deserialize<'de> for Locale {
 
 impl EnumImpl for LogRotateFrequency {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            LogRotateFrequency,
             b"daily" => LogRotateFrequency::Daily,
             b"hourly" => LogRotateFrequency::Hourly,
             b"minutely" => LogRotateFrequency::Minutely,
             b"never" => LogRotateFrequency::Never,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -5574,9 +6598,14 @@ impl<'de> serde::Deserialize<'de> for LogRotateFrequency {
 }
 
 impl EnumImpl for LookupStoreType {
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            LookupStoreType,
             b"PostgreSql" => LookupStoreType::PostgreSql,
             b"MySql" => LookupStoreType::MySql,
             b"Sqlite" => LookupStoreType::Sqlite,
@@ -5585,6 +6614,23 @@ impl EnumImpl for LookupStoreType {
             b"RedisCluster" => LookupStoreType::RedisCluster,
             b"RedisSentinel" => LookupStoreType::RedisSentinel,
         }
+        .copied()
+    }
+
+    // SPDX-SnippetEnd
+    #[cfg(not(feature = "enterprise"))]
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            LookupStoreType,
+            b"PostgreSql" => LookupStoreType::PostgreSql,
+            b"MySql" => LookupStoreType::MySql,
+            b"Sqlite" => LookupStoreType::Sqlite,
+            b"Redis" => LookupStoreType::Redis,
+            b"RedisCluster" => LookupStoreType::RedisCluster,
+            b"RedisSentinel" => LookupStoreType::RedisSentinel,
+        }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -5592,7 +6638,12 @@ impl EnumImpl for LookupStoreType {
             LookupStoreType::PostgreSql => "PostgreSql",
             LookupStoreType::MySql => "MySql",
             LookupStoreType::Sqlite => "Sqlite",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             LookupStoreType::Sharded => "Sharded",
+            // SPDX-SnippetEnd
             LookupStoreType::Redis => "Redis",
             LookupStoreType::RedisCluster => "RedisCluster",
             LookupStoreType::RedisSentinel => "RedisSentinel",
@@ -5608,7 +6659,12 @@ impl EnumImpl for LookupStoreType {
             0 => Some(LookupStoreType::PostgreSql),
             1 => Some(LookupStoreType::MySql),
             2 => Some(LookupStoreType::Sqlite),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             3 => Some(LookupStoreType::Sharded),
+            // SPDX-SnippetEnd
             4 => Some(LookupStoreType::Redis),
             5 => Some(LookupStoreType::RedisCluster),
             6 => Some(LookupStoreType::RedisSentinel),
@@ -5640,8 +6696,9 @@ impl<'de> serde::Deserialize<'de> for LookupStoreType {
 
 impl EnumImpl for MessageFlag {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MessageFlag,
             b"authenticated" => MessageFlag::Authenticated,
             b"unauthenticated" => MessageFlag::Unauthenticated,
             b"unauthenticatedDmarc" => MessageFlag::UnauthenticatedDmarc,
@@ -5649,6 +6706,7 @@ impl EnumImpl for MessageFlag {
             b"report" => MessageFlag::Report,
             b"autogenerated" => MessageFlag::Autogenerated,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -5700,14 +6758,90 @@ impl<'de> serde::Deserialize<'de> for MessageFlag {
     }
 }
 
+impl EnumImpl for MetadataDataType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            MetadataDataType,
+            b"Email" => MetadataDataType::Email,
+            b"Mailbox" => MetadataDataType::Mailbox,
+            b"SieveScript" => MetadataDataType::SieveScript,
+            b"Calendar" => MetadataDataType::Calendar,
+            b"CalendarEvent" => MetadataDataType::CalendarEvent,
+            b"AddressBook" => MetadataDataType::AddressBook,
+            b"ContactCard" => MetadataDataType::ContactCard,
+            b"FileNode" => MetadataDataType::FileNode,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            MetadataDataType::Email => "Email",
+            MetadataDataType::Mailbox => "Mailbox",
+            MetadataDataType::SieveScript => "SieveScript",
+            MetadataDataType::Calendar => "Calendar",
+            MetadataDataType::CalendarEvent => "CalendarEvent",
+            MetadataDataType::AddressBook => "AddressBook",
+            MetadataDataType::ContactCard => "ContactCard",
+            MetadataDataType::FileNode => "FileNode",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(MetadataDataType::Email),
+            1 => Some(MetadataDataType::Mailbox),
+            2 => Some(MetadataDataType::SieveScript),
+            3 => Some(MetadataDataType::Calendar),
+            4 => Some(MetadataDataType::CalendarEvent),
+            5 => Some(MetadataDataType::AddressBook),
+            6 => Some(MetadataDataType::ContactCard),
+            7 => Some(MetadataDataType::FileNode),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 8;
+}
+
+impl serde::Serialize for MetadataDataType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for MetadataDataType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 impl EnumImpl for MetricType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MetricType,
             b"Counter" => MetricType::Counter,
             b"Gauge" => MetricType::Gauge,
             b"Histogram" => MetricType::Histogram,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -5734,6 +6868,7 @@ impl EnumImpl for MetricType {
     const COUNT: usize = 3;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for MetricType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -5743,6 +6878,7 @@ impl serde::Serialize for MetricType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for MetricType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -5753,14 +6889,17 @@ impl<'de> serde::Deserialize<'de> for MetricType {
     }
 }
 
+// SPDX-SnippetEnd
 impl EnumImpl for MetricsOtelType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MetricsOtelType,
             b"Disabled" => MetricsOtelType::Disabled,
             b"Http" => MetricsOtelType::Http,
             b"Grpc" => MetricsOtelType::Grpc,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -5808,11 +6947,13 @@ impl<'de> serde::Deserialize<'de> for MetricsOtelType {
 
 impl EnumImpl for MetricsPrometheusType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MetricsPrometheusType,
             b"Disabled" => MetricsPrometheusType::Disabled,
             b"Enabled" => MetricsPrometheusType::Enabled,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -5856,16 +6997,22 @@ impl<'de> serde::Deserialize<'de> for MetricsPrometheusType {
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 impl EnumImpl for MetricsStoreType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MetricsStoreType,
             b"Disabled" => MetricsStoreType::Disabled,
             b"Default" => MetricsStoreType::Default,
             b"FoundationDb" => MetricsStoreType::FoundationDb,
             b"PostgreSql" => MetricsStoreType::PostgreSql,
             b"MySql" => MetricsStoreType::MySql,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -5896,6 +7043,7 @@ impl EnumImpl for MetricsStoreType {
     const COUNT: usize = 5;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for MetricsStoreType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -5905,6 +7053,7 @@ impl serde::Serialize for MetricsStoreType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for MetricsStoreType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -5915,13 +7064,16 @@ impl<'de> serde::Deserialize<'de> for MetricsStoreType {
     }
 }
 
+// SPDX-SnippetEnd
 impl EnumImpl for MilterVersion {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MilterVersion,
             b"v2" => MilterVersion::V2,
             b"v6" => MilterVersion::V6,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -5967,8 +7119,9 @@ impl<'de> serde::Deserialize<'de> for MilterVersion {
 
 impl EnumImpl for ModelSize {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ModelSize,
             b"16" => ModelSize::V16,
             b"17" => ModelSize::V17,
             b"18" => ModelSize::V18,
@@ -5983,6 +7136,7 @@ impl EnumImpl for ModelSize {
             b"27" => ModelSize::V27,
             b"28" => ModelSize::V28,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6050,11 +7204,13 @@ impl<'de> serde::Deserialize<'de> for ModelSize {
 
 impl EnumImpl for MtaDeliveryExpirationType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaDeliveryExpirationType,
             b"Ttl" => MtaDeliveryExpirationType::Ttl,
             b"Attempts" => MtaDeliveryExpirationType::Attempts,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6100,11 +7256,13 @@ impl<'de> serde::Deserialize<'de> for MtaDeliveryExpirationType {
 
 impl EnumImpl for MtaDeliveryScheduleIntervalsOrDefaultType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaDeliveryScheduleIntervalsOrDefaultType,
             b"Default" => MtaDeliveryScheduleIntervalsOrDefaultType::Default,
             b"Custom" => MtaDeliveryScheduleIntervalsOrDefaultType::Custom,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6150,8 +7308,9 @@ impl<'de> serde::Deserialize<'de> for MtaDeliveryScheduleIntervalsOrDefaultType 
 
 impl EnumImpl for MtaInboundThrottleKey {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaInboundThrottleKey,
             b"listener" => MtaInboundThrottleKey::Listener,
             b"remoteIp" => MtaInboundThrottleKey::RemoteIp,
             b"localIp" => MtaInboundThrottleKey::LocalIp,
@@ -6162,6 +7321,7 @@ impl EnumImpl for MtaInboundThrottleKey {
             b"rcpt" => MtaInboundThrottleKey::Rcpt,
             b"rcptDomain" => MtaInboundThrottleKey::RcptDomain,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6221,13 +7381,15 @@ impl<'de> serde::Deserialize<'de> for MtaInboundThrottleKey {
 
 impl EnumImpl for MtaIpStrategy {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaIpStrategy,
             b"v4ThenV6" => MtaIpStrategy::V4ThenV6,
             b"v6ThenV4" => MtaIpStrategy::V6ThenV4,
             b"v4Only" => MtaIpStrategy::V4Only,
             b"v6Only" => MtaIpStrategy::V6Only,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6277,8 +7439,9 @@ impl<'de> serde::Deserialize<'de> for MtaIpStrategy {
 
 impl EnumImpl for MtaOutboundThrottleKey {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaOutboundThrottleKey,
             b"mx" => MtaOutboundThrottleKey::Mx,
             b"remoteIp" => MtaOutboundThrottleKey::RemoteIp,
             b"localIp" => MtaOutboundThrottleKey::LocalIp,
@@ -6286,6 +7449,7 @@ impl EnumImpl for MtaOutboundThrottleKey {
             b"senderDomain" => MtaOutboundThrottleKey::SenderDomain,
             b"rcptDomain" => MtaOutboundThrottleKey::RcptDomain,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6339,11 +7503,13 @@ impl<'de> serde::Deserialize<'de> for MtaOutboundThrottleKey {
 
 impl EnumImpl for MtaProtocol {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaProtocol,
             b"smtp" => MtaProtocol::Smtp,
             b"lmtp" => MtaProtocol::Lmtp,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6389,13 +7555,15 @@ impl<'de> serde::Deserialize<'de> for MtaProtocol {
 
 impl EnumImpl for MtaQueueQuotaKey {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaQueueQuotaKey,
             b"sender" => MtaQueueQuotaKey::Sender,
             b"senderDomain" => MtaQueueQuotaKey::SenderDomain,
             b"rcpt" => MtaQueueQuotaKey::Rcpt,
             b"rcptDomain" => MtaQueueQuotaKey::RcptDomain,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6445,12 +7613,14 @@ impl<'de> serde::Deserialize<'de> for MtaQueueQuotaKey {
 
 impl EnumImpl for MtaRequiredOrOptional {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaRequiredOrOptional,
             b"optional" => MtaRequiredOrOptional::Optional,
             b"require" => MtaRequiredOrOptional::Require,
             b"disable" => MtaRequiredOrOptional::Disable,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6498,12 +7668,14 @@ impl<'de> serde::Deserialize<'de> for MtaRequiredOrOptional {
 
 impl EnumImpl for MtaRouteType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaRouteType,
             b"Mx" => MtaRouteType::Mx,
             b"Relay" => MtaRouteType::Relay,
             b"Local" => MtaRouteType::Local,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6551,8 +7723,9 @@ impl<'de> serde::Deserialize<'de> for MtaRouteType {
 
 impl EnumImpl for MtaStage {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            MtaStage,
             b"connect" => MtaStage::Connect,
             b"ehlo" => MtaStage::Ehlo,
             b"auth" => MtaStage::Auth,
@@ -6560,6 +7733,7 @@ impl EnumImpl for MtaStage {
             b"rcpt" => MtaStage::Rcpt,
             b"data" => MtaStage::Data,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6613,8 +7787,9 @@ impl<'de> serde::Deserialize<'de> for MtaStage {
 
 impl EnumImpl for NetworkListenerProtocol {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            NetworkListenerProtocol,
             b"smtp" => NetworkListenerProtocol::Smtp,
             b"lmtp" => NetworkListenerProtocol::Lmtp,
             b"http" => NetworkListenerProtocol::Http,
@@ -6622,6 +7797,7 @@ impl EnumImpl for NetworkListenerProtocol {
             b"pop3" => NetworkListenerProtocol::Pop3,
             b"manageSieve" => NetworkListenerProtocol::ManageSieve,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6673,10 +7849,411 @@ impl<'de> serde::Deserialize<'de> for NetworkListenerProtocol {
     }
 }
 
+impl EnumImpl for OAuthClientKind {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            OAuthClientKind,
+            b"registered" => OAuthClientKind::Registered,
+            b"dynamic" => OAuthClientKind::Dynamic,
+            b"metadataDocument" => OAuthClientKind::MetadataDocument,
+            b"firstParty" => OAuthClientKind::FirstParty,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            OAuthClientKind::Registered => "registered",
+            OAuthClientKind::Dynamic => "dynamic",
+            OAuthClientKind::MetadataDocument => "metadataDocument",
+            OAuthClientKind::FirstParty => "firstParty",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(OAuthClientKind::Registered),
+            1 => Some(OAuthClientKind::Dynamic),
+            2 => Some(OAuthClientKind::MetadataDocument),
+            3 => Some(OAuthClientKind::FirstParty),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 4;
+}
+
+impl serde::Serialize for OAuthClientKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for OAuthClientKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for OAuthClientMetadataPolicy {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            OAuthClientMetadataPolicy,
+            b"disabled" => OAuthClientMetadataPolicy::Disabled,
+            b"sameDomain" => OAuthClientMetadataPolicy::SameDomain,
+            b"any" => OAuthClientMetadataPolicy::Any,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            OAuthClientMetadataPolicy::Disabled => "disabled",
+            OAuthClientMetadataPolicy::SameDomain => "sameDomain",
+            OAuthClientMetadataPolicy::Any => "any",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(OAuthClientMetadataPolicy::Disabled),
+            1 => Some(OAuthClientMetadataPolicy::SameDomain),
+            2 => Some(OAuthClientMetadataPolicy::Any),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 3;
+}
+
+impl serde::Serialize for OAuthClientMetadataPolicy {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for OAuthClientMetadataPolicy {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for OAuthGrantType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            OAuthGrantType,
+            b"authorizationCode" => OAuthGrantType::AuthorizationCode,
+            b"refreshToken" => OAuthGrantType::RefreshToken,
+            b"deviceCode" => OAuthGrantType::DeviceCode,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            OAuthGrantType::AuthorizationCode => "authorizationCode",
+            OAuthGrantType::RefreshToken => "refreshToken",
+            OAuthGrantType::DeviceCode => "deviceCode",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(OAuthGrantType::AuthorizationCode),
+            1 => Some(OAuthGrantType::RefreshToken),
+            2 => Some(OAuthGrantType::DeviceCode),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 3;
+}
+
+impl serde::Serialize for OAuthGrantType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for OAuthGrantType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for OAuthScope {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            OAuthScope,
+            b"mail" => OAuthScope::Mail,
+            b"contacts" => OAuthScope::Contacts,
+            b"calendars" => OAuthScope::Calendars,
+            b"files" => OAuthScope::Files,
+            b"full" => OAuthScope::Full,
+            b"security" => OAuthScope::Security,
+            b"settings" => OAuthScope::Settings,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            OAuthScope::Mail => "mail",
+            OAuthScope::Contacts => "contacts",
+            OAuthScope::Calendars => "calendars",
+            OAuthScope::Files => "files",
+            OAuthScope::Full => "full",
+            OAuthScope::Security => "security",
+            OAuthScope::Settings => "settings",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(OAuthScope::Mail),
+            1 => Some(OAuthScope::Contacts),
+            2 => Some(OAuthScope::Calendars),
+            3 => Some(OAuthScope::Files),
+            4 => Some(OAuthScope::Full),
+            5 => Some(OAuthScope::Security),
+            6 => Some(OAuthScope::Settings),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 7;
+}
+
+impl serde::Serialize for OAuthScope {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for OAuthScope {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for OidcIntrospectionAuth {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            OidcIntrospectionAuth,
+            b"clientSecretBasic" => OidcIntrospectionAuth::ClientSecretBasic,
+            b"clientSecretPost" => OidcIntrospectionAuth::ClientSecretPost,
+            b"none" => OidcIntrospectionAuth::None,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            OidcIntrospectionAuth::ClientSecretBasic => "clientSecretBasic",
+            OidcIntrospectionAuth::ClientSecretPost => "clientSecretPost",
+            OidcIntrospectionAuth::None => "none",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(OidcIntrospectionAuth::ClientSecretBasic),
+            1 => Some(OidcIntrospectionAuth::ClientSecretPost),
+            2 => Some(OidcIntrospectionAuth::None),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 3;
+}
+
+impl serde::Serialize for OidcIntrospectionAuth {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for OidcIntrospectionAuth {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for OidcOpaqueTokenValidation {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            OidcOpaqueTokenValidation,
+            b"none" => OidcOpaqueTokenValidation::None,
+            b"userInfo" => OidcOpaqueTokenValidation::UserInfo,
+            b"introspection" => OidcOpaqueTokenValidation::Introspection,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            OidcOpaqueTokenValidation::None => "none",
+            OidcOpaqueTokenValidation::UserInfo => "userInfo",
+            OidcOpaqueTokenValidation::Introspection => "introspection",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(OidcOpaqueTokenValidation::None),
+            1 => Some(OidcOpaqueTokenValidation::UserInfo),
+            2 => Some(OidcOpaqueTokenValidation::Introspection),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 3;
+}
+
+impl serde::Serialize for OidcOpaqueTokenValidation {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for OidcOpaqueTokenValidation {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for OidcUnscopedTokenPolicy {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            OidcUnscopedTokenPolicy,
+            b"reject" => OidcUnscopedTokenPolicy::Reject,
+            b"interoperable" => OidcUnscopedTokenPolicy::Interoperable,
+            b"full" => OidcUnscopedTokenPolicy::Full,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            OidcUnscopedTokenPolicy::Reject => "reject",
+            OidcUnscopedTokenPolicy::Interoperable => "interoperable",
+            OidcUnscopedTokenPolicy::Full => "full",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(OidcUnscopedTokenPolicy::Reject),
+            1 => Some(OidcUnscopedTokenPolicy::Interoperable),
+            2 => Some(OidcUnscopedTokenPolicy::Full),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 3;
+}
+
+impl serde::Serialize for OidcUnscopedTokenPolicy {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for OidcUnscopedTokenPolicy {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for OvhEndpoint {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            OvhEndpoint,
             b"ovh-eu" => OvhEndpoint::OvhEu,
             b"ovh-ca" => OvhEndpoint::OvhCa,
             b"kimsufi-eu" => OvhEndpoint::KimsufiEu,
@@ -6684,6 +8261,7 @@ impl EnumImpl for OvhEndpoint {
             b"soyoustart-eu" => OvhEndpoint::SoyoustartEu,
             b"soyoustart-ca" => OvhEndpoint::SoyoustartCa,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6737,13 +8315,15 @@ impl<'de> serde::Deserialize<'de> for OvhEndpoint {
 
 impl EnumImpl for PasswordHashAlgorithm {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            PasswordHashAlgorithm,
             b"argon2id" => PasswordHashAlgorithm::Argon2id,
             b"bcrypt" => PasswordHashAlgorithm::Bcrypt,
             b"scrypt" => PasswordHashAlgorithm::Scrypt,
             b"pbkdf2" => PasswordHashAlgorithm::Pbkdf2,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6793,14 +8373,16 @@ impl<'de> serde::Deserialize<'de> for PasswordHashAlgorithm {
 
 impl EnumImpl for PasswordStrength {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            PasswordStrength,
             b"zero" => PasswordStrength::Zero,
             b"one" => PasswordStrength::One,
             b"two" => PasswordStrength::Two,
             b"three" => PasswordStrength::Three,
             b"four" => PasswordStrength::Four,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -6851,6 +8433,10 @@ impl<'de> serde::Deserialize<'de> for PasswordStrength {
 }
 
 impl EnumImpl for Permission {
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
     fn parse(value: &str) -> Option<Self> {
         hashify::map! {
             value.as_bytes(),
@@ -6918,9 +8504,6 @@ impl EnumImpl for Permission {
             b"jmapPrincipalChanges" => Permission::JmapPrincipalChanges,
             b"jmapPrincipalQueryChanges" => Permission::JmapPrincipalQueryChanges,
             b"jmapPrincipalGetAvailability" => Permission::JmapPrincipalGetAvailability,
-            b"jmapPrincipalCreate" => Permission::JmapPrincipalCreate,
-            b"jmapPrincipalUpdate" => Permission::JmapPrincipalUpdate,
-            b"jmapPrincipalDestroy" => Permission::JmapPrincipalDestroy,
             b"jmapQuotaGet" => Permission::JmapQuotaGet,
             b"jmapQuotaChanges" => Permission::JmapQuotaChanges,
             b"jmapQuotaQuery" => Permission::JmapQuotaQuery,
@@ -6985,6 +8568,9 @@ impl EnumImpl for Permission {
             b"jmapParticipantIdentityUpdate" => Permission::JmapParticipantIdentityUpdate,
             b"jmapParticipantIdentityDestroy" => Permission::JmapParticipantIdentityDestroy,
             b"jmapCoreEcho" => Permission::JmapCoreEcho,
+            b"jmapMetadataGet" => Permission::JmapMetadataGet,
+            b"jmapMetadataSet" => Permission::JmapMetadataSet,
+            b"jmapMetadataPrivate" => Permission::JmapMetadataPrivate,
             b"imapAuthenticate" => Permission::ImapAuthenticate,
             b"imapAclGet" => Permission::ImapAclGet,
             b"imapAclSet" => Permission::ImapAclSet,
@@ -7013,6 +8599,9 @@ impl EnumImpl for Permission {
             b"imapStore" => Permission::ImapStore,
             b"imapSubscribe" => Permission::ImapSubscribe,
             b"imapThread" => Permission::ImapThread,
+            b"imapMetadataGet" => Permission::ImapMetadataGet,
+            b"imapMetadataSet" => Permission::ImapMetadataSet,
+            b"imapMetadataPrivate" => Permission::ImapMetadataPrivate,
             b"pop3Authenticate" => Permission::Pop3Authenticate,
             b"pop3List" => Permission::Pop3List,
             b"pop3Uidl" => Permission::Pop3Uidl,
@@ -7070,8 +8659,6 @@ impl EnumImpl for Permission {
             b"davCalQuery" => Permission::DavCalQuery,
             b"davCalMultiGet" => Permission::DavCalMultiGet,
             b"davCalFreeBusyQuery" => Permission::DavCalFreeBusyQuery,
-            b"oAuthClientRegistration" => Permission::OAuthClientRegistration,
-            b"oAuthClientOverride" => Permission::OAuthClientOverride,
             b"liveTracing" => Permission::LiveTracing,
             b"liveMetrics" => Permission::LiveMetrics,
             b"liveDeliveryTest" => Permission::LiveDeliveryTest,
@@ -7101,11 +8688,7 @@ impl EnumImpl for Permission {
             b"actionInvalidateNegativeCaches" => Permission::ActionInvalidateNegativeCaches,
             b"actionPauseMtaQueue" => Permission::ActionPauseMtaQueue,
             b"actionResumeMtaQueue" => Permission::ActionResumeMtaQueue,
-            b"sysActionGet" => Permission::SysActionGet,
             b"sysActionCreate" => Permission::SysActionCreate,
-            b"sysActionUpdate" => Permission::SysActionUpdate,
-            b"sysActionDestroy" => Permission::SysActionDestroy,
-            b"sysActionQuery" => Permission::SysActionQuery,
             b"sysAddressBookGet" => Permission::SysAddressBookGet,
             b"sysAddressBookUpdate" => Permission::SysAddressBookUpdate,
             b"sysAiModelGet" => Permission::SysAiModelGet,
@@ -7139,13 +8722,10 @@ impl EnumImpl for Permission {
             b"sysApplicationDestroy" => Permission::SysApplicationDestroy,
             b"sysApplicationQuery" => Permission::SysApplicationQuery,
             b"sysArchivedItemGet" => Permission::SysArchivedItemGet,
-            b"sysArchivedItemCreate" => Permission::SysArchivedItemCreate,
             b"sysArchivedItemUpdate" => Permission::SysArchivedItemUpdate,
             b"sysArchivedItemDestroy" => Permission::SysArchivedItemDestroy,
             b"sysArchivedItemQuery" => Permission::SysArchivedItemQuery,
             b"sysArfExternalReportGet" => Permission::SysArfExternalReportGet,
-            b"sysArfExternalReportCreate" => Permission::SysArfExternalReportCreate,
-            b"sysArfExternalReportUpdate" => Permission::SysArfExternalReportUpdate,
             b"sysArfExternalReportDestroy" => Permission::SysArfExternalReportDestroy,
             b"sysArfExternalReportQuery" => Permission::SysArfExternalReportQuery,
             b"sysAsnGet" => Permission::SysAsnGet,
@@ -7175,9 +8755,6 @@ impl EnumImpl for Permission {
             b"sysCertificateDestroy" => Permission::SysCertificateDestroy,
             b"sysCertificateQuery" => Permission::SysCertificateQuery,
             b"sysClusterNodeGet" => Permission::SysClusterNodeGet,
-            b"sysClusterNodeCreate" => Permission::SysClusterNodeCreate,
-            b"sysClusterNodeUpdate" => Permission::SysClusterNodeUpdate,
-            b"sysClusterNodeDestroy" => Permission::SysClusterNodeDestroy,
             b"sysClusterNodeQuery" => Permission::SysClusterNodeQuery,
             b"sysClusterRoleGet" => Permission::SysClusterRoleGet,
             b"sysClusterRoleCreate" => Permission::SysClusterRoleCreate,
@@ -7203,12 +8780,9 @@ impl EnumImpl for Permission {
             b"sysDkimSignatureDestroy" => Permission::SysDkimSignatureDestroy,
             b"sysDkimSignatureQuery" => Permission::SysDkimSignatureQuery,
             b"sysDmarcExternalReportGet" => Permission::SysDmarcExternalReportGet,
-            b"sysDmarcExternalReportCreate" => Permission::SysDmarcExternalReportCreate,
-            b"sysDmarcExternalReportUpdate" => Permission::SysDmarcExternalReportUpdate,
             b"sysDmarcExternalReportDestroy" => Permission::SysDmarcExternalReportDestroy,
             b"sysDmarcExternalReportQuery" => Permission::SysDmarcExternalReportQuery,
             b"sysDmarcInternalReportGet" => Permission::SysDmarcInternalReportGet,
-            b"sysDmarcInternalReportCreate" => Permission::SysDmarcInternalReportCreate,
             b"sysDmarcInternalReportUpdate" => Permission::SysDmarcInternalReportUpdate,
             b"sysDmarcInternalReportDestroy" => Permission::SysDmarcInternalReportDestroy,
             b"sysDmarcInternalReportQuery" => Permission::SysDmarcInternalReportQuery,
@@ -7230,6 +8804,8 @@ impl EnumImpl for Permission {
             b"sysDsnReportSettingsUpdate" => Permission::SysDsnReportSettingsUpdate,
             b"sysEmailGet" => Permission::SysEmailGet,
             b"sysEmailUpdate" => Permission::SysEmailUpdate,
+            b"sysEncryptionGet" => Permission::SysEncryptionGet,
+            b"sysEncryptionUpdate" => Permission::SysEncryptionUpdate,
             b"sysEnterpriseGet" => Permission::SysEnterpriseGet,
             b"sysEnterpriseUpdate" => Permission::SysEnterpriseUpdate,
             b"sysEventTracingLevelGet" => Permission::SysEventTracingLevelGet,
@@ -7237,6 +8813,11 @@ impl EnumImpl for Permission {
             b"sysEventTracingLevelUpdate" => Permission::SysEventTracingLevelUpdate,
             b"sysEventTracingLevelDestroy" => Permission::SysEventTracingLevelDestroy,
             b"sysEventTracingLevelQuery" => Permission::SysEventTracingLevelQuery,
+            b"sysExternalPublicKeyGet" => Permission::SysExternalPublicKeyGet,
+            b"sysExternalPublicKeyCreate" => Permission::SysExternalPublicKeyCreate,
+            b"sysExternalPublicKeyUpdate" => Permission::SysExternalPublicKeyUpdate,
+            b"sysExternalPublicKeyDestroy" => Permission::SysExternalPublicKeyDestroy,
+            b"sysExternalPublicKeyQuery" => Permission::SysExternalPublicKeyQuery,
             b"sysFileStorageGet" => Permission::SysFileStorageGet,
             b"sysFileStorageUpdate" => Permission::SysFileStorageUpdate,
             b"sysHttpGet" => Permission::SysHttpGet,
@@ -7252,12 +8833,12 @@ impl EnumImpl for Permission {
             b"sysImapUpdate" => Permission::SysImapUpdate,
             b"sysInMemoryStoreGet" => Permission::SysInMemoryStoreGet,
             b"sysInMemoryStoreUpdate" => Permission::SysInMemoryStoreUpdate,
+            b"sysIndexQueueStatusGet" => Permission::SysIndexQueueStatusGet,
+            b"sysIndexQueueStatusUpdate" => Permission::SysIndexQueueStatusUpdate,
+            b"sysIndexQueueStatusQuery" => Permission::SysIndexQueueStatusQuery,
             b"sysJmapGet" => Permission::SysJmapGet,
             b"sysJmapUpdate" => Permission::SysJmapUpdate,
             b"sysLogGet" => Permission::SysLogGet,
-            b"sysLogCreate" => Permission::SysLogCreate,
-            b"sysLogUpdate" => Permission::SysLogUpdate,
-            b"sysLogDestroy" => Permission::SysLogDestroy,
             b"sysLogQuery" => Permission::SysLogQuery,
             b"sysMailingListGet" => Permission::SysMailingListGet,
             b"sysMailingListCreate" => Permission::SysMailingListCreate,
@@ -7279,10 +8860,9 @@ impl EnumImpl for Permission {
             b"sysMemoryLookupKeyValueUpdate" => Permission::SysMemoryLookupKeyValueUpdate,
             b"sysMemoryLookupKeyValueDestroy" => Permission::SysMemoryLookupKeyValueDestroy,
             b"sysMemoryLookupKeyValueQuery" => Permission::SysMemoryLookupKeyValueQuery,
+            b"sysMetadataGet" => Permission::SysMetadataGet,
+            b"sysMetadataUpdate" => Permission::SysMetadataUpdate,
             b"sysMetricGet" => Permission::SysMetricGet,
-            b"sysMetricCreate" => Permission::SysMetricCreate,
-            b"sysMetricUpdate" => Permission::SysMetricUpdate,
-            b"sysMetricDestroy" => Permission::SysMetricDestroy,
             b"sysMetricQuery" => Permission::SysMetricQuery,
             b"sysMetricsGet" => Permission::SysMetricsGet,
             b"sysMetricsUpdate" => Permission::SysMetricsUpdate,
@@ -7368,6 +8948,9 @@ impl EnumImpl for Permission {
             b"sysOAuthClientUpdate" => Permission::SysOAuthClientUpdate,
             b"sysOAuthClientDestroy" => Permission::SysOAuthClientDestroy,
             b"sysOAuthClientQuery" => Permission::SysOAuthClientQuery,
+            b"sysOAuthGrantGet" => Permission::SysOAuthGrantGet,
+            b"sysOAuthGrantDestroy" => Permission::SysOAuthGrantDestroy,
+            b"sysOAuthGrantQuery" => Permission::SysOAuthGrantQuery,
             b"sysOidcProviderGet" => Permission::SysOidcProviderGet,
             b"sysOidcProviderUpdate" => Permission::SysOidcProviderUpdate,
             b"sysPublicKeyGet" => Permission::SysPublicKeyGet,
@@ -7376,7 +8959,6 @@ impl EnumImpl for Permission {
             b"sysPublicKeyDestroy" => Permission::SysPublicKeyDestroy,
             b"sysPublicKeyQuery" => Permission::SysPublicKeyQuery,
             b"sysQueuedMessageGet" => Permission::SysQueuedMessageGet,
-            b"sysQueuedMessageCreate" => Permission::SysQueuedMessageCreate,
             b"sysQueuedMessageUpdate" => Permission::SysQueuedMessageUpdate,
             b"sysQueuedMessageDestroy" => Permission::SysQueuedMessageDestroy,
             b"sysQueuedMessageQuery" => Permission::SysQueuedMessageQuery,
@@ -7411,6 +8993,13 @@ impl EnumImpl for Permission {
             b"sysSieveUserScriptUpdate" => Permission::SysSieveUserScriptUpdate,
             b"sysSieveUserScriptDestroy" => Permission::SysSieveUserScriptDestroy,
             b"sysSieveUserScriptQuery" => Permission::SysSieveUserScriptQuery,
+            b"sysSmimeTrustAnchorGet" => Permission::SysSmimeTrustAnchorGet,
+            b"sysSmimeTrustAnchorCreate" => Permission::SysSmimeTrustAnchorCreate,
+            b"sysSmimeTrustAnchorUpdate" => Permission::SysSmimeTrustAnchorUpdate,
+            b"sysSmimeTrustAnchorDestroy" => Permission::SysSmimeTrustAnchorDestroy,
+            b"sysSmimeTrustAnchorQuery" => Permission::SysSmimeTrustAnchorQuery,
+            b"sysSpamAiGet" => Permission::SysSpamAiGet,
+            b"sysSpamAiUpdate" => Permission::SysSpamAiUpdate,
             b"sysSpamClassifierGet" => Permission::SysSpamClassifierGet,
             b"sysSpamClassifierUpdate" => Permission::SysSpamClassifierUpdate,
             b"sysSpamDnsblServerGet" => Permission::SysSpamDnsblServerGet,
@@ -7425,8 +9014,6 @@ impl EnumImpl for Permission {
             b"sysSpamFileExtensionUpdate" => Permission::SysSpamFileExtensionUpdate,
             b"sysSpamFileExtensionDestroy" => Permission::SysSpamFileExtensionDestroy,
             b"sysSpamFileExtensionQuery" => Permission::SysSpamFileExtensionQuery,
-            b"sysSpamLlmGet" => Permission::SysSpamLlmGet,
-            b"sysSpamLlmUpdate" => Permission::SysSpamLlmUpdate,
             b"sysSpamPyzorGet" => Permission::SysSpamPyzorGet,
             b"sysSpamPyzorUpdate" => Permission::SysSpamPyzorUpdate,
             b"sysSpamRuleGet" => Permission::SysSpamRuleGet,
@@ -7443,7 +9030,6 @@ impl EnumImpl for Permission {
             b"sysSpamTagQuery" => Permission::SysSpamTagQuery,
             b"sysSpamTrainingSampleGet" => Permission::SysSpamTrainingSampleGet,
             b"sysSpamTrainingSampleCreate" => Permission::SysSpamTrainingSampleCreate,
-            b"sysSpamTrainingSampleUpdate" => Permission::SysSpamTrainingSampleUpdate,
             b"sysSpamTrainingSampleDestroy" => Permission::SysSpamTrainingSampleDestroy,
             b"sysSpamTrainingSampleQuery" => Permission::SysSpamTrainingSampleQuery,
             b"sysSpfReportSettingsGet" => Permission::SysSpfReportSettingsGet,
@@ -7453,11 +9039,13 @@ impl EnumImpl for Permission {
             b"sysStoreLookupUpdate" => Permission::SysStoreLookupUpdate,
             b"sysStoreLookupDestroy" => Permission::SysStoreLookupDestroy,
             b"sysStoreLookupQuery" => Permission::SysStoreLookupQuery,
+            b"sysSymmetricKeyGet" => Permission::SysSymmetricKeyGet,
+            b"sysSymmetricKeyCreate" => Permission::SysSymmetricKeyCreate,
+            b"sysSymmetricKeyUpdate" => Permission::SysSymmetricKeyUpdate,
+            b"sysSymmetricKeyDestroy" => Permission::SysSymmetricKeyDestroy,
+            b"sysSymmetricKeyQuery" => Permission::SysSymmetricKeyQuery,
             b"sysSystemSettingsGet" => Permission::SysSystemSettingsGet,
             b"sysSystemSettingsUpdate" => Permission::SysSystemSettingsUpdate,
-            b"taskIndexDocument" => Permission::TaskIndexDocument,
-            b"taskUnindexDocument" => Permission::TaskUnindexDocument,
-            b"taskIndexTrace" => Permission::TaskIndexTrace,
             b"taskCalendarAlarmEmail" => Permission::TaskCalendarAlarmEmail,
             b"taskCalendarAlarmNotification" => Permission::TaskCalendarAlarmNotification,
             b"taskCalendarItipMessage" => Permission::TaskCalendarItipMessage,
@@ -7473,6 +9061,11 @@ impl EnumImpl for Permission {
             b"taskAcmeRenewal" => Permission::TaskAcmeRenewal,
             b"taskDkimManagement" => Permission::TaskDkimManagement,
             b"taskDnsManagement" => Permission::TaskDnsManagement,
+            b"taskShareRevokeCleanup" => Permission::TaskShareRevokeCleanup,
+            b"taskDmarcReportWindow" => Permission::TaskDmarcReportWindow,
+            b"taskTlsReportWindow" => Permission::TaskTlsReportWindow,
+            b"taskExternalPublicKeyMaintenance" => Permission::TaskExternalPublicKeyMaintenance,
+            b"taskBlobRecode" => Permission::TaskBlobRecode,
             b"sysTaskGet" => Permission::SysTaskGet,
             b"sysTaskCreate" => Permission::SysTaskCreate,
             b"sysTaskUpdate" => Permission::SysTaskUpdate,
@@ -7486,21 +9079,15 @@ impl EnumImpl for Permission {
             b"sysTenantDestroy" => Permission::SysTenantDestroy,
             b"sysTenantQuery" => Permission::SysTenantQuery,
             b"sysTlsExternalReportGet" => Permission::SysTlsExternalReportGet,
-            b"sysTlsExternalReportCreate" => Permission::SysTlsExternalReportCreate,
-            b"sysTlsExternalReportUpdate" => Permission::SysTlsExternalReportUpdate,
             b"sysTlsExternalReportDestroy" => Permission::SysTlsExternalReportDestroy,
             b"sysTlsExternalReportQuery" => Permission::SysTlsExternalReportQuery,
             b"sysTlsInternalReportGet" => Permission::SysTlsInternalReportGet,
-            b"sysTlsInternalReportCreate" => Permission::SysTlsInternalReportCreate,
             b"sysTlsInternalReportUpdate" => Permission::SysTlsInternalReportUpdate,
             b"sysTlsInternalReportDestroy" => Permission::SysTlsInternalReportDestroy,
             b"sysTlsInternalReportQuery" => Permission::SysTlsInternalReportQuery,
             b"sysTlsReportSettingsGet" => Permission::SysTlsReportSettingsGet,
             b"sysTlsReportSettingsUpdate" => Permission::SysTlsReportSettingsUpdate,
             b"sysTraceGet" => Permission::SysTraceGet,
-            b"sysTraceCreate" => Permission::SysTraceCreate,
-            b"sysTraceUpdate" => Permission::SysTraceUpdate,
-            b"sysTraceDestroy" => Permission::SysTraceDestroy,
             b"sysTraceQuery" => Permission::SysTraceQuery,
             b"sysTracerGet" => Permission::SysTracerGet,
             b"sysTracerCreate" => Permission::SysTracerCreate,
@@ -7520,11 +9107,646 @@ impl EnumImpl for Permission {
         .copied()
     }
 
+    // SPDX-SnippetEnd
+    #[cfg(not(feature = "enterprise"))]
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            Permission,
+            b"authenticate" => Permission::Authenticate,
+            b"authenticateWithAlias" => Permission::AuthenticateWithAlias,
+            b"impersonate" => Permission::Impersonate,
+            b"unlimitedRequests" => Permission::UnlimitedRequests,
+            b"unlimitedUploads" => Permission::UnlimitedUploads,
+            b"fetchAnyBlob" => Permission::FetchAnyBlob,
+            b"emailSend" => Permission::EmailSend,
+            b"emailReceive" => Permission::EmailReceive,
+            b"calendarAlarmsSend" => Permission::CalendarAlarmsSend,
+            b"calendarSchedulingSend" => Permission::CalendarSchedulingSend,
+            b"calendarSchedulingReceive" => Permission::CalendarSchedulingReceive,
+            b"jmapPushSubscriptionGet" => Permission::JmapPushSubscriptionGet,
+            b"jmapPushSubscriptionCreate" => Permission::JmapPushSubscriptionCreate,
+            b"jmapPushSubscriptionUpdate" => Permission::JmapPushSubscriptionUpdate,
+            b"jmapPushSubscriptionDestroy" => Permission::JmapPushSubscriptionDestroy,
+            b"jmapMailboxGet" => Permission::JmapMailboxGet,
+            b"jmapMailboxChanges" => Permission::JmapMailboxChanges,
+            b"jmapMailboxQuery" => Permission::JmapMailboxQuery,
+            b"jmapMailboxQueryChanges" => Permission::JmapMailboxQueryChanges,
+            b"jmapMailboxCreate" => Permission::JmapMailboxCreate,
+            b"jmapMailboxUpdate" => Permission::JmapMailboxUpdate,
+            b"jmapMailboxDestroy" => Permission::JmapMailboxDestroy,
+            b"jmapThreadGet" => Permission::JmapThreadGet,
+            b"jmapThreadChanges" => Permission::JmapThreadChanges,
+            b"jmapEmailGet" => Permission::JmapEmailGet,
+            b"jmapEmailChanges" => Permission::JmapEmailChanges,
+            b"jmapEmailQuery" => Permission::JmapEmailQuery,
+            b"jmapEmailQueryChanges" => Permission::JmapEmailQueryChanges,
+            b"jmapEmailCreate" => Permission::JmapEmailCreate,
+            b"jmapEmailUpdate" => Permission::JmapEmailUpdate,
+            b"jmapEmailDestroy" => Permission::JmapEmailDestroy,
+            b"jmapEmailCopy" => Permission::JmapEmailCopy,
+            b"jmapEmailImport" => Permission::JmapEmailImport,
+            b"jmapEmailParse" => Permission::JmapEmailParse,
+            b"jmapSearchSnippetGet" => Permission::JmapSearchSnippetGet,
+            b"jmapIdentityGet" => Permission::JmapIdentityGet,
+            b"jmapIdentityChanges" => Permission::JmapIdentityChanges,
+            b"jmapIdentityCreate" => Permission::JmapIdentityCreate,
+            b"jmapIdentityUpdate" => Permission::JmapIdentityUpdate,
+            b"jmapIdentityDestroy" => Permission::JmapIdentityDestroy,
+            b"jmapEmailSubmissionGet" => Permission::JmapEmailSubmissionGet,
+            b"jmapEmailSubmissionChanges" => Permission::JmapEmailSubmissionChanges,
+            b"jmapEmailSubmissionQuery" => Permission::JmapEmailSubmissionQuery,
+            b"jmapEmailSubmissionQueryChanges" => Permission::JmapEmailSubmissionQueryChanges,
+            b"jmapEmailSubmissionCreate" => Permission::JmapEmailSubmissionCreate,
+            b"jmapEmailSubmissionUpdate" => Permission::JmapEmailSubmissionUpdate,
+            b"jmapEmailSubmissionDestroy" => Permission::JmapEmailSubmissionDestroy,
+            b"jmapVacationResponseGet" => Permission::JmapVacationResponseGet,
+            b"jmapVacationResponseCreate" => Permission::JmapVacationResponseCreate,
+            b"jmapVacationResponseUpdate" => Permission::JmapVacationResponseUpdate,
+            b"jmapVacationResponseDestroy" => Permission::JmapVacationResponseDestroy,
+            b"jmapSieveScriptGet" => Permission::JmapSieveScriptGet,
+            b"jmapSieveScriptQuery" => Permission::JmapSieveScriptQuery,
+            b"jmapSieveScriptValidate" => Permission::JmapSieveScriptValidate,
+            b"jmapSieveScriptCreate" => Permission::JmapSieveScriptCreate,
+            b"jmapSieveScriptUpdate" => Permission::JmapSieveScriptUpdate,
+            b"jmapSieveScriptDestroy" => Permission::JmapSieveScriptDestroy,
+            b"jmapPrincipalGet" => Permission::JmapPrincipalGet,
+            b"jmapPrincipalQuery" => Permission::JmapPrincipalQuery,
+            b"jmapPrincipalChanges" => Permission::JmapPrincipalChanges,
+            b"jmapPrincipalQueryChanges" => Permission::JmapPrincipalQueryChanges,
+            b"jmapPrincipalGetAvailability" => Permission::JmapPrincipalGetAvailability,
+            b"jmapQuotaGet" => Permission::JmapQuotaGet,
+            b"jmapQuotaChanges" => Permission::JmapQuotaChanges,
+            b"jmapQuotaQuery" => Permission::JmapQuotaQuery,
+            b"jmapQuotaQueryChanges" => Permission::JmapQuotaQueryChanges,
+            b"jmapBlobGet" => Permission::JmapBlobGet,
+            b"jmapBlobCopy" => Permission::JmapBlobCopy,
+            b"jmapBlobLookup" => Permission::JmapBlobLookup,
+            b"jmapBlobUpload" => Permission::JmapBlobUpload,
+            b"jmapAddressBookGet" => Permission::JmapAddressBookGet,
+            b"jmapAddressBookChanges" => Permission::JmapAddressBookChanges,
+            b"jmapAddressBookCreate" => Permission::JmapAddressBookCreate,
+            b"jmapAddressBookUpdate" => Permission::JmapAddressBookUpdate,
+            b"jmapAddressBookDestroy" => Permission::JmapAddressBookDestroy,
+            b"jmapContactCardGet" => Permission::JmapContactCardGet,
+            b"jmapContactCardChanges" => Permission::JmapContactCardChanges,
+            b"jmapContactCardQuery" => Permission::JmapContactCardQuery,
+            b"jmapContactCardQueryChanges" => Permission::JmapContactCardQueryChanges,
+            b"jmapContactCardCreate" => Permission::JmapContactCardCreate,
+            b"jmapContactCardUpdate" => Permission::JmapContactCardUpdate,
+            b"jmapContactCardDestroy" => Permission::JmapContactCardDestroy,
+            b"jmapContactCardCopy" => Permission::JmapContactCardCopy,
+            b"jmapContactCardParse" => Permission::JmapContactCardParse,
+            b"jmapFileNodeGet" => Permission::JmapFileNodeGet,
+            b"jmapFileNodeChanges" => Permission::JmapFileNodeChanges,
+            b"jmapFileNodeQuery" => Permission::JmapFileNodeQuery,
+            b"jmapFileNodeQueryChanges" => Permission::JmapFileNodeQueryChanges,
+            b"jmapFileNodeCreate" => Permission::JmapFileNodeCreate,
+            b"jmapFileNodeUpdate" => Permission::JmapFileNodeUpdate,
+            b"jmapFileNodeDestroy" => Permission::JmapFileNodeDestroy,
+            b"jmapFileNodeCopy" => Permission::JmapFileNodeCopy,
+            b"jmapShareNotificationGet" => Permission::JmapShareNotificationGet,
+            b"jmapShareNotificationChanges" => Permission::JmapShareNotificationChanges,
+            b"jmapShareNotificationQuery" => Permission::JmapShareNotificationQuery,
+            b"jmapShareNotificationQueryChanges" => Permission::JmapShareNotificationQueryChanges,
+            b"jmapShareNotificationCreate" => Permission::JmapShareNotificationCreate,
+            b"jmapShareNotificationUpdate" => Permission::JmapShareNotificationUpdate,
+            b"jmapShareNotificationDestroy" => Permission::JmapShareNotificationDestroy,
+            b"jmapCalendarGet" => Permission::JmapCalendarGet,
+            b"jmapCalendarChanges" => Permission::JmapCalendarChanges,
+            b"jmapCalendarCreate" => Permission::JmapCalendarCreate,
+            b"jmapCalendarUpdate" => Permission::JmapCalendarUpdate,
+            b"jmapCalendarDestroy" => Permission::JmapCalendarDestroy,
+            b"jmapCalendarEventGet" => Permission::JmapCalendarEventGet,
+            b"jmapCalendarEventChanges" => Permission::JmapCalendarEventChanges,
+            b"jmapCalendarEventQuery" => Permission::JmapCalendarEventQuery,
+            b"jmapCalendarEventQueryChanges" => Permission::JmapCalendarEventQueryChanges,
+            b"jmapCalendarEventCreate" => Permission::JmapCalendarEventCreate,
+            b"jmapCalendarEventUpdate" => Permission::JmapCalendarEventUpdate,
+            b"jmapCalendarEventDestroy" => Permission::JmapCalendarEventDestroy,
+            b"jmapCalendarEventCopy" => Permission::JmapCalendarEventCopy,
+            b"jmapCalendarEventParse" => Permission::JmapCalendarEventParse,
+            b"jmapCalendarEventNotificationGet" => Permission::JmapCalendarEventNotificationGet,
+            b"jmapCalendarEventNotificationChanges" => Permission::JmapCalendarEventNotificationChanges,
+            b"jmapCalendarEventNotificationQuery" => Permission::JmapCalendarEventNotificationQuery,
+            b"jmapCalendarEventNotificationQueryChanges" => Permission::JmapCalendarEventNotificationQueryChanges,
+            b"jmapCalendarEventNotificationCreate" => Permission::JmapCalendarEventNotificationCreate,
+            b"jmapCalendarEventNotificationUpdate" => Permission::JmapCalendarEventNotificationUpdate,
+            b"jmapCalendarEventNotificationDestroy" => Permission::JmapCalendarEventNotificationDestroy,
+            b"jmapParticipantIdentityGet" => Permission::JmapParticipantIdentityGet,
+            b"jmapParticipantIdentityChanges" => Permission::JmapParticipantIdentityChanges,
+            b"jmapParticipantIdentityCreate" => Permission::JmapParticipantIdentityCreate,
+            b"jmapParticipantIdentityUpdate" => Permission::JmapParticipantIdentityUpdate,
+            b"jmapParticipantIdentityDestroy" => Permission::JmapParticipantIdentityDestroy,
+            b"jmapCoreEcho" => Permission::JmapCoreEcho,
+            b"jmapMetadataGet" => Permission::JmapMetadataGet,
+            b"jmapMetadataSet" => Permission::JmapMetadataSet,
+            b"jmapMetadataPrivate" => Permission::JmapMetadataPrivate,
+            b"imapAuthenticate" => Permission::ImapAuthenticate,
+            b"imapAclGet" => Permission::ImapAclGet,
+            b"imapAclSet" => Permission::ImapAclSet,
+            b"imapMyRights" => Permission::ImapMyRights,
+            b"imapListRights" => Permission::ImapListRights,
+            b"imapAppend" => Permission::ImapAppend,
+            b"imapCapability" => Permission::ImapCapability,
+            b"imapId" => Permission::ImapId,
+            b"imapCopy" => Permission::ImapCopy,
+            b"imapMove" => Permission::ImapMove,
+            b"imapCreate" => Permission::ImapCreate,
+            b"imapDelete" => Permission::ImapDelete,
+            b"imapEnable" => Permission::ImapEnable,
+            b"imapExpunge" => Permission::ImapExpunge,
+            b"imapFetch" => Permission::ImapFetch,
+            b"imapIdle" => Permission::ImapIdle,
+            b"imapList" => Permission::ImapList,
+            b"imapLsub" => Permission::ImapLsub,
+            b"imapNamespace" => Permission::ImapNamespace,
+            b"imapRename" => Permission::ImapRename,
+            b"imapSearch" => Permission::ImapSearch,
+            b"imapSort" => Permission::ImapSort,
+            b"imapSelect" => Permission::ImapSelect,
+            b"imapExamine" => Permission::ImapExamine,
+            b"imapStatus" => Permission::ImapStatus,
+            b"imapStore" => Permission::ImapStore,
+            b"imapSubscribe" => Permission::ImapSubscribe,
+            b"imapThread" => Permission::ImapThread,
+            b"imapMetadataGet" => Permission::ImapMetadataGet,
+            b"imapMetadataSet" => Permission::ImapMetadataSet,
+            b"imapMetadataPrivate" => Permission::ImapMetadataPrivate,
+            b"pop3Authenticate" => Permission::Pop3Authenticate,
+            b"pop3List" => Permission::Pop3List,
+            b"pop3Uidl" => Permission::Pop3Uidl,
+            b"pop3Stat" => Permission::Pop3Stat,
+            b"pop3Retr" => Permission::Pop3Retr,
+            b"pop3Dele" => Permission::Pop3Dele,
+            b"sieveAuthenticate" => Permission::SieveAuthenticate,
+            b"sieveListScripts" => Permission::SieveListScripts,
+            b"sieveSetActive" => Permission::SieveSetActive,
+            b"sieveGetScript" => Permission::SieveGetScript,
+            b"sievePutScript" => Permission::SievePutScript,
+            b"sieveDeleteScript" => Permission::SieveDeleteScript,
+            b"sieveRenameScript" => Permission::SieveRenameScript,
+            b"sieveCheckScript" => Permission::SieveCheckScript,
+            b"sieveHaveSpace" => Permission::SieveHaveSpace,
+            b"davSyncCollection" => Permission::DavSyncCollection,
+            b"davExpandProperty" => Permission::DavExpandProperty,
+            b"davPrincipalAcl" => Permission::DavPrincipalAcl,
+            b"davPrincipalList" => Permission::DavPrincipalList,
+            b"davPrincipalMatch" => Permission::DavPrincipalMatch,
+            b"davPrincipalSearch" => Permission::DavPrincipalSearch,
+            b"davPrincipalSearchPropSet" => Permission::DavPrincipalSearchPropSet,
+            b"davFilePropFind" => Permission::DavFilePropFind,
+            b"davFilePropPatch" => Permission::DavFilePropPatch,
+            b"davFileGet" => Permission::DavFileGet,
+            b"davFileMkCol" => Permission::DavFileMkCol,
+            b"davFileDelete" => Permission::DavFileDelete,
+            b"davFilePut" => Permission::DavFilePut,
+            b"davFileCopy" => Permission::DavFileCopy,
+            b"davFileMove" => Permission::DavFileMove,
+            b"davFileLock" => Permission::DavFileLock,
+            b"davFileAcl" => Permission::DavFileAcl,
+            b"davCardPropFind" => Permission::DavCardPropFind,
+            b"davCardPropPatch" => Permission::DavCardPropPatch,
+            b"davCardGet" => Permission::DavCardGet,
+            b"davCardMkCol" => Permission::DavCardMkCol,
+            b"davCardDelete" => Permission::DavCardDelete,
+            b"davCardPut" => Permission::DavCardPut,
+            b"davCardCopy" => Permission::DavCardCopy,
+            b"davCardMove" => Permission::DavCardMove,
+            b"davCardLock" => Permission::DavCardLock,
+            b"davCardAcl" => Permission::DavCardAcl,
+            b"davCardQuery" => Permission::DavCardQuery,
+            b"davCardMultiGet" => Permission::DavCardMultiGet,
+            b"davCalPropFind" => Permission::DavCalPropFind,
+            b"davCalPropPatch" => Permission::DavCalPropPatch,
+            b"davCalGet" => Permission::DavCalGet,
+            b"davCalMkCol" => Permission::DavCalMkCol,
+            b"davCalDelete" => Permission::DavCalDelete,
+            b"davCalPut" => Permission::DavCalPut,
+            b"davCalCopy" => Permission::DavCalCopy,
+            b"davCalMove" => Permission::DavCalMove,
+            b"davCalLock" => Permission::DavCalLock,
+            b"davCalAcl" => Permission::DavCalAcl,
+            b"davCalQuery" => Permission::DavCalQuery,
+            b"davCalMultiGet" => Permission::DavCalMultiGet,
+            b"davCalFreeBusyQuery" => Permission::DavCalFreeBusyQuery,
+            b"liveDeliveryTest" => Permission::LiveDeliveryTest,
+            b"sysAccountGet" => Permission::SysAccountGet,
+            b"sysAccountCreate" => Permission::SysAccountCreate,
+            b"sysAccountUpdate" => Permission::SysAccountUpdate,
+            b"sysAccountDestroy" => Permission::SysAccountDestroy,
+            b"sysAccountQuery" => Permission::SysAccountQuery,
+            b"sysAccountPasswordGet" => Permission::SysAccountPasswordGet,
+            b"sysAccountPasswordUpdate" => Permission::SysAccountPasswordUpdate,
+            b"sysAccountSettingsGet" => Permission::SysAccountSettingsGet,
+            b"sysAccountSettingsUpdate" => Permission::SysAccountSettingsUpdate,
+            b"sysAcmeProviderGet" => Permission::SysAcmeProviderGet,
+            b"sysAcmeProviderCreate" => Permission::SysAcmeProviderCreate,
+            b"sysAcmeProviderUpdate" => Permission::SysAcmeProviderUpdate,
+            b"sysAcmeProviderDestroy" => Permission::SysAcmeProviderDestroy,
+            b"sysAcmeProviderQuery" => Permission::SysAcmeProviderQuery,
+            b"actionReloadSettings" => Permission::ActionReloadSettings,
+            b"actionReloadTlsCertificates" => Permission::ActionReloadTlsCertificates,
+            b"actionReloadLookupStores" => Permission::ActionReloadLookupStores,
+            b"actionReloadBlockedIps" => Permission::ActionReloadBlockedIps,
+            b"actionUpdateApps" => Permission::ActionUpdateApps,
+            b"actionTroubleshootDmarc" => Permission::ActionTroubleshootDmarc,
+            b"actionClassifySpam" => Permission::ActionClassifySpam,
+            b"actionInvalidateCaches" => Permission::ActionInvalidateCaches,
+            b"actionInvalidateNegativeCaches" => Permission::ActionInvalidateNegativeCaches,
+            b"actionPauseMtaQueue" => Permission::ActionPauseMtaQueue,
+            b"actionResumeMtaQueue" => Permission::ActionResumeMtaQueue,
+            b"sysActionCreate" => Permission::SysActionCreate,
+            b"sysAddressBookGet" => Permission::SysAddressBookGet,
+            b"sysAddressBookUpdate" => Permission::SysAddressBookUpdate,
+            b"sysAllowedIpGet" => Permission::SysAllowedIpGet,
+            b"sysAllowedIpCreate" => Permission::SysAllowedIpCreate,
+            b"sysAllowedIpUpdate" => Permission::SysAllowedIpUpdate,
+            b"sysAllowedIpDestroy" => Permission::SysAllowedIpDestroy,
+            b"sysAllowedIpQuery" => Permission::SysAllowedIpQuery,
+            b"sysApiKeyGet" => Permission::SysApiKeyGet,
+            b"sysApiKeyCreate" => Permission::SysApiKeyCreate,
+            b"sysApiKeyUpdate" => Permission::SysApiKeyUpdate,
+            b"sysApiKeyDestroy" => Permission::SysApiKeyDestroy,
+            b"sysApiKeyQuery" => Permission::SysApiKeyQuery,
+            b"sysAppPasswordGet" => Permission::SysAppPasswordGet,
+            b"sysAppPasswordCreate" => Permission::SysAppPasswordCreate,
+            b"sysAppPasswordUpdate" => Permission::SysAppPasswordUpdate,
+            b"sysAppPasswordDestroy" => Permission::SysAppPasswordDestroy,
+            b"sysAppPasswordQuery" => Permission::SysAppPasswordQuery,
+            b"sysApplicationGet" => Permission::SysApplicationGet,
+            b"sysApplicationCreate" => Permission::SysApplicationCreate,
+            b"sysApplicationUpdate" => Permission::SysApplicationUpdate,
+            b"sysApplicationDestroy" => Permission::SysApplicationDestroy,
+            b"sysApplicationQuery" => Permission::SysApplicationQuery,
+            b"sysArfExternalReportGet" => Permission::SysArfExternalReportGet,
+            b"sysArfExternalReportDestroy" => Permission::SysArfExternalReportDestroy,
+            b"sysArfExternalReportQuery" => Permission::SysArfExternalReportQuery,
+            b"sysAsnGet" => Permission::SysAsnGet,
+            b"sysAsnUpdate" => Permission::SysAsnUpdate,
+            b"sysAuthenticationGet" => Permission::SysAuthenticationGet,
+            b"sysAuthenticationUpdate" => Permission::SysAuthenticationUpdate,
+            b"sysBlobStoreGet" => Permission::SysBlobStoreGet,
+            b"sysBlobStoreUpdate" => Permission::SysBlobStoreUpdate,
+            b"sysBlockedIpGet" => Permission::SysBlockedIpGet,
+            b"sysBlockedIpCreate" => Permission::SysBlockedIpCreate,
+            b"sysBlockedIpUpdate" => Permission::SysBlockedIpUpdate,
+            b"sysBlockedIpDestroy" => Permission::SysBlockedIpDestroy,
+            b"sysBlockedIpQuery" => Permission::SysBlockedIpQuery,
+            b"sysBootstrapGet" => Permission::SysBootstrapGet,
+            b"sysBootstrapUpdate" => Permission::SysBootstrapUpdate,
+            b"sysCacheGet" => Permission::SysCacheGet,
+            b"sysCacheUpdate" => Permission::SysCacheUpdate,
+            b"sysCalendarGet" => Permission::SysCalendarGet,
+            b"sysCalendarUpdate" => Permission::SysCalendarUpdate,
+            b"sysCalendarAlarmGet" => Permission::SysCalendarAlarmGet,
+            b"sysCalendarAlarmUpdate" => Permission::SysCalendarAlarmUpdate,
+            b"sysCalendarSchedulingGet" => Permission::SysCalendarSchedulingGet,
+            b"sysCalendarSchedulingUpdate" => Permission::SysCalendarSchedulingUpdate,
+            b"sysCertificateGet" => Permission::SysCertificateGet,
+            b"sysCertificateCreate" => Permission::SysCertificateCreate,
+            b"sysCertificateUpdate" => Permission::SysCertificateUpdate,
+            b"sysCertificateDestroy" => Permission::SysCertificateDestroy,
+            b"sysCertificateQuery" => Permission::SysCertificateQuery,
+            b"sysClusterNodeGet" => Permission::SysClusterNodeGet,
+            b"sysClusterNodeQuery" => Permission::SysClusterNodeQuery,
+            b"sysClusterRoleGet" => Permission::SysClusterRoleGet,
+            b"sysClusterRoleCreate" => Permission::SysClusterRoleCreate,
+            b"sysClusterRoleUpdate" => Permission::SysClusterRoleUpdate,
+            b"sysClusterRoleDestroy" => Permission::SysClusterRoleDestroy,
+            b"sysClusterRoleQuery" => Permission::SysClusterRoleQuery,
+            b"sysCoordinatorGet" => Permission::SysCoordinatorGet,
+            b"sysCoordinatorUpdate" => Permission::SysCoordinatorUpdate,
+            b"sysDataRetentionGet" => Permission::SysDataRetentionGet,
+            b"sysDataRetentionUpdate" => Permission::SysDataRetentionUpdate,
+            b"sysDataStoreGet" => Permission::SysDataStoreGet,
+            b"sysDataStoreUpdate" => Permission::SysDataStoreUpdate,
+            b"sysDirectoryGet" => Permission::SysDirectoryGet,
+            b"sysDirectoryCreate" => Permission::SysDirectoryCreate,
+            b"sysDirectoryUpdate" => Permission::SysDirectoryUpdate,
+            b"sysDirectoryDestroy" => Permission::SysDirectoryDestroy,
+            b"sysDirectoryQuery" => Permission::SysDirectoryQuery,
+            b"sysDkimReportSettingsGet" => Permission::SysDkimReportSettingsGet,
+            b"sysDkimReportSettingsUpdate" => Permission::SysDkimReportSettingsUpdate,
+            b"sysDkimSignatureGet" => Permission::SysDkimSignatureGet,
+            b"sysDkimSignatureCreate" => Permission::SysDkimSignatureCreate,
+            b"sysDkimSignatureUpdate" => Permission::SysDkimSignatureUpdate,
+            b"sysDkimSignatureDestroy" => Permission::SysDkimSignatureDestroy,
+            b"sysDkimSignatureQuery" => Permission::SysDkimSignatureQuery,
+            b"sysDmarcExternalReportGet" => Permission::SysDmarcExternalReportGet,
+            b"sysDmarcExternalReportDestroy" => Permission::SysDmarcExternalReportDestroy,
+            b"sysDmarcExternalReportQuery" => Permission::SysDmarcExternalReportQuery,
+            b"sysDmarcInternalReportGet" => Permission::SysDmarcInternalReportGet,
+            b"sysDmarcInternalReportUpdate" => Permission::SysDmarcInternalReportUpdate,
+            b"sysDmarcInternalReportDestroy" => Permission::SysDmarcInternalReportDestroy,
+            b"sysDmarcInternalReportQuery" => Permission::SysDmarcInternalReportQuery,
+            b"sysDmarcReportSettingsGet" => Permission::SysDmarcReportSettingsGet,
+            b"sysDmarcReportSettingsUpdate" => Permission::SysDmarcReportSettingsUpdate,
+            b"sysDnsResolverGet" => Permission::SysDnsResolverGet,
+            b"sysDnsResolverUpdate" => Permission::SysDnsResolverUpdate,
+            b"sysDnsServerGet" => Permission::SysDnsServerGet,
+            b"sysDnsServerCreate" => Permission::SysDnsServerCreate,
+            b"sysDnsServerUpdate" => Permission::SysDnsServerUpdate,
+            b"sysDnsServerDestroy" => Permission::SysDnsServerDestroy,
+            b"sysDnsServerQuery" => Permission::SysDnsServerQuery,
+            b"sysDomainGet" => Permission::SysDomainGet,
+            b"sysDomainCreate" => Permission::SysDomainCreate,
+            b"sysDomainUpdate" => Permission::SysDomainUpdate,
+            b"sysDomainDestroy" => Permission::SysDomainDestroy,
+            b"sysDomainQuery" => Permission::SysDomainQuery,
+            b"sysDsnReportSettingsGet" => Permission::SysDsnReportSettingsGet,
+            b"sysDsnReportSettingsUpdate" => Permission::SysDsnReportSettingsUpdate,
+            b"sysEmailGet" => Permission::SysEmailGet,
+            b"sysEmailUpdate" => Permission::SysEmailUpdate,
+            b"sysEncryptionGet" => Permission::SysEncryptionGet,
+            b"sysEncryptionUpdate" => Permission::SysEncryptionUpdate,
+            b"sysEventTracingLevelGet" => Permission::SysEventTracingLevelGet,
+            b"sysEventTracingLevelCreate" => Permission::SysEventTracingLevelCreate,
+            b"sysEventTracingLevelUpdate" => Permission::SysEventTracingLevelUpdate,
+            b"sysEventTracingLevelDestroy" => Permission::SysEventTracingLevelDestroy,
+            b"sysEventTracingLevelQuery" => Permission::SysEventTracingLevelQuery,
+            b"sysExternalPublicKeyGet" => Permission::SysExternalPublicKeyGet,
+            b"sysExternalPublicKeyCreate" => Permission::SysExternalPublicKeyCreate,
+            b"sysExternalPublicKeyUpdate" => Permission::SysExternalPublicKeyUpdate,
+            b"sysExternalPublicKeyDestroy" => Permission::SysExternalPublicKeyDestroy,
+            b"sysExternalPublicKeyQuery" => Permission::SysExternalPublicKeyQuery,
+            b"sysFileStorageGet" => Permission::SysFileStorageGet,
+            b"sysFileStorageUpdate" => Permission::SysFileStorageUpdate,
+            b"sysHttpGet" => Permission::SysHttpGet,
+            b"sysHttpUpdate" => Permission::SysHttpUpdate,
+            b"sysHttpFormGet" => Permission::SysHttpFormGet,
+            b"sysHttpFormUpdate" => Permission::SysHttpFormUpdate,
+            b"sysHttpLookupGet" => Permission::SysHttpLookupGet,
+            b"sysHttpLookupCreate" => Permission::SysHttpLookupCreate,
+            b"sysHttpLookupUpdate" => Permission::SysHttpLookupUpdate,
+            b"sysHttpLookupDestroy" => Permission::SysHttpLookupDestroy,
+            b"sysHttpLookupQuery" => Permission::SysHttpLookupQuery,
+            b"sysImapGet" => Permission::SysImapGet,
+            b"sysImapUpdate" => Permission::SysImapUpdate,
+            b"sysInMemoryStoreGet" => Permission::SysInMemoryStoreGet,
+            b"sysInMemoryStoreUpdate" => Permission::SysInMemoryStoreUpdate,
+            b"sysIndexQueueStatusGet" => Permission::SysIndexQueueStatusGet,
+            b"sysIndexQueueStatusUpdate" => Permission::SysIndexQueueStatusUpdate,
+            b"sysIndexQueueStatusQuery" => Permission::SysIndexQueueStatusQuery,
+            b"sysJmapGet" => Permission::SysJmapGet,
+            b"sysJmapUpdate" => Permission::SysJmapUpdate,
+            b"sysLogGet" => Permission::SysLogGet,
+            b"sysLogQuery" => Permission::SysLogQuery,
+            b"sysMailingListGet" => Permission::SysMailingListGet,
+            b"sysMailingListCreate" => Permission::SysMailingListCreate,
+            b"sysMailingListUpdate" => Permission::SysMailingListUpdate,
+            b"sysMailingListDestroy" => Permission::SysMailingListDestroy,
+            b"sysMailingListQuery" => Permission::SysMailingListQuery,
+            b"sysMemoryLookupKeyGet" => Permission::SysMemoryLookupKeyGet,
+            b"sysMemoryLookupKeyCreate" => Permission::SysMemoryLookupKeyCreate,
+            b"sysMemoryLookupKeyUpdate" => Permission::SysMemoryLookupKeyUpdate,
+            b"sysMemoryLookupKeyDestroy" => Permission::SysMemoryLookupKeyDestroy,
+            b"sysMemoryLookupKeyQuery" => Permission::SysMemoryLookupKeyQuery,
+            b"sysMemoryLookupKeyValueGet" => Permission::SysMemoryLookupKeyValueGet,
+            b"sysMemoryLookupKeyValueCreate" => Permission::SysMemoryLookupKeyValueCreate,
+            b"sysMemoryLookupKeyValueUpdate" => Permission::SysMemoryLookupKeyValueUpdate,
+            b"sysMemoryLookupKeyValueDestroy" => Permission::SysMemoryLookupKeyValueDestroy,
+            b"sysMemoryLookupKeyValueQuery" => Permission::SysMemoryLookupKeyValueQuery,
+            b"sysMetadataGet" => Permission::SysMetadataGet,
+            b"sysMetadataUpdate" => Permission::SysMetadataUpdate,
+            b"sysMetricsGet" => Permission::SysMetricsGet,
+            b"sysMetricsUpdate" => Permission::SysMetricsUpdate,
+            b"sysMtaConnectionStrategyGet" => Permission::SysMtaConnectionStrategyGet,
+            b"sysMtaConnectionStrategyCreate" => Permission::SysMtaConnectionStrategyCreate,
+            b"sysMtaConnectionStrategyUpdate" => Permission::SysMtaConnectionStrategyUpdate,
+            b"sysMtaConnectionStrategyDestroy" => Permission::SysMtaConnectionStrategyDestroy,
+            b"sysMtaConnectionStrategyQuery" => Permission::SysMtaConnectionStrategyQuery,
+            b"sysMtaDeliveryScheduleGet" => Permission::SysMtaDeliveryScheduleGet,
+            b"sysMtaDeliveryScheduleCreate" => Permission::SysMtaDeliveryScheduleCreate,
+            b"sysMtaDeliveryScheduleUpdate" => Permission::SysMtaDeliveryScheduleUpdate,
+            b"sysMtaDeliveryScheduleDestroy" => Permission::SysMtaDeliveryScheduleDestroy,
+            b"sysMtaDeliveryScheduleQuery" => Permission::SysMtaDeliveryScheduleQuery,
+            b"sysMtaExtensionsGet" => Permission::SysMtaExtensionsGet,
+            b"sysMtaExtensionsUpdate" => Permission::SysMtaExtensionsUpdate,
+            b"sysMtaHookGet" => Permission::SysMtaHookGet,
+            b"sysMtaHookCreate" => Permission::SysMtaHookCreate,
+            b"sysMtaHookUpdate" => Permission::SysMtaHookUpdate,
+            b"sysMtaHookDestroy" => Permission::SysMtaHookDestroy,
+            b"sysMtaHookQuery" => Permission::SysMtaHookQuery,
+            b"sysMtaInboundSessionGet" => Permission::SysMtaInboundSessionGet,
+            b"sysMtaInboundSessionUpdate" => Permission::SysMtaInboundSessionUpdate,
+            b"sysMtaInboundThrottleGet" => Permission::SysMtaInboundThrottleGet,
+            b"sysMtaInboundThrottleCreate" => Permission::SysMtaInboundThrottleCreate,
+            b"sysMtaInboundThrottleUpdate" => Permission::SysMtaInboundThrottleUpdate,
+            b"sysMtaInboundThrottleDestroy" => Permission::SysMtaInboundThrottleDestroy,
+            b"sysMtaInboundThrottleQuery" => Permission::SysMtaInboundThrottleQuery,
+            b"sysMtaMilterGet" => Permission::SysMtaMilterGet,
+            b"sysMtaMilterCreate" => Permission::SysMtaMilterCreate,
+            b"sysMtaMilterUpdate" => Permission::SysMtaMilterUpdate,
+            b"sysMtaMilterDestroy" => Permission::SysMtaMilterDestroy,
+            b"sysMtaMilterQuery" => Permission::SysMtaMilterQuery,
+            b"sysMtaOutboundStrategyGet" => Permission::SysMtaOutboundStrategyGet,
+            b"sysMtaOutboundStrategyUpdate" => Permission::SysMtaOutboundStrategyUpdate,
+            b"sysMtaOutboundThrottleGet" => Permission::SysMtaOutboundThrottleGet,
+            b"sysMtaOutboundThrottleCreate" => Permission::SysMtaOutboundThrottleCreate,
+            b"sysMtaOutboundThrottleUpdate" => Permission::SysMtaOutboundThrottleUpdate,
+            b"sysMtaOutboundThrottleDestroy" => Permission::SysMtaOutboundThrottleDestroy,
+            b"sysMtaOutboundThrottleQuery" => Permission::SysMtaOutboundThrottleQuery,
+            b"sysMtaQueueQuotaGet" => Permission::SysMtaQueueQuotaGet,
+            b"sysMtaQueueQuotaCreate" => Permission::SysMtaQueueQuotaCreate,
+            b"sysMtaQueueQuotaUpdate" => Permission::SysMtaQueueQuotaUpdate,
+            b"sysMtaQueueQuotaDestroy" => Permission::SysMtaQueueQuotaDestroy,
+            b"sysMtaQueueQuotaQuery" => Permission::SysMtaQueueQuotaQuery,
+            b"sysMtaRouteGet" => Permission::SysMtaRouteGet,
+            b"sysMtaRouteCreate" => Permission::SysMtaRouteCreate,
+            b"sysMtaRouteUpdate" => Permission::SysMtaRouteUpdate,
+            b"sysMtaRouteDestroy" => Permission::SysMtaRouteDestroy,
+            b"sysMtaRouteQuery" => Permission::SysMtaRouteQuery,
+            b"sysMtaStageAuthGet" => Permission::SysMtaStageAuthGet,
+            b"sysMtaStageAuthUpdate" => Permission::SysMtaStageAuthUpdate,
+            b"sysMtaStageConnectGet" => Permission::SysMtaStageConnectGet,
+            b"sysMtaStageConnectUpdate" => Permission::SysMtaStageConnectUpdate,
+            b"sysMtaStageDataGet" => Permission::SysMtaStageDataGet,
+            b"sysMtaStageDataUpdate" => Permission::SysMtaStageDataUpdate,
+            b"sysMtaStageEhloGet" => Permission::SysMtaStageEhloGet,
+            b"sysMtaStageEhloUpdate" => Permission::SysMtaStageEhloUpdate,
+            b"sysMtaStageMailGet" => Permission::SysMtaStageMailGet,
+            b"sysMtaStageMailUpdate" => Permission::SysMtaStageMailUpdate,
+            b"sysMtaStageRcptGet" => Permission::SysMtaStageRcptGet,
+            b"sysMtaStageRcptUpdate" => Permission::SysMtaStageRcptUpdate,
+            b"sysMtaStsGet" => Permission::SysMtaStsGet,
+            b"sysMtaStsUpdate" => Permission::SysMtaStsUpdate,
+            b"sysMtaTlsStrategyGet" => Permission::SysMtaTlsStrategyGet,
+            b"sysMtaTlsStrategyCreate" => Permission::SysMtaTlsStrategyCreate,
+            b"sysMtaTlsStrategyUpdate" => Permission::SysMtaTlsStrategyUpdate,
+            b"sysMtaTlsStrategyDestroy" => Permission::SysMtaTlsStrategyDestroy,
+            b"sysMtaTlsStrategyQuery" => Permission::SysMtaTlsStrategyQuery,
+            b"sysMtaVirtualQueueGet" => Permission::SysMtaVirtualQueueGet,
+            b"sysMtaVirtualQueueCreate" => Permission::SysMtaVirtualQueueCreate,
+            b"sysMtaVirtualQueueUpdate" => Permission::SysMtaVirtualQueueUpdate,
+            b"sysMtaVirtualQueueDestroy" => Permission::SysMtaVirtualQueueDestroy,
+            b"sysMtaVirtualQueueQuery" => Permission::SysMtaVirtualQueueQuery,
+            b"sysNetworkListenerGet" => Permission::SysNetworkListenerGet,
+            b"sysNetworkListenerCreate" => Permission::SysNetworkListenerCreate,
+            b"sysNetworkListenerUpdate" => Permission::SysNetworkListenerUpdate,
+            b"sysNetworkListenerDestroy" => Permission::SysNetworkListenerDestroy,
+            b"sysNetworkListenerQuery" => Permission::SysNetworkListenerQuery,
+            b"sysOAuthClientGet" => Permission::SysOAuthClientGet,
+            b"sysOAuthClientCreate" => Permission::SysOAuthClientCreate,
+            b"sysOAuthClientUpdate" => Permission::SysOAuthClientUpdate,
+            b"sysOAuthClientDestroy" => Permission::SysOAuthClientDestroy,
+            b"sysOAuthClientQuery" => Permission::SysOAuthClientQuery,
+            b"sysOAuthGrantGet" => Permission::SysOAuthGrantGet,
+            b"sysOAuthGrantDestroy" => Permission::SysOAuthGrantDestroy,
+            b"sysOAuthGrantQuery" => Permission::SysOAuthGrantQuery,
+            b"sysOidcProviderGet" => Permission::SysOidcProviderGet,
+            b"sysOidcProviderUpdate" => Permission::SysOidcProviderUpdate,
+            b"sysPublicKeyGet" => Permission::SysPublicKeyGet,
+            b"sysPublicKeyCreate" => Permission::SysPublicKeyCreate,
+            b"sysPublicKeyUpdate" => Permission::SysPublicKeyUpdate,
+            b"sysPublicKeyDestroy" => Permission::SysPublicKeyDestroy,
+            b"sysPublicKeyQuery" => Permission::SysPublicKeyQuery,
+            b"sysQueuedMessageGet" => Permission::SysQueuedMessageGet,
+            b"sysQueuedMessageUpdate" => Permission::SysQueuedMessageUpdate,
+            b"sysQueuedMessageDestroy" => Permission::SysQueuedMessageDestroy,
+            b"sysQueuedMessageQuery" => Permission::SysQueuedMessageQuery,
+            b"sysReportSettingsGet" => Permission::SysReportSettingsGet,
+            b"sysReportSettingsUpdate" => Permission::SysReportSettingsUpdate,
+            b"sysRoleGet" => Permission::SysRoleGet,
+            b"sysRoleCreate" => Permission::SysRoleCreate,
+            b"sysRoleUpdate" => Permission::SysRoleUpdate,
+            b"sysRoleDestroy" => Permission::SysRoleDestroy,
+            b"sysRoleQuery" => Permission::SysRoleQuery,
+            b"sysSearchGet" => Permission::SysSearchGet,
+            b"sysSearchUpdate" => Permission::SysSearchUpdate,
+            b"sysSearchStoreGet" => Permission::SysSearchStoreGet,
+            b"sysSearchStoreUpdate" => Permission::SysSearchStoreUpdate,
+            b"sysSecurityGet" => Permission::SysSecurityGet,
+            b"sysSecurityUpdate" => Permission::SysSecurityUpdate,
+            b"sysSenderAuthGet" => Permission::SysSenderAuthGet,
+            b"sysSenderAuthUpdate" => Permission::SysSenderAuthUpdate,
+            b"sysSharingGet" => Permission::SysSharingGet,
+            b"sysSharingUpdate" => Permission::SysSharingUpdate,
+            b"sysSieveSystemInterpreterGet" => Permission::SysSieveSystemInterpreterGet,
+            b"sysSieveSystemInterpreterUpdate" => Permission::SysSieveSystemInterpreterUpdate,
+            b"sysSieveSystemScriptGet" => Permission::SysSieveSystemScriptGet,
+            b"sysSieveSystemScriptCreate" => Permission::SysSieveSystemScriptCreate,
+            b"sysSieveSystemScriptUpdate" => Permission::SysSieveSystemScriptUpdate,
+            b"sysSieveSystemScriptDestroy" => Permission::SysSieveSystemScriptDestroy,
+            b"sysSieveSystemScriptQuery" => Permission::SysSieveSystemScriptQuery,
+            b"sysSieveUserInterpreterGet" => Permission::SysSieveUserInterpreterGet,
+            b"sysSieveUserInterpreterUpdate" => Permission::SysSieveUserInterpreterUpdate,
+            b"sysSieveUserScriptGet" => Permission::SysSieveUserScriptGet,
+            b"sysSieveUserScriptCreate" => Permission::SysSieveUserScriptCreate,
+            b"sysSieveUserScriptUpdate" => Permission::SysSieveUserScriptUpdate,
+            b"sysSieveUserScriptDestroy" => Permission::SysSieveUserScriptDestroy,
+            b"sysSieveUserScriptQuery" => Permission::SysSieveUserScriptQuery,
+            b"sysSmimeTrustAnchorGet" => Permission::SysSmimeTrustAnchorGet,
+            b"sysSmimeTrustAnchorCreate" => Permission::SysSmimeTrustAnchorCreate,
+            b"sysSmimeTrustAnchorUpdate" => Permission::SysSmimeTrustAnchorUpdate,
+            b"sysSmimeTrustAnchorDestroy" => Permission::SysSmimeTrustAnchorDestroy,
+            b"sysSmimeTrustAnchorQuery" => Permission::SysSmimeTrustAnchorQuery,
+            b"sysSpamClassifierGet" => Permission::SysSpamClassifierGet,
+            b"sysSpamClassifierUpdate" => Permission::SysSpamClassifierUpdate,
+            b"sysSpamDnsblServerGet" => Permission::SysSpamDnsblServerGet,
+            b"sysSpamDnsblServerCreate" => Permission::SysSpamDnsblServerCreate,
+            b"sysSpamDnsblServerUpdate" => Permission::SysSpamDnsblServerUpdate,
+            b"sysSpamDnsblServerDestroy" => Permission::SysSpamDnsblServerDestroy,
+            b"sysSpamDnsblServerQuery" => Permission::SysSpamDnsblServerQuery,
+            b"sysSpamDnsblSettingsGet" => Permission::SysSpamDnsblSettingsGet,
+            b"sysSpamDnsblSettingsUpdate" => Permission::SysSpamDnsblSettingsUpdate,
+            b"sysSpamFileExtensionGet" => Permission::SysSpamFileExtensionGet,
+            b"sysSpamFileExtensionCreate" => Permission::SysSpamFileExtensionCreate,
+            b"sysSpamFileExtensionUpdate" => Permission::SysSpamFileExtensionUpdate,
+            b"sysSpamFileExtensionDestroy" => Permission::SysSpamFileExtensionDestroy,
+            b"sysSpamFileExtensionQuery" => Permission::SysSpamFileExtensionQuery,
+            b"sysSpamPyzorGet" => Permission::SysSpamPyzorGet,
+            b"sysSpamPyzorUpdate" => Permission::SysSpamPyzorUpdate,
+            b"sysSpamRuleGet" => Permission::SysSpamRuleGet,
+            b"sysSpamRuleCreate" => Permission::SysSpamRuleCreate,
+            b"sysSpamRuleUpdate" => Permission::SysSpamRuleUpdate,
+            b"sysSpamRuleDestroy" => Permission::SysSpamRuleDestroy,
+            b"sysSpamRuleQuery" => Permission::SysSpamRuleQuery,
+            b"sysSpamSettingsGet" => Permission::SysSpamSettingsGet,
+            b"sysSpamSettingsUpdate" => Permission::SysSpamSettingsUpdate,
+            b"sysSpamTagGet" => Permission::SysSpamTagGet,
+            b"sysSpamTagCreate" => Permission::SysSpamTagCreate,
+            b"sysSpamTagUpdate" => Permission::SysSpamTagUpdate,
+            b"sysSpamTagDestroy" => Permission::SysSpamTagDestroy,
+            b"sysSpamTagQuery" => Permission::SysSpamTagQuery,
+            b"sysSpamTrainingSampleGet" => Permission::SysSpamTrainingSampleGet,
+            b"sysSpamTrainingSampleCreate" => Permission::SysSpamTrainingSampleCreate,
+            b"sysSpamTrainingSampleDestroy" => Permission::SysSpamTrainingSampleDestroy,
+            b"sysSpamTrainingSampleQuery" => Permission::SysSpamTrainingSampleQuery,
+            b"sysSpfReportSettingsGet" => Permission::SysSpfReportSettingsGet,
+            b"sysSpfReportSettingsUpdate" => Permission::SysSpfReportSettingsUpdate,
+            b"sysStoreLookupGet" => Permission::SysStoreLookupGet,
+            b"sysStoreLookupCreate" => Permission::SysStoreLookupCreate,
+            b"sysStoreLookupUpdate" => Permission::SysStoreLookupUpdate,
+            b"sysStoreLookupDestroy" => Permission::SysStoreLookupDestroy,
+            b"sysStoreLookupQuery" => Permission::SysStoreLookupQuery,
+            b"sysSymmetricKeyGet" => Permission::SysSymmetricKeyGet,
+            b"sysSymmetricKeyCreate" => Permission::SysSymmetricKeyCreate,
+            b"sysSymmetricKeyUpdate" => Permission::SysSymmetricKeyUpdate,
+            b"sysSymmetricKeyDestroy" => Permission::SysSymmetricKeyDestroy,
+            b"sysSymmetricKeyQuery" => Permission::SysSymmetricKeyQuery,
+            b"sysSystemSettingsGet" => Permission::SysSystemSettingsGet,
+            b"sysSystemSettingsUpdate" => Permission::SysSystemSettingsUpdate,
+            b"taskCalendarAlarmEmail" => Permission::TaskCalendarAlarmEmail,
+            b"taskCalendarAlarmNotification" => Permission::TaskCalendarAlarmNotification,
+            b"taskCalendarItipMessage" => Permission::TaskCalendarItipMessage,
+            b"taskMergeThreads" => Permission::TaskMergeThreads,
+            b"taskDmarcReport" => Permission::TaskDmarcReport,
+            b"taskTlsReport" => Permission::TaskTlsReport,
+            b"taskDestroyAccount" => Permission::TaskDestroyAccount,
+            b"taskAccountMaintenance" => Permission::TaskAccountMaintenance,
+            b"taskStoreMaintenance" => Permission::TaskStoreMaintenance,
+            b"taskSpamFilterMaintenance" => Permission::TaskSpamFilterMaintenance,
+            b"taskAcmeRenewal" => Permission::TaskAcmeRenewal,
+            b"taskDkimManagement" => Permission::TaskDkimManagement,
+            b"taskDnsManagement" => Permission::TaskDnsManagement,
+            b"taskShareRevokeCleanup" => Permission::TaskShareRevokeCleanup,
+            b"taskDmarcReportWindow" => Permission::TaskDmarcReportWindow,
+            b"taskTlsReportWindow" => Permission::TaskTlsReportWindow,
+            b"taskExternalPublicKeyMaintenance" => Permission::TaskExternalPublicKeyMaintenance,
+            b"taskBlobRecode" => Permission::TaskBlobRecode,
+            b"sysTaskGet" => Permission::SysTaskGet,
+            b"sysTaskCreate" => Permission::SysTaskCreate,
+            b"sysTaskUpdate" => Permission::SysTaskUpdate,
+            b"sysTaskDestroy" => Permission::SysTaskDestroy,
+            b"sysTaskQuery" => Permission::SysTaskQuery,
+            b"sysTaskManagerGet" => Permission::SysTaskManagerGet,
+            b"sysTaskManagerUpdate" => Permission::SysTaskManagerUpdate,
+            b"sysTlsExternalReportGet" => Permission::SysTlsExternalReportGet,
+            b"sysTlsExternalReportDestroy" => Permission::SysTlsExternalReportDestroy,
+            b"sysTlsExternalReportQuery" => Permission::SysTlsExternalReportQuery,
+            b"sysTlsInternalReportGet" => Permission::SysTlsInternalReportGet,
+            b"sysTlsInternalReportUpdate" => Permission::SysTlsInternalReportUpdate,
+            b"sysTlsInternalReportDestroy" => Permission::SysTlsInternalReportDestroy,
+            b"sysTlsInternalReportQuery" => Permission::SysTlsInternalReportQuery,
+            b"sysTlsReportSettingsGet" => Permission::SysTlsReportSettingsGet,
+            b"sysTlsReportSettingsUpdate" => Permission::SysTlsReportSettingsUpdate,
+            b"sysTracerGet" => Permission::SysTracerGet,
+            b"sysTracerCreate" => Permission::SysTracerCreate,
+            b"sysTracerUpdate" => Permission::SysTracerUpdate,
+            b"sysTracerDestroy" => Permission::SysTracerDestroy,
+            b"sysTracerQuery" => Permission::SysTracerQuery,
+            b"sysWebDavGet" => Permission::SysWebDavGet,
+            b"sysWebDavUpdate" => Permission::SysWebDavUpdate,
+            b"sysWebHookGet" => Permission::SysWebHookGet,
+            b"sysWebHookCreate" => Permission::SysWebHookCreate,
+            b"sysWebHookUpdate" => Permission::SysWebHookUpdate,
+            b"sysWebHookDestroy" => Permission::SysWebHookDestroy,
+            b"sysWebHookQuery" => Permission::SysWebHookQuery,
+        }
+        .copied()
+    }
+
     fn as_str(&self) -> &'static str {
         match self {
             Permission::Authenticate => "authenticate",
             Permission::AuthenticateWithAlias => "authenticateWithAlias",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::InteractAi => "interactAi",
+            // SPDX-SnippetEnd
             Permission::Impersonate => "impersonate",
             Permission::UnlimitedRequests => "unlimitedRequests",
             Permission::UnlimitedUploads => "unlimitedUploads",
@@ -7585,9 +9807,6 @@ impl EnumImpl for Permission {
             Permission::JmapPrincipalChanges => "jmapPrincipalChanges",
             Permission::JmapPrincipalQueryChanges => "jmapPrincipalQueryChanges",
             Permission::JmapPrincipalGetAvailability => "jmapPrincipalGetAvailability",
-            Permission::JmapPrincipalCreate => "jmapPrincipalCreate",
-            Permission::JmapPrincipalUpdate => "jmapPrincipalUpdate",
-            Permission::JmapPrincipalDestroy => "jmapPrincipalDestroy",
             Permission::JmapQuotaGet => "jmapQuotaGet",
             Permission::JmapQuotaChanges => "jmapQuotaChanges",
             Permission::JmapQuotaQuery => "jmapQuotaQuery",
@@ -7662,6 +9881,9 @@ impl EnumImpl for Permission {
             Permission::JmapParticipantIdentityUpdate => "jmapParticipantIdentityUpdate",
             Permission::JmapParticipantIdentityDestroy => "jmapParticipantIdentityDestroy",
             Permission::JmapCoreEcho => "jmapCoreEcho",
+            Permission::JmapMetadataGet => "jmapMetadataGet",
+            Permission::JmapMetadataSet => "jmapMetadataSet",
+            Permission::JmapMetadataPrivate => "jmapMetadataPrivate",
             Permission::ImapAuthenticate => "imapAuthenticate",
             Permission::ImapAclGet => "imapAclGet",
             Permission::ImapAclSet => "imapAclSet",
@@ -7690,6 +9912,9 @@ impl EnumImpl for Permission {
             Permission::ImapStore => "imapStore",
             Permission::ImapSubscribe => "imapSubscribe",
             Permission::ImapThread => "imapThread",
+            Permission::ImapMetadataGet => "imapMetadataGet",
+            Permission::ImapMetadataSet => "imapMetadataSet",
+            Permission::ImapMetadataPrivate => "imapMetadataPrivate",
             Permission::Pop3Authenticate => "pop3Authenticate",
             Permission::Pop3List => "pop3List",
             Permission::Pop3Uidl => "pop3Uidl",
@@ -7747,12 +9972,21 @@ impl EnumImpl for Permission {
             Permission::DavCalQuery => "davCalQuery",
             Permission::DavCalMultiGet => "davCalMultiGet",
             Permission::DavCalFreeBusyQuery => "davCalFreeBusyQuery",
-            Permission::OAuthClientRegistration => "oAuthClientRegistration",
-            Permission::OAuthClientOverride => "oAuthClientOverride",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::LiveTracing => "liveTracing",
+            #[cfg(feature = "enterprise")]
             Permission::LiveMetrics => "liveMetrics",
+            // SPDX-SnippetEnd
             Permission::LiveDeliveryTest => "liveDeliveryTest",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::ScimAccess => "scimAccess",
+            // SPDX-SnippetEnd
             Permission::SysAccountGet => "sysAccountGet",
             Permission::SysAccountCreate => "sysAccountCreate",
             Permission::SysAccountUpdate => "sysAccountUpdate",
@@ -7778,23 +10012,33 @@ impl EnumImpl for Permission {
             Permission::ActionInvalidateNegativeCaches => "actionInvalidateNegativeCaches",
             Permission::ActionPauseMtaQueue => "actionPauseMtaQueue",
             Permission::ActionResumeMtaQueue => "actionResumeMtaQueue",
-            Permission::SysActionGet => "sysActionGet",
             Permission::SysActionCreate => "sysActionCreate",
-            Permission::SysActionUpdate => "sysActionUpdate",
-            Permission::SysActionDestroy => "sysActionDestroy",
-            Permission::SysActionQuery => "sysActionQuery",
             Permission::SysAddressBookGet => "sysAddressBookGet",
             Permission::SysAddressBookUpdate => "sysAddressBookUpdate",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::SysAiModelGet => "sysAiModelGet",
+            #[cfg(feature = "enterprise")]
             Permission::SysAiModelCreate => "sysAiModelCreate",
+            #[cfg(feature = "enterprise")]
             Permission::SysAiModelUpdate => "sysAiModelUpdate",
+            #[cfg(feature = "enterprise")]
             Permission::SysAiModelDestroy => "sysAiModelDestroy",
+            #[cfg(feature = "enterprise")]
             Permission::SysAiModelQuery => "sysAiModelQuery",
+            #[cfg(feature = "enterprise")]
             Permission::SysAlertGet => "sysAlertGet",
+            #[cfg(feature = "enterprise")]
             Permission::SysAlertCreate => "sysAlertCreate",
+            #[cfg(feature = "enterprise")]
             Permission::SysAlertUpdate => "sysAlertUpdate",
+            #[cfg(feature = "enterprise")]
             Permission::SysAlertDestroy => "sysAlertDestroy",
+            #[cfg(feature = "enterprise")]
             Permission::SysAlertQuery => "sysAlertQuery",
+            // SPDX-SnippetEnd
             Permission::SysAllowedIpGet => "sysAllowedIpGet",
             Permission::SysAllowedIpCreate => "sysAllowedIpCreate",
             Permission::SysAllowedIpUpdate => "sysAllowedIpUpdate",
@@ -7815,14 +10059,19 @@ impl EnumImpl for Permission {
             Permission::SysApplicationUpdate => "sysApplicationUpdate",
             Permission::SysApplicationDestroy => "sysApplicationDestroy",
             Permission::SysApplicationQuery => "sysApplicationQuery",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::SysArchivedItemGet => "sysArchivedItemGet",
-            Permission::SysArchivedItemCreate => "sysArchivedItemCreate",
+            #[cfg(feature = "enterprise")]
             Permission::SysArchivedItemUpdate => "sysArchivedItemUpdate",
+            #[cfg(feature = "enterprise")]
             Permission::SysArchivedItemDestroy => "sysArchivedItemDestroy",
+            #[cfg(feature = "enterprise")]
             Permission::SysArchivedItemQuery => "sysArchivedItemQuery",
+            // SPDX-SnippetEnd
             Permission::SysArfExternalReportGet => "sysArfExternalReportGet",
-            Permission::SysArfExternalReportCreate => "sysArfExternalReportCreate",
-            Permission::SysArfExternalReportUpdate => "sysArfExternalReportUpdate",
             Permission::SysArfExternalReportDestroy => "sysArfExternalReportDestroy",
             Permission::SysArfExternalReportQuery => "sysArfExternalReportQuery",
             Permission::SysAsnGet => "sysAsnGet",
@@ -7852,9 +10101,6 @@ impl EnumImpl for Permission {
             Permission::SysCertificateDestroy => "sysCertificateDestroy",
             Permission::SysCertificateQuery => "sysCertificateQuery",
             Permission::SysClusterNodeGet => "sysClusterNodeGet",
-            Permission::SysClusterNodeCreate => "sysClusterNodeCreate",
-            Permission::SysClusterNodeUpdate => "sysClusterNodeUpdate",
-            Permission::SysClusterNodeDestroy => "sysClusterNodeDestroy",
             Permission::SysClusterNodeQuery => "sysClusterNodeQuery",
             Permission::SysClusterRoleGet => "sysClusterRoleGet",
             Permission::SysClusterRoleCreate => "sysClusterRoleCreate",
@@ -7880,12 +10126,9 @@ impl EnumImpl for Permission {
             Permission::SysDkimSignatureDestroy => "sysDkimSignatureDestroy",
             Permission::SysDkimSignatureQuery => "sysDkimSignatureQuery",
             Permission::SysDmarcExternalReportGet => "sysDmarcExternalReportGet",
-            Permission::SysDmarcExternalReportCreate => "sysDmarcExternalReportCreate",
-            Permission::SysDmarcExternalReportUpdate => "sysDmarcExternalReportUpdate",
             Permission::SysDmarcExternalReportDestroy => "sysDmarcExternalReportDestroy",
             Permission::SysDmarcExternalReportQuery => "sysDmarcExternalReportQuery",
             Permission::SysDmarcInternalReportGet => "sysDmarcInternalReportGet",
-            Permission::SysDmarcInternalReportCreate => "sysDmarcInternalReportCreate",
             Permission::SysDmarcInternalReportUpdate => "sysDmarcInternalReportUpdate",
             Permission::SysDmarcInternalReportDestroy => "sysDmarcInternalReportDestroy",
             Permission::SysDmarcInternalReportQuery => "sysDmarcInternalReportQuery",
@@ -7907,13 +10150,26 @@ impl EnumImpl for Permission {
             Permission::SysDsnReportSettingsUpdate => "sysDsnReportSettingsUpdate",
             Permission::SysEmailGet => "sysEmailGet",
             Permission::SysEmailUpdate => "sysEmailUpdate",
+            Permission::SysEncryptionGet => "sysEncryptionGet",
+            Permission::SysEncryptionUpdate => "sysEncryptionUpdate",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::SysEnterpriseGet => "sysEnterpriseGet",
+            #[cfg(feature = "enterprise")]
             Permission::SysEnterpriseUpdate => "sysEnterpriseUpdate",
+            // SPDX-SnippetEnd
             Permission::SysEventTracingLevelGet => "sysEventTracingLevelGet",
             Permission::SysEventTracingLevelCreate => "sysEventTracingLevelCreate",
             Permission::SysEventTracingLevelUpdate => "sysEventTracingLevelUpdate",
             Permission::SysEventTracingLevelDestroy => "sysEventTracingLevelDestroy",
             Permission::SysEventTracingLevelQuery => "sysEventTracingLevelQuery",
+            Permission::SysExternalPublicKeyGet => "sysExternalPublicKeyGet",
+            Permission::SysExternalPublicKeyCreate => "sysExternalPublicKeyCreate",
+            Permission::SysExternalPublicKeyUpdate => "sysExternalPublicKeyUpdate",
+            Permission::SysExternalPublicKeyDestroy => "sysExternalPublicKeyDestroy",
+            Permission::SysExternalPublicKeyQuery => "sysExternalPublicKeyQuery",
             Permission::SysFileStorageGet => "sysFileStorageGet",
             Permission::SysFileStorageUpdate => "sysFileStorageUpdate",
             Permission::SysHttpGet => "sysHttpGet",
@@ -7929,23 +10185,32 @@ impl EnumImpl for Permission {
             Permission::SysImapUpdate => "sysImapUpdate",
             Permission::SysInMemoryStoreGet => "sysInMemoryStoreGet",
             Permission::SysInMemoryStoreUpdate => "sysInMemoryStoreUpdate",
+            Permission::SysIndexQueueStatusGet => "sysIndexQueueStatusGet",
+            Permission::SysIndexQueueStatusUpdate => "sysIndexQueueStatusUpdate",
+            Permission::SysIndexQueueStatusQuery => "sysIndexQueueStatusQuery",
             Permission::SysJmapGet => "sysJmapGet",
             Permission::SysJmapUpdate => "sysJmapUpdate",
             Permission::SysLogGet => "sysLogGet",
-            Permission::SysLogCreate => "sysLogCreate",
-            Permission::SysLogUpdate => "sysLogUpdate",
-            Permission::SysLogDestroy => "sysLogDestroy",
             Permission::SysLogQuery => "sysLogQuery",
             Permission::SysMailingListGet => "sysMailingListGet",
             Permission::SysMailingListCreate => "sysMailingListCreate",
             Permission::SysMailingListUpdate => "sysMailingListUpdate",
             Permission::SysMailingListDestroy => "sysMailingListDestroy",
             Permission::SysMailingListQuery => "sysMailingListQuery",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::SysMaskedEmailGet => "sysMaskedEmailGet",
+            #[cfg(feature = "enterprise")]
             Permission::SysMaskedEmailCreate => "sysMaskedEmailCreate",
+            #[cfg(feature = "enterprise")]
             Permission::SysMaskedEmailUpdate => "sysMaskedEmailUpdate",
+            #[cfg(feature = "enterprise")]
             Permission::SysMaskedEmailDestroy => "sysMaskedEmailDestroy",
+            #[cfg(feature = "enterprise")]
             Permission::SysMaskedEmailQuery => "sysMaskedEmailQuery",
+            // SPDX-SnippetEnd
             Permission::SysMemoryLookupKeyGet => "sysMemoryLookupKeyGet",
             Permission::SysMemoryLookupKeyCreate => "sysMemoryLookupKeyCreate",
             Permission::SysMemoryLookupKeyUpdate => "sysMemoryLookupKeyUpdate",
@@ -7956,15 +10221,26 @@ impl EnumImpl for Permission {
             Permission::SysMemoryLookupKeyValueUpdate => "sysMemoryLookupKeyValueUpdate",
             Permission::SysMemoryLookupKeyValueDestroy => "sysMemoryLookupKeyValueDestroy",
             Permission::SysMemoryLookupKeyValueQuery => "sysMemoryLookupKeyValueQuery",
+            Permission::SysMetadataGet => "sysMetadataGet",
+            Permission::SysMetadataUpdate => "sysMetadataUpdate",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::SysMetricGet => "sysMetricGet",
-            Permission::SysMetricCreate => "sysMetricCreate",
-            Permission::SysMetricUpdate => "sysMetricUpdate",
-            Permission::SysMetricDestroy => "sysMetricDestroy",
+            #[cfg(feature = "enterprise")]
             Permission::SysMetricQuery => "sysMetricQuery",
+            // SPDX-SnippetEnd
             Permission::SysMetricsGet => "sysMetricsGet",
             Permission::SysMetricsUpdate => "sysMetricsUpdate",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::SysMetricsStoreGet => "sysMetricsStoreGet",
+            #[cfg(feature = "enterprise")]
             Permission::SysMetricsStoreUpdate => "sysMetricsStoreUpdate",
+            // SPDX-SnippetEnd
             Permission::SysMtaConnectionStrategyGet => "sysMtaConnectionStrategyGet",
             Permission::SysMtaConnectionStrategyCreate => "sysMtaConnectionStrategyCreate",
             Permission::SysMtaConnectionStrategyUpdate => "sysMtaConnectionStrategyUpdate",
@@ -8045,6 +10321,9 @@ impl EnumImpl for Permission {
             Permission::SysOAuthClientUpdate => "sysOAuthClientUpdate",
             Permission::SysOAuthClientDestroy => "sysOAuthClientDestroy",
             Permission::SysOAuthClientQuery => "sysOAuthClientQuery",
+            Permission::SysOAuthGrantGet => "sysOAuthGrantGet",
+            Permission::SysOAuthGrantDestroy => "sysOAuthGrantDestroy",
+            Permission::SysOAuthGrantQuery => "sysOAuthGrantQuery",
             Permission::SysOidcProviderGet => "sysOidcProviderGet",
             Permission::SysOidcProviderUpdate => "sysOidcProviderUpdate",
             Permission::SysPublicKeyGet => "sysPublicKeyGet",
@@ -8053,7 +10332,6 @@ impl EnumImpl for Permission {
             Permission::SysPublicKeyDestroy => "sysPublicKeyDestroy",
             Permission::SysPublicKeyQuery => "sysPublicKeyQuery",
             Permission::SysQueuedMessageGet => "sysQueuedMessageGet",
-            Permission::SysQueuedMessageCreate => "sysQueuedMessageCreate",
             Permission::SysQueuedMessageUpdate => "sysQueuedMessageUpdate",
             Permission::SysQueuedMessageDestroy => "sysQueuedMessageDestroy",
             Permission::SysQueuedMessageQuery => "sysQueuedMessageQuery",
@@ -8088,6 +10366,19 @@ impl EnumImpl for Permission {
             Permission::SysSieveUserScriptUpdate => "sysSieveUserScriptUpdate",
             Permission::SysSieveUserScriptDestroy => "sysSieveUserScriptDestroy",
             Permission::SysSieveUserScriptQuery => "sysSieveUserScriptQuery",
+            Permission::SysSmimeTrustAnchorGet => "sysSmimeTrustAnchorGet",
+            Permission::SysSmimeTrustAnchorCreate => "sysSmimeTrustAnchorCreate",
+            Permission::SysSmimeTrustAnchorUpdate => "sysSmimeTrustAnchorUpdate",
+            Permission::SysSmimeTrustAnchorDestroy => "sysSmimeTrustAnchorDestroy",
+            Permission::SysSmimeTrustAnchorQuery => "sysSmimeTrustAnchorQuery",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            Permission::SysSpamAiGet => "sysSpamAiGet",
+            #[cfg(feature = "enterprise")]
+            Permission::SysSpamAiUpdate => "sysSpamAiUpdate",
+            // SPDX-SnippetEnd
             Permission::SysSpamClassifierGet => "sysSpamClassifierGet",
             Permission::SysSpamClassifierUpdate => "sysSpamClassifierUpdate",
             Permission::SysSpamDnsblServerGet => "sysSpamDnsblServerGet",
@@ -8102,8 +10393,6 @@ impl EnumImpl for Permission {
             Permission::SysSpamFileExtensionUpdate => "sysSpamFileExtensionUpdate",
             Permission::SysSpamFileExtensionDestroy => "sysSpamFileExtensionDestroy",
             Permission::SysSpamFileExtensionQuery => "sysSpamFileExtensionQuery",
-            Permission::SysSpamLlmGet => "sysSpamLlmGet",
-            Permission::SysSpamLlmUpdate => "sysSpamLlmUpdate",
             Permission::SysSpamPyzorGet => "sysSpamPyzorGet",
             Permission::SysSpamPyzorUpdate => "sysSpamPyzorUpdate",
             Permission::SysSpamRuleGet => "sysSpamRuleGet",
@@ -8120,7 +10409,6 @@ impl EnumImpl for Permission {
             Permission::SysSpamTagQuery => "sysSpamTagQuery",
             Permission::SysSpamTrainingSampleGet => "sysSpamTrainingSampleGet",
             Permission::SysSpamTrainingSampleCreate => "sysSpamTrainingSampleCreate",
-            Permission::SysSpamTrainingSampleUpdate => "sysSpamTrainingSampleUpdate",
             Permission::SysSpamTrainingSampleDestroy => "sysSpamTrainingSampleDestroy",
             Permission::SysSpamTrainingSampleQuery => "sysSpamTrainingSampleQuery",
             Permission::SysSpfReportSettingsGet => "sysSpfReportSettingsGet",
@@ -8130,26 +10418,43 @@ impl EnumImpl for Permission {
             Permission::SysStoreLookupUpdate => "sysStoreLookupUpdate",
             Permission::SysStoreLookupDestroy => "sysStoreLookupDestroy",
             Permission::SysStoreLookupQuery => "sysStoreLookupQuery",
+            Permission::SysSymmetricKeyGet => "sysSymmetricKeyGet",
+            Permission::SysSymmetricKeyCreate => "sysSymmetricKeyCreate",
+            Permission::SysSymmetricKeyUpdate => "sysSymmetricKeyUpdate",
+            Permission::SysSymmetricKeyDestroy => "sysSymmetricKeyDestroy",
+            Permission::SysSymmetricKeyQuery => "sysSymmetricKeyQuery",
             Permission::SysSystemSettingsGet => "sysSystemSettingsGet",
             Permission::SysSystemSettingsUpdate => "sysSystemSettingsUpdate",
-            Permission::TaskIndexDocument => "taskIndexDocument",
-            Permission::TaskUnindexDocument => "taskUnindexDocument",
-            Permission::TaskIndexTrace => "taskIndexTrace",
             Permission::TaskCalendarAlarmEmail => "taskCalendarAlarmEmail",
             Permission::TaskCalendarAlarmNotification => "taskCalendarAlarmNotification",
             Permission::TaskCalendarItipMessage => "taskCalendarItipMessage",
             Permission::TaskMergeThreads => "taskMergeThreads",
             Permission::TaskDmarcReport => "taskDmarcReport",
             Permission::TaskTlsReport => "taskTlsReport",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::TaskRestoreArchivedItem => "taskRestoreArchivedItem",
+            // SPDX-SnippetEnd
             Permission::TaskDestroyAccount => "taskDestroyAccount",
             Permission::TaskAccountMaintenance => "taskAccountMaintenance",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::TaskTenantMaintenance => "taskTenantMaintenance",
+            // SPDX-SnippetEnd
             Permission::TaskStoreMaintenance => "taskStoreMaintenance",
             Permission::TaskSpamFilterMaintenance => "taskSpamFilterMaintenance",
             Permission::TaskAcmeRenewal => "taskAcmeRenewal",
             Permission::TaskDkimManagement => "taskDkimManagement",
             Permission::TaskDnsManagement => "taskDnsManagement",
+            Permission::TaskShareRevokeCleanup => "taskShareRevokeCleanup",
+            Permission::TaskDmarcReportWindow => "taskDmarcReportWindow",
+            Permission::TaskTlsReportWindow => "taskTlsReportWindow",
+            Permission::TaskExternalPublicKeyMaintenance => "taskExternalPublicKeyMaintenance",
+            Permission::TaskBlobRecode => "taskBlobRecode",
             Permission::SysTaskGet => "sysTaskGet",
             Permission::SysTaskCreate => "sysTaskCreate",
             Permission::SysTaskUpdate => "sysTaskUpdate",
@@ -8157,35 +10462,50 @@ impl EnumImpl for Permission {
             Permission::SysTaskQuery => "sysTaskQuery",
             Permission::SysTaskManagerGet => "sysTaskManagerGet",
             Permission::SysTaskManagerUpdate => "sysTaskManagerUpdate",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::SysTenantGet => "sysTenantGet",
+            #[cfg(feature = "enterprise")]
             Permission::SysTenantCreate => "sysTenantCreate",
+            #[cfg(feature = "enterprise")]
             Permission::SysTenantUpdate => "sysTenantUpdate",
+            #[cfg(feature = "enterprise")]
             Permission::SysTenantDestroy => "sysTenantDestroy",
+            #[cfg(feature = "enterprise")]
             Permission::SysTenantQuery => "sysTenantQuery",
+            // SPDX-SnippetEnd
             Permission::SysTlsExternalReportGet => "sysTlsExternalReportGet",
-            Permission::SysTlsExternalReportCreate => "sysTlsExternalReportCreate",
-            Permission::SysTlsExternalReportUpdate => "sysTlsExternalReportUpdate",
             Permission::SysTlsExternalReportDestroy => "sysTlsExternalReportDestroy",
             Permission::SysTlsExternalReportQuery => "sysTlsExternalReportQuery",
             Permission::SysTlsInternalReportGet => "sysTlsInternalReportGet",
-            Permission::SysTlsInternalReportCreate => "sysTlsInternalReportCreate",
             Permission::SysTlsInternalReportUpdate => "sysTlsInternalReportUpdate",
             Permission::SysTlsInternalReportDestroy => "sysTlsInternalReportDestroy",
             Permission::SysTlsInternalReportQuery => "sysTlsInternalReportQuery",
             Permission::SysTlsReportSettingsGet => "sysTlsReportSettingsGet",
             Permission::SysTlsReportSettingsUpdate => "sysTlsReportSettingsUpdate",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::SysTraceGet => "sysTraceGet",
-            Permission::SysTraceCreate => "sysTraceCreate",
-            Permission::SysTraceUpdate => "sysTraceUpdate",
-            Permission::SysTraceDestroy => "sysTraceDestroy",
+            #[cfg(feature = "enterprise")]
             Permission::SysTraceQuery => "sysTraceQuery",
+            // SPDX-SnippetEnd
             Permission::SysTracerGet => "sysTracerGet",
             Permission::SysTracerCreate => "sysTracerCreate",
             Permission::SysTracerUpdate => "sysTracerUpdate",
             Permission::SysTracerDestroy => "sysTracerDestroy",
             Permission::SysTracerQuery => "sysTracerQuery",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             Permission::SysTracingStoreGet => "sysTracingStoreGet",
+            #[cfg(feature = "enterprise")]
             Permission::SysTracingStoreUpdate => "sysTracingStoreUpdate",
+            // SPDX-SnippetEnd
             Permission::SysWebDavGet => "sysWebDavGet",
             Permission::SysWebDavUpdate => "sysWebDavUpdate",
             Permission::SysWebHookGet => "sysWebHookGet",
@@ -8204,7 +10524,12 @@ impl EnumImpl for Permission {
         match id {
             0 => Some(Permission::Authenticate),
             1 => Some(Permission::AuthenticateWithAlias),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             2 => Some(Permission::InteractAi),
+            // SPDX-SnippetEnd
             3 => Some(Permission::Impersonate),
             4 => Some(Permission::UnlimitedRequests),
             5 => Some(Permission::UnlimitedUploads),
@@ -8265,609 +10590,1476 @@ impl EnumImpl for Permission {
             60 => Some(Permission::JmapPrincipalChanges),
             61 => Some(Permission::JmapPrincipalQueryChanges),
             62 => Some(Permission::JmapPrincipalGetAvailability),
-            63 => Some(Permission::JmapPrincipalCreate),
-            64 => Some(Permission::JmapPrincipalUpdate),
-            65 => Some(Permission::JmapPrincipalDestroy),
-            66 => Some(Permission::JmapQuotaGet),
-            67 => Some(Permission::JmapQuotaChanges),
-            68 => Some(Permission::JmapQuotaQuery),
-            69 => Some(Permission::JmapQuotaQueryChanges),
-            70 => Some(Permission::JmapBlobGet),
-            71 => Some(Permission::JmapBlobCopy),
-            72 => Some(Permission::JmapBlobLookup),
-            73 => Some(Permission::JmapBlobUpload),
-            74 => Some(Permission::JmapAddressBookGet),
-            75 => Some(Permission::JmapAddressBookChanges),
-            76 => Some(Permission::JmapAddressBookCreate),
-            77 => Some(Permission::JmapAddressBookUpdate),
-            78 => Some(Permission::JmapAddressBookDestroy),
-            79 => Some(Permission::JmapContactCardGet),
-            80 => Some(Permission::JmapContactCardChanges),
-            81 => Some(Permission::JmapContactCardQuery),
-            82 => Some(Permission::JmapContactCardQueryChanges),
-            83 => Some(Permission::JmapContactCardCreate),
-            84 => Some(Permission::JmapContactCardUpdate),
-            85 => Some(Permission::JmapContactCardDestroy),
-            86 => Some(Permission::JmapContactCardCopy),
-            87 => Some(Permission::JmapContactCardParse),
-            88 => Some(Permission::JmapFileNodeGet),
-            89 => Some(Permission::JmapFileNodeChanges),
-            90 => Some(Permission::JmapFileNodeQuery),
-            91 => Some(Permission::JmapFileNodeQueryChanges),
-            92 => Some(Permission::JmapFileNodeCreate),
-            93 => Some(Permission::JmapFileNodeUpdate),
-            94 => Some(Permission::JmapFileNodeDestroy),
-            659 => Some(Permission::JmapFileNodeCopy),
-            95 => Some(Permission::JmapShareNotificationGet),
-            96 => Some(Permission::JmapShareNotificationChanges),
-            97 => Some(Permission::JmapShareNotificationQuery),
-            98 => Some(Permission::JmapShareNotificationQueryChanges),
-            99 => Some(Permission::JmapShareNotificationCreate),
-            100 => Some(Permission::JmapShareNotificationUpdate),
-            101 => Some(Permission::JmapShareNotificationDestroy),
-            102 => Some(Permission::JmapCalendarGet),
-            103 => Some(Permission::JmapCalendarChanges),
-            104 => Some(Permission::JmapCalendarCreate),
-            105 => Some(Permission::JmapCalendarUpdate),
-            106 => Some(Permission::JmapCalendarDestroy),
-            107 => Some(Permission::JmapCalendarEventGet),
-            108 => Some(Permission::JmapCalendarEventChanges),
-            109 => Some(Permission::JmapCalendarEventQuery),
-            110 => Some(Permission::JmapCalendarEventQueryChanges),
-            111 => Some(Permission::JmapCalendarEventCreate),
-            112 => Some(Permission::JmapCalendarEventUpdate),
-            113 => Some(Permission::JmapCalendarEventDestroy),
-            114 => Some(Permission::JmapCalendarEventCopy),
-            115 => Some(Permission::JmapCalendarEventParse),
-            116 => Some(Permission::JmapCalendarEventNotificationGet),
-            117 => Some(Permission::JmapCalendarEventNotificationChanges),
-            118 => Some(Permission::JmapCalendarEventNotificationQuery),
-            119 => Some(Permission::JmapCalendarEventNotificationQueryChanges),
-            120 => Some(Permission::JmapCalendarEventNotificationCreate),
-            121 => Some(Permission::JmapCalendarEventNotificationUpdate),
-            122 => Some(Permission::JmapCalendarEventNotificationDestroy),
-            123 => Some(Permission::JmapParticipantIdentityGet),
-            124 => Some(Permission::JmapParticipantIdentityChanges),
-            125 => Some(Permission::JmapParticipantIdentityCreate),
-            126 => Some(Permission::JmapParticipantIdentityUpdate),
-            127 => Some(Permission::JmapParticipantIdentityDestroy),
-            128 => Some(Permission::JmapCoreEcho),
-            129 => Some(Permission::ImapAuthenticate),
-            130 => Some(Permission::ImapAclGet),
-            131 => Some(Permission::ImapAclSet),
-            132 => Some(Permission::ImapMyRights),
-            133 => Some(Permission::ImapListRights),
-            134 => Some(Permission::ImapAppend),
-            135 => Some(Permission::ImapCapability),
-            136 => Some(Permission::ImapId),
-            137 => Some(Permission::ImapCopy),
-            138 => Some(Permission::ImapMove),
-            139 => Some(Permission::ImapCreate),
-            140 => Some(Permission::ImapDelete),
-            141 => Some(Permission::ImapEnable),
-            142 => Some(Permission::ImapExpunge),
-            143 => Some(Permission::ImapFetch),
-            144 => Some(Permission::ImapIdle),
-            145 => Some(Permission::ImapList),
-            146 => Some(Permission::ImapLsub),
-            147 => Some(Permission::ImapNamespace),
-            148 => Some(Permission::ImapRename),
-            149 => Some(Permission::ImapSearch),
-            150 => Some(Permission::ImapSort),
-            151 => Some(Permission::ImapSelect),
-            152 => Some(Permission::ImapExamine),
-            153 => Some(Permission::ImapStatus),
-            154 => Some(Permission::ImapStore),
-            155 => Some(Permission::ImapSubscribe),
-            156 => Some(Permission::ImapThread),
-            157 => Some(Permission::Pop3Authenticate),
-            158 => Some(Permission::Pop3List),
-            159 => Some(Permission::Pop3Uidl),
-            160 => Some(Permission::Pop3Stat),
-            161 => Some(Permission::Pop3Retr),
-            162 => Some(Permission::Pop3Dele),
-            163 => Some(Permission::SieveAuthenticate),
-            164 => Some(Permission::SieveListScripts),
-            165 => Some(Permission::SieveSetActive),
-            166 => Some(Permission::SieveGetScript),
-            167 => Some(Permission::SievePutScript),
-            168 => Some(Permission::SieveDeleteScript),
-            169 => Some(Permission::SieveRenameScript),
-            170 => Some(Permission::SieveCheckScript),
-            171 => Some(Permission::SieveHaveSpace),
-            172 => Some(Permission::DavSyncCollection),
-            173 => Some(Permission::DavExpandProperty),
-            174 => Some(Permission::DavPrincipalAcl),
-            175 => Some(Permission::DavPrincipalList),
-            176 => Some(Permission::DavPrincipalMatch),
-            177 => Some(Permission::DavPrincipalSearch),
-            178 => Some(Permission::DavPrincipalSearchPropSet),
-            179 => Some(Permission::DavFilePropFind),
-            180 => Some(Permission::DavFilePropPatch),
-            181 => Some(Permission::DavFileGet),
-            182 => Some(Permission::DavFileMkCol),
-            183 => Some(Permission::DavFileDelete),
-            184 => Some(Permission::DavFilePut),
-            185 => Some(Permission::DavFileCopy),
-            186 => Some(Permission::DavFileMove),
-            187 => Some(Permission::DavFileLock),
-            188 => Some(Permission::DavFileAcl),
-            189 => Some(Permission::DavCardPropFind),
-            190 => Some(Permission::DavCardPropPatch),
-            191 => Some(Permission::DavCardGet),
-            192 => Some(Permission::DavCardMkCol),
-            193 => Some(Permission::DavCardDelete),
-            194 => Some(Permission::DavCardPut),
-            195 => Some(Permission::DavCardCopy),
-            196 => Some(Permission::DavCardMove),
-            197 => Some(Permission::DavCardLock),
-            198 => Some(Permission::DavCardAcl),
-            199 => Some(Permission::DavCardQuery),
-            200 => Some(Permission::DavCardMultiGet),
-            201 => Some(Permission::DavCalPropFind),
-            202 => Some(Permission::DavCalPropPatch),
-            203 => Some(Permission::DavCalGet),
-            204 => Some(Permission::DavCalMkCol),
-            205 => Some(Permission::DavCalDelete),
-            206 => Some(Permission::DavCalPut),
-            207 => Some(Permission::DavCalCopy),
-            208 => Some(Permission::DavCalMove),
-            209 => Some(Permission::DavCalLock),
-            210 => Some(Permission::DavCalAcl),
-            211 => Some(Permission::DavCalQuery),
-            212 => Some(Permission::DavCalMultiGet),
-            213 => Some(Permission::DavCalFreeBusyQuery),
-            214 => Some(Permission::OAuthClientRegistration),
-            215 => Some(Permission::OAuthClientOverride),
-            216 => Some(Permission::LiveTracing),
-            217 => Some(Permission::LiveMetrics),
-            218 => Some(Permission::LiveDeliveryTest),
-            660 => Some(Permission::ScimAccess),
-            219 => Some(Permission::SysAccountGet),
-            220 => Some(Permission::SysAccountCreate),
-            221 => Some(Permission::SysAccountUpdate),
-            222 => Some(Permission::SysAccountDestroy),
-            223 => Some(Permission::SysAccountQuery),
-            224 => Some(Permission::SysAccountPasswordGet),
-            225 => Some(Permission::SysAccountPasswordUpdate),
-            226 => Some(Permission::SysAccountSettingsGet),
-            227 => Some(Permission::SysAccountSettingsUpdate),
-            228 => Some(Permission::SysAcmeProviderGet),
-            229 => Some(Permission::SysAcmeProviderCreate),
-            230 => Some(Permission::SysAcmeProviderUpdate),
-            231 => Some(Permission::SysAcmeProviderDestroy),
-            232 => Some(Permission::SysAcmeProviderQuery),
-            233 => Some(Permission::ActionReloadSettings),
-            234 => Some(Permission::ActionReloadTlsCertificates),
-            235 => Some(Permission::ActionReloadLookupStores),
-            236 => Some(Permission::ActionReloadBlockedIps),
-            237 => Some(Permission::ActionUpdateApps),
-            238 => Some(Permission::ActionTroubleshootDmarc),
-            239 => Some(Permission::ActionClassifySpam),
-            240 => Some(Permission::ActionInvalidateCaches),
-            241 => Some(Permission::ActionInvalidateNegativeCaches),
-            242 => Some(Permission::ActionPauseMtaQueue),
-            243 => Some(Permission::ActionResumeMtaQueue),
-            244 => Some(Permission::SysActionGet),
-            245 => Some(Permission::SysActionCreate),
-            246 => Some(Permission::SysActionUpdate),
-            247 => Some(Permission::SysActionDestroy),
-            248 => Some(Permission::SysActionQuery),
-            249 => Some(Permission::SysAddressBookGet),
-            250 => Some(Permission::SysAddressBookUpdate),
-            251 => Some(Permission::SysAiModelGet),
-            252 => Some(Permission::SysAiModelCreate),
-            253 => Some(Permission::SysAiModelUpdate),
-            254 => Some(Permission::SysAiModelDestroy),
-            255 => Some(Permission::SysAiModelQuery),
-            256 => Some(Permission::SysAlertGet),
-            257 => Some(Permission::SysAlertCreate),
-            258 => Some(Permission::SysAlertUpdate),
-            259 => Some(Permission::SysAlertDestroy),
-            260 => Some(Permission::SysAlertQuery),
-            261 => Some(Permission::SysAllowedIpGet),
-            262 => Some(Permission::SysAllowedIpCreate),
-            263 => Some(Permission::SysAllowedIpUpdate),
-            264 => Some(Permission::SysAllowedIpDestroy),
-            265 => Some(Permission::SysAllowedIpQuery),
-            266 => Some(Permission::SysApiKeyGet),
-            267 => Some(Permission::SysApiKeyCreate),
-            268 => Some(Permission::SysApiKeyUpdate),
-            269 => Some(Permission::SysApiKeyDestroy),
-            270 => Some(Permission::SysApiKeyQuery),
-            271 => Some(Permission::SysAppPasswordGet),
-            272 => Some(Permission::SysAppPasswordCreate),
-            273 => Some(Permission::SysAppPasswordUpdate),
-            274 => Some(Permission::SysAppPasswordDestroy),
-            275 => Some(Permission::SysAppPasswordQuery),
-            276 => Some(Permission::SysApplicationGet),
-            277 => Some(Permission::SysApplicationCreate),
-            278 => Some(Permission::SysApplicationUpdate),
-            279 => Some(Permission::SysApplicationDestroy),
-            280 => Some(Permission::SysApplicationQuery),
-            281 => Some(Permission::SysArchivedItemGet),
-            282 => Some(Permission::SysArchivedItemCreate),
-            283 => Some(Permission::SysArchivedItemUpdate),
-            284 => Some(Permission::SysArchivedItemDestroy),
-            285 => Some(Permission::SysArchivedItemQuery),
-            286 => Some(Permission::SysArfExternalReportGet),
-            287 => Some(Permission::SysArfExternalReportCreate),
-            288 => Some(Permission::SysArfExternalReportUpdate),
-            289 => Some(Permission::SysArfExternalReportDestroy),
-            290 => Some(Permission::SysArfExternalReportQuery),
-            291 => Some(Permission::SysAsnGet),
-            292 => Some(Permission::SysAsnUpdate),
-            293 => Some(Permission::SysAuthenticationGet),
-            294 => Some(Permission::SysAuthenticationUpdate),
-            295 => Some(Permission::SysBlobStoreGet),
-            296 => Some(Permission::SysBlobStoreUpdate),
-            297 => Some(Permission::SysBlockedIpGet),
-            298 => Some(Permission::SysBlockedIpCreate),
-            299 => Some(Permission::SysBlockedIpUpdate),
-            300 => Some(Permission::SysBlockedIpDestroy),
-            301 => Some(Permission::SysBlockedIpQuery),
-            302 => Some(Permission::SysBootstrapGet),
-            303 => Some(Permission::SysBootstrapUpdate),
-            304 => Some(Permission::SysCacheGet),
-            305 => Some(Permission::SysCacheUpdate),
-            306 => Some(Permission::SysCalendarGet),
-            307 => Some(Permission::SysCalendarUpdate),
-            308 => Some(Permission::SysCalendarAlarmGet),
-            309 => Some(Permission::SysCalendarAlarmUpdate),
-            310 => Some(Permission::SysCalendarSchedulingGet),
-            311 => Some(Permission::SysCalendarSchedulingUpdate),
-            312 => Some(Permission::SysCertificateGet),
-            313 => Some(Permission::SysCertificateCreate),
-            314 => Some(Permission::SysCertificateUpdate),
-            315 => Some(Permission::SysCertificateDestroy),
-            316 => Some(Permission::SysCertificateQuery),
-            317 => Some(Permission::SysClusterNodeGet),
-            318 => Some(Permission::SysClusterNodeCreate),
-            319 => Some(Permission::SysClusterNodeUpdate),
-            320 => Some(Permission::SysClusterNodeDestroy),
-            321 => Some(Permission::SysClusterNodeQuery),
-            322 => Some(Permission::SysClusterRoleGet),
-            323 => Some(Permission::SysClusterRoleCreate),
-            324 => Some(Permission::SysClusterRoleUpdate),
-            325 => Some(Permission::SysClusterRoleDestroy),
-            326 => Some(Permission::SysClusterRoleQuery),
-            327 => Some(Permission::SysCoordinatorGet),
-            328 => Some(Permission::SysCoordinatorUpdate),
-            329 => Some(Permission::SysDataRetentionGet),
-            330 => Some(Permission::SysDataRetentionUpdate),
-            331 => Some(Permission::SysDataStoreGet),
-            332 => Some(Permission::SysDataStoreUpdate),
-            333 => Some(Permission::SysDirectoryGet),
-            334 => Some(Permission::SysDirectoryCreate),
-            335 => Some(Permission::SysDirectoryUpdate),
-            336 => Some(Permission::SysDirectoryDestroy),
-            337 => Some(Permission::SysDirectoryQuery),
-            338 => Some(Permission::SysDkimReportSettingsGet),
-            339 => Some(Permission::SysDkimReportSettingsUpdate),
-            340 => Some(Permission::SysDkimSignatureGet),
-            341 => Some(Permission::SysDkimSignatureCreate),
-            342 => Some(Permission::SysDkimSignatureUpdate),
-            343 => Some(Permission::SysDkimSignatureDestroy),
-            344 => Some(Permission::SysDkimSignatureQuery),
-            345 => Some(Permission::SysDmarcExternalReportGet),
-            346 => Some(Permission::SysDmarcExternalReportCreate),
-            347 => Some(Permission::SysDmarcExternalReportUpdate),
-            348 => Some(Permission::SysDmarcExternalReportDestroy),
-            349 => Some(Permission::SysDmarcExternalReportQuery),
-            350 => Some(Permission::SysDmarcInternalReportGet),
-            351 => Some(Permission::SysDmarcInternalReportCreate),
-            352 => Some(Permission::SysDmarcInternalReportUpdate),
-            353 => Some(Permission::SysDmarcInternalReportDestroy),
-            354 => Some(Permission::SysDmarcInternalReportQuery),
-            355 => Some(Permission::SysDmarcReportSettingsGet),
-            356 => Some(Permission::SysDmarcReportSettingsUpdate),
-            357 => Some(Permission::SysDnsResolverGet),
-            358 => Some(Permission::SysDnsResolverUpdate),
-            359 => Some(Permission::SysDnsServerGet),
-            360 => Some(Permission::SysDnsServerCreate),
-            361 => Some(Permission::SysDnsServerUpdate),
-            362 => Some(Permission::SysDnsServerDestroy),
-            363 => Some(Permission::SysDnsServerQuery),
-            364 => Some(Permission::SysDomainGet),
-            365 => Some(Permission::SysDomainCreate),
-            366 => Some(Permission::SysDomainUpdate),
-            367 => Some(Permission::SysDomainDestroy),
-            368 => Some(Permission::SysDomainQuery),
-            369 => Some(Permission::SysDsnReportSettingsGet),
-            370 => Some(Permission::SysDsnReportSettingsUpdate),
-            371 => Some(Permission::SysEmailGet),
-            372 => Some(Permission::SysEmailUpdate),
-            373 => Some(Permission::SysEnterpriseGet),
-            374 => Some(Permission::SysEnterpriseUpdate),
-            375 => Some(Permission::SysEventTracingLevelGet),
-            376 => Some(Permission::SysEventTracingLevelCreate),
-            377 => Some(Permission::SysEventTracingLevelUpdate),
-            378 => Some(Permission::SysEventTracingLevelDestroy),
-            379 => Some(Permission::SysEventTracingLevelQuery),
-            380 => Some(Permission::SysFileStorageGet),
-            381 => Some(Permission::SysFileStorageUpdate),
-            382 => Some(Permission::SysHttpGet),
-            383 => Some(Permission::SysHttpUpdate),
-            384 => Some(Permission::SysHttpFormGet),
-            385 => Some(Permission::SysHttpFormUpdate),
-            386 => Some(Permission::SysHttpLookupGet),
-            387 => Some(Permission::SysHttpLookupCreate),
-            388 => Some(Permission::SysHttpLookupUpdate),
-            389 => Some(Permission::SysHttpLookupDestroy),
-            390 => Some(Permission::SysHttpLookupQuery),
-            391 => Some(Permission::SysImapGet),
-            392 => Some(Permission::SysImapUpdate),
-            393 => Some(Permission::SysInMemoryStoreGet),
-            394 => Some(Permission::SysInMemoryStoreUpdate),
-            395 => Some(Permission::SysJmapGet),
-            396 => Some(Permission::SysJmapUpdate),
-            397 => Some(Permission::SysLogGet),
-            398 => Some(Permission::SysLogCreate),
-            399 => Some(Permission::SysLogUpdate),
-            400 => Some(Permission::SysLogDestroy),
-            401 => Some(Permission::SysLogQuery),
-            402 => Some(Permission::SysMailingListGet),
-            403 => Some(Permission::SysMailingListCreate),
-            404 => Some(Permission::SysMailingListUpdate),
-            405 => Some(Permission::SysMailingListDestroy),
-            406 => Some(Permission::SysMailingListQuery),
-            407 => Some(Permission::SysMaskedEmailGet),
-            408 => Some(Permission::SysMaskedEmailCreate),
-            409 => Some(Permission::SysMaskedEmailUpdate),
-            410 => Some(Permission::SysMaskedEmailDestroy),
-            411 => Some(Permission::SysMaskedEmailQuery),
-            412 => Some(Permission::SysMemoryLookupKeyGet),
-            413 => Some(Permission::SysMemoryLookupKeyCreate),
-            414 => Some(Permission::SysMemoryLookupKeyUpdate),
-            415 => Some(Permission::SysMemoryLookupKeyDestroy),
-            416 => Some(Permission::SysMemoryLookupKeyQuery),
-            417 => Some(Permission::SysMemoryLookupKeyValueGet),
-            418 => Some(Permission::SysMemoryLookupKeyValueCreate),
-            419 => Some(Permission::SysMemoryLookupKeyValueUpdate),
-            420 => Some(Permission::SysMemoryLookupKeyValueDestroy),
-            421 => Some(Permission::SysMemoryLookupKeyValueQuery),
-            422 => Some(Permission::SysMetricGet),
-            423 => Some(Permission::SysMetricCreate),
-            424 => Some(Permission::SysMetricUpdate),
-            425 => Some(Permission::SysMetricDestroy),
-            426 => Some(Permission::SysMetricQuery),
-            427 => Some(Permission::SysMetricsGet),
-            428 => Some(Permission::SysMetricsUpdate),
-            429 => Some(Permission::SysMetricsStoreGet),
-            430 => Some(Permission::SysMetricsStoreUpdate),
-            431 => Some(Permission::SysMtaConnectionStrategyGet),
-            432 => Some(Permission::SysMtaConnectionStrategyCreate),
-            433 => Some(Permission::SysMtaConnectionStrategyUpdate),
-            434 => Some(Permission::SysMtaConnectionStrategyDestroy),
-            435 => Some(Permission::SysMtaConnectionStrategyQuery),
-            436 => Some(Permission::SysMtaDeliveryScheduleGet),
-            437 => Some(Permission::SysMtaDeliveryScheduleCreate),
-            438 => Some(Permission::SysMtaDeliveryScheduleUpdate),
-            439 => Some(Permission::SysMtaDeliveryScheduleDestroy),
-            440 => Some(Permission::SysMtaDeliveryScheduleQuery),
-            441 => Some(Permission::SysMtaExtensionsGet),
-            442 => Some(Permission::SysMtaExtensionsUpdate),
-            443 => Some(Permission::SysMtaHookGet),
-            444 => Some(Permission::SysMtaHookCreate),
-            445 => Some(Permission::SysMtaHookUpdate),
-            446 => Some(Permission::SysMtaHookDestroy),
-            447 => Some(Permission::SysMtaHookQuery),
-            448 => Some(Permission::SysMtaInboundSessionGet),
-            449 => Some(Permission::SysMtaInboundSessionUpdate),
-            450 => Some(Permission::SysMtaInboundThrottleGet),
-            451 => Some(Permission::SysMtaInboundThrottleCreate),
-            452 => Some(Permission::SysMtaInboundThrottleUpdate),
-            453 => Some(Permission::SysMtaInboundThrottleDestroy),
-            454 => Some(Permission::SysMtaInboundThrottleQuery),
-            455 => Some(Permission::SysMtaMilterGet),
-            456 => Some(Permission::SysMtaMilterCreate),
-            457 => Some(Permission::SysMtaMilterUpdate),
-            458 => Some(Permission::SysMtaMilterDestroy),
-            459 => Some(Permission::SysMtaMilterQuery),
-            460 => Some(Permission::SysMtaOutboundStrategyGet),
-            461 => Some(Permission::SysMtaOutboundStrategyUpdate),
-            462 => Some(Permission::SysMtaOutboundThrottleGet),
-            463 => Some(Permission::SysMtaOutboundThrottleCreate),
-            464 => Some(Permission::SysMtaOutboundThrottleUpdate),
-            465 => Some(Permission::SysMtaOutboundThrottleDestroy),
-            466 => Some(Permission::SysMtaOutboundThrottleQuery),
-            467 => Some(Permission::SysMtaQueueQuotaGet),
-            468 => Some(Permission::SysMtaQueueQuotaCreate),
-            469 => Some(Permission::SysMtaQueueQuotaUpdate),
-            470 => Some(Permission::SysMtaQueueQuotaDestroy),
-            471 => Some(Permission::SysMtaQueueQuotaQuery),
-            472 => Some(Permission::SysMtaRouteGet),
-            473 => Some(Permission::SysMtaRouteCreate),
-            474 => Some(Permission::SysMtaRouteUpdate),
-            475 => Some(Permission::SysMtaRouteDestroy),
-            476 => Some(Permission::SysMtaRouteQuery),
-            477 => Some(Permission::SysMtaStageAuthGet),
-            478 => Some(Permission::SysMtaStageAuthUpdate),
-            479 => Some(Permission::SysMtaStageConnectGet),
-            480 => Some(Permission::SysMtaStageConnectUpdate),
-            481 => Some(Permission::SysMtaStageDataGet),
-            482 => Some(Permission::SysMtaStageDataUpdate),
-            483 => Some(Permission::SysMtaStageEhloGet),
-            484 => Some(Permission::SysMtaStageEhloUpdate),
-            485 => Some(Permission::SysMtaStageMailGet),
-            486 => Some(Permission::SysMtaStageMailUpdate),
-            487 => Some(Permission::SysMtaStageRcptGet),
-            488 => Some(Permission::SysMtaStageRcptUpdate),
-            489 => Some(Permission::SysMtaStsGet),
-            490 => Some(Permission::SysMtaStsUpdate),
-            491 => Some(Permission::SysMtaTlsStrategyGet),
-            492 => Some(Permission::SysMtaTlsStrategyCreate),
-            493 => Some(Permission::SysMtaTlsStrategyUpdate),
-            494 => Some(Permission::SysMtaTlsStrategyDestroy),
-            495 => Some(Permission::SysMtaTlsStrategyQuery),
-            496 => Some(Permission::SysMtaVirtualQueueGet),
-            497 => Some(Permission::SysMtaVirtualQueueCreate),
-            498 => Some(Permission::SysMtaVirtualQueueUpdate),
-            499 => Some(Permission::SysMtaVirtualQueueDestroy),
-            500 => Some(Permission::SysMtaVirtualQueueQuery),
-            501 => Some(Permission::SysNetworkListenerGet),
-            502 => Some(Permission::SysNetworkListenerCreate),
-            503 => Some(Permission::SysNetworkListenerUpdate),
-            504 => Some(Permission::SysNetworkListenerDestroy),
-            505 => Some(Permission::SysNetworkListenerQuery),
-            506 => Some(Permission::SysOAuthClientGet),
-            507 => Some(Permission::SysOAuthClientCreate),
-            508 => Some(Permission::SysOAuthClientUpdate),
-            509 => Some(Permission::SysOAuthClientDestroy),
-            510 => Some(Permission::SysOAuthClientQuery),
-            511 => Some(Permission::SysOidcProviderGet),
-            512 => Some(Permission::SysOidcProviderUpdate),
-            513 => Some(Permission::SysPublicKeyGet),
-            514 => Some(Permission::SysPublicKeyCreate),
-            515 => Some(Permission::SysPublicKeyUpdate),
-            516 => Some(Permission::SysPublicKeyDestroy),
-            517 => Some(Permission::SysPublicKeyQuery),
-            518 => Some(Permission::SysQueuedMessageGet),
-            519 => Some(Permission::SysQueuedMessageCreate),
-            520 => Some(Permission::SysQueuedMessageUpdate),
-            521 => Some(Permission::SysQueuedMessageDestroy),
-            522 => Some(Permission::SysQueuedMessageQuery),
-            523 => Some(Permission::SysReportSettingsGet),
-            524 => Some(Permission::SysReportSettingsUpdate),
-            525 => Some(Permission::SysRoleGet),
-            526 => Some(Permission::SysRoleCreate),
-            527 => Some(Permission::SysRoleUpdate),
-            528 => Some(Permission::SysRoleDestroy),
-            529 => Some(Permission::SysRoleQuery),
-            530 => Some(Permission::SysSearchGet),
-            531 => Some(Permission::SysSearchUpdate),
-            532 => Some(Permission::SysSearchStoreGet),
-            533 => Some(Permission::SysSearchStoreUpdate),
-            534 => Some(Permission::SysSecurityGet),
-            535 => Some(Permission::SysSecurityUpdate),
-            536 => Some(Permission::SysSenderAuthGet),
-            537 => Some(Permission::SysSenderAuthUpdate),
-            538 => Some(Permission::SysSharingGet),
-            539 => Some(Permission::SysSharingUpdate),
-            540 => Some(Permission::SysSieveSystemInterpreterGet),
-            541 => Some(Permission::SysSieveSystemInterpreterUpdate),
-            542 => Some(Permission::SysSieveSystemScriptGet),
-            543 => Some(Permission::SysSieveSystemScriptCreate),
-            544 => Some(Permission::SysSieveSystemScriptUpdate),
-            545 => Some(Permission::SysSieveSystemScriptDestroy),
-            546 => Some(Permission::SysSieveSystemScriptQuery),
-            547 => Some(Permission::SysSieveUserInterpreterGet),
-            548 => Some(Permission::SysSieveUserInterpreterUpdate),
-            549 => Some(Permission::SysSieveUserScriptGet),
-            550 => Some(Permission::SysSieveUserScriptCreate),
-            551 => Some(Permission::SysSieveUserScriptUpdate),
-            552 => Some(Permission::SysSieveUserScriptDestroy),
-            553 => Some(Permission::SysSieveUserScriptQuery),
-            554 => Some(Permission::SysSpamClassifierGet),
-            555 => Some(Permission::SysSpamClassifierUpdate),
-            556 => Some(Permission::SysSpamDnsblServerGet),
-            557 => Some(Permission::SysSpamDnsblServerCreate),
-            558 => Some(Permission::SysSpamDnsblServerUpdate),
-            559 => Some(Permission::SysSpamDnsblServerDestroy),
-            560 => Some(Permission::SysSpamDnsblServerQuery),
-            561 => Some(Permission::SysSpamDnsblSettingsGet),
-            562 => Some(Permission::SysSpamDnsblSettingsUpdate),
-            563 => Some(Permission::SysSpamFileExtensionGet),
-            564 => Some(Permission::SysSpamFileExtensionCreate),
-            565 => Some(Permission::SysSpamFileExtensionUpdate),
-            566 => Some(Permission::SysSpamFileExtensionDestroy),
-            567 => Some(Permission::SysSpamFileExtensionQuery),
-            568 => Some(Permission::SysSpamLlmGet),
-            569 => Some(Permission::SysSpamLlmUpdate),
-            570 => Some(Permission::SysSpamPyzorGet),
-            571 => Some(Permission::SysSpamPyzorUpdate),
-            572 => Some(Permission::SysSpamRuleGet),
-            573 => Some(Permission::SysSpamRuleCreate),
-            574 => Some(Permission::SysSpamRuleUpdate),
-            575 => Some(Permission::SysSpamRuleDestroy),
-            576 => Some(Permission::SysSpamRuleQuery),
-            577 => Some(Permission::SysSpamSettingsGet),
-            578 => Some(Permission::SysSpamSettingsUpdate),
-            579 => Some(Permission::SysSpamTagGet),
-            580 => Some(Permission::SysSpamTagCreate),
-            581 => Some(Permission::SysSpamTagUpdate),
-            582 => Some(Permission::SysSpamTagDestroy),
-            583 => Some(Permission::SysSpamTagQuery),
-            584 => Some(Permission::SysSpamTrainingSampleGet),
-            585 => Some(Permission::SysSpamTrainingSampleCreate),
-            586 => Some(Permission::SysSpamTrainingSampleUpdate),
-            587 => Some(Permission::SysSpamTrainingSampleDestroy),
-            588 => Some(Permission::SysSpamTrainingSampleQuery),
-            589 => Some(Permission::SysSpfReportSettingsGet),
-            590 => Some(Permission::SysSpfReportSettingsUpdate),
-            591 => Some(Permission::SysStoreLookupGet),
-            592 => Some(Permission::SysStoreLookupCreate),
-            593 => Some(Permission::SysStoreLookupUpdate),
-            594 => Some(Permission::SysStoreLookupDestroy),
-            595 => Some(Permission::SysStoreLookupQuery),
-            596 => Some(Permission::SysSystemSettingsGet),
-            597 => Some(Permission::SysSystemSettingsUpdate),
-            598 => Some(Permission::TaskIndexDocument),
-            599 => Some(Permission::TaskUnindexDocument),
-            600 => Some(Permission::TaskIndexTrace),
-            601 => Some(Permission::TaskCalendarAlarmEmail),
-            602 => Some(Permission::TaskCalendarAlarmNotification),
-            603 => Some(Permission::TaskCalendarItipMessage),
-            604 => Some(Permission::TaskMergeThreads),
-            605 => Some(Permission::TaskDmarcReport),
-            606 => Some(Permission::TaskTlsReport),
-            607 => Some(Permission::TaskRestoreArchivedItem),
-            608 => Some(Permission::TaskDestroyAccount),
-            609 => Some(Permission::TaskAccountMaintenance),
-            610 => Some(Permission::TaskTenantMaintenance),
-            611 => Some(Permission::TaskStoreMaintenance),
-            612 => Some(Permission::TaskSpamFilterMaintenance),
-            613 => Some(Permission::TaskAcmeRenewal),
-            614 => Some(Permission::TaskDkimManagement),
-            615 => Some(Permission::TaskDnsManagement),
-            616 => Some(Permission::SysTaskGet),
-            617 => Some(Permission::SysTaskCreate),
-            618 => Some(Permission::SysTaskUpdate),
-            619 => Some(Permission::SysTaskDestroy),
-            620 => Some(Permission::SysTaskQuery),
-            621 => Some(Permission::SysTaskManagerGet),
-            622 => Some(Permission::SysTaskManagerUpdate),
-            623 => Some(Permission::SysTenantGet),
-            624 => Some(Permission::SysTenantCreate),
-            625 => Some(Permission::SysTenantUpdate),
-            626 => Some(Permission::SysTenantDestroy),
-            627 => Some(Permission::SysTenantQuery),
-            628 => Some(Permission::SysTlsExternalReportGet),
-            629 => Some(Permission::SysTlsExternalReportCreate),
-            630 => Some(Permission::SysTlsExternalReportUpdate),
-            631 => Some(Permission::SysTlsExternalReportDestroy),
-            632 => Some(Permission::SysTlsExternalReportQuery),
-            633 => Some(Permission::SysTlsInternalReportGet),
-            634 => Some(Permission::SysTlsInternalReportCreate),
-            635 => Some(Permission::SysTlsInternalReportUpdate),
-            636 => Some(Permission::SysTlsInternalReportDestroy),
-            637 => Some(Permission::SysTlsInternalReportQuery),
-            638 => Some(Permission::SysTlsReportSettingsGet),
-            639 => Some(Permission::SysTlsReportSettingsUpdate),
-            640 => Some(Permission::SysTraceGet),
-            641 => Some(Permission::SysTraceCreate),
-            642 => Some(Permission::SysTraceUpdate),
-            643 => Some(Permission::SysTraceDestroy),
-            644 => Some(Permission::SysTraceQuery),
-            645 => Some(Permission::SysTracerGet),
-            646 => Some(Permission::SysTracerCreate),
-            647 => Some(Permission::SysTracerUpdate),
-            648 => Some(Permission::SysTracerDestroy),
-            649 => Some(Permission::SysTracerQuery),
-            650 => Some(Permission::SysTracingStoreGet),
-            651 => Some(Permission::SysTracingStoreUpdate),
-            652 => Some(Permission::SysWebDavGet),
-            653 => Some(Permission::SysWebDavUpdate),
-            654 => Some(Permission::SysWebHookGet),
-            655 => Some(Permission::SysWebHookCreate),
-            656 => Some(Permission::SysWebHookUpdate),
-            657 => Some(Permission::SysWebHookDestroy),
-            658 => Some(Permission::SysWebHookQuery),
+            63 => Some(Permission::JmapQuotaGet),
+            64 => Some(Permission::JmapQuotaChanges),
+            65 => Some(Permission::JmapQuotaQuery),
+            66 => Some(Permission::JmapQuotaQueryChanges),
+            67 => Some(Permission::JmapBlobGet),
+            68 => Some(Permission::JmapBlobCopy),
+            69 => Some(Permission::JmapBlobLookup),
+            70 => Some(Permission::JmapBlobUpload),
+            71 => Some(Permission::JmapAddressBookGet),
+            72 => Some(Permission::JmapAddressBookChanges),
+            73 => Some(Permission::JmapAddressBookCreate),
+            74 => Some(Permission::JmapAddressBookUpdate),
+            75 => Some(Permission::JmapAddressBookDestroy),
+            76 => Some(Permission::JmapContactCardGet),
+            77 => Some(Permission::JmapContactCardChanges),
+            78 => Some(Permission::JmapContactCardQuery),
+            79 => Some(Permission::JmapContactCardQueryChanges),
+            80 => Some(Permission::JmapContactCardCreate),
+            81 => Some(Permission::JmapContactCardUpdate),
+            82 => Some(Permission::JmapContactCardDestroy),
+            83 => Some(Permission::JmapContactCardCopy),
+            84 => Some(Permission::JmapContactCardParse),
+            85 => Some(Permission::JmapFileNodeGet),
+            86 => Some(Permission::JmapFileNodeChanges),
+            87 => Some(Permission::JmapFileNodeQuery),
+            88 => Some(Permission::JmapFileNodeQueryChanges),
+            89 => Some(Permission::JmapFileNodeCreate),
+            90 => Some(Permission::JmapFileNodeUpdate),
+            91 => Some(Permission::JmapFileNodeDestroy),
+            92 => Some(Permission::JmapFileNodeCopy),
+            93 => Some(Permission::JmapShareNotificationGet),
+            94 => Some(Permission::JmapShareNotificationChanges),
+            95 => Some(Permission::JmapShareNotificationQuery),
+            96 => Some(Permission::JmapShareNotificationQueryChanges),
+            97 => Some(Permission::JmapShareNotificationCreate),
+            98 => Some(Permission::JmapShareNotificationUpdate),
+            99 => Some(Permission::JmapShareNotificationDestroy),
+            100 => Some(Permission::JmapCalendarGet),
+            101 => Some(Permission::JmapCalendarChanges),
+            102 => Some(Permission::JmapCalendarCreate),
+            103 => Some(Permission::JmapCalendarUpdate),
+            104 => Some(Permission::JmapCalendarDestroy),
+            105 => Some(Permission::JmapCalendarEventGet),
+            106 => Some(Permission::JmapCalendarEventChanges),
+            107 => Some(Permission::JmapCalendarEventQuery),
+            108 => Some(Permission::JmapCalendarEventQueryChanges),
+            109 => Some(Permission::JmapCalendarEventCreate),
+            110 => Some(Permission::JmapCalendarEventUpdate),
+            111 => Some(Permission::JmapCalendarEventDestroy),
+            112 => Some(Permission::JmapCalendarEventCopy),
+            113 => Some(Permission::JmapCalendarEventParse),
+            114 => Some(Permission::JmapCalendarEventNotificationGet),
+            115 => Some(Permission::JmapCalendarEventNotificationChanges),
+            116 => Some(Permission::JmapCalendarEventNotificationQuery),
+            117 => Some(Permission::JmapCalendarEventNotificationQueryChanges),
+            118 => Some(Permission::JmapCalendarEventNotificationCreate),
+            119 => Some(Permission::JmapCalendarEventNotificationUpdate),
+            120 => Some(Permission::JmapCalendarEventNotificationDestroy),
+            121 => Some(Permission::JmapParticipantIdentityGet),
+            122 => Some(Permission::JmapParticipantIdentityChanges),
+            123 => Some(Permission::JmapParticipantIdentityCreate),
+            124 => Some(Permission::JmapParticipantIdentityUpdate),
+            125 => Some(Permission::JmapParticipantIdentityDestroy),
+            126 => Some(Permission::JmapCoreEcho),
+            127 => Some(Permission::JmapMetadataGet),
+            128 => Some(Permission::JmapMetadataSet),
+            129 => Some(Permission::JmapMetadataPrivate),
+            130 => Some(Permission::ImapAuthenticate),
+            131 => Some(Permission::ImapAclGet),
+            132 => Some(Permission::ImapAclSet),
+            133 => Some(Permission::ImapMyRights),
+            134 => Some(Permission::ImapListRights),
+            135 => Some(Permission::ImapAppend),
+            136 => Some(Permission::ImapCapability),
+            137 => Some(Permission::ImapId),
+            138 => Some(Permission::ImapCopy),
+            139 => Some(Permission::ImapMove),
+            140 => Some(Permission::ImapCreate),
+            141 => Some(Permission::ImapDelete),
+            142 => Some(Permission::ImapEnable),
+            143 => Some(Permission::ImapExpunge),
+            144 => Some(Permission::ImapFetch),
+            145 => Some(Permission::ImapIdle),
+            146 => Some(Permission::ImapList),
+            147 => Some(Permission::ImapLsub),
+            148 => Some(Permission::ImapNamespace),
+            149 => Some(Permission::ImapRename),
+            150 => Some(Permission::ImapSearch),
+            151 => Some(Permission::ImapSort),
+            152 => Some(Permission::ImapSelect),
+            153 => Some(Permission::ImapExamine),
+            154 => Some(Permission::ImapStatus),
+            155 => Some(Permission::ImapStore),
+            156 => Some(Permission::ImapSubscribe),
+            157 => Some(Permission::ImapThread),
+            158 => Some(Permission::ImapMetadataGet),
+            159 => Some(Permission::ImapMetadataSet),
+            160 => Some(Permission::ImapMetadataPrivate),
+            161 => Some(Permission::Pop3Authenticate),
+            162 => Some(Permission::Pop3List),
+            163 => Some(Permission::Pop3Uidl),
+            164 => Some(Permission::Pop3Stat),
+            165 => Some(Permission::Pop3Retr),
+            166 => Some(Permission::Pop3Dele),
+            167 => Some(Permission::SieveAuthenticate),
+            168 => Some(Permission::SieveListScripts),
+            169 => Some(Permission::SieveSetActive),
+            170 => Some(Permission::SieveGetScript),
+            171 => Some(Permission::SievePutScript),
+            172 => Some(Permission::SieveDeleteScript),
+            173 => Some(Permission::SieveRenameScript),
+            174 => Some(Permission::SieveCheckScript),
+            175 => Some(Permission::SieveHaveSpace),
+            176 => Some(Permission::DavSyncCollection),
+            177 => Some(Permission::DavExpandProperty),
+            178 => Some(Permission::DavPrincipalAcl),
+            179 => Some(Permission::DavPrincipalList),
+            180 => Some(Permission::DavPrincipalMatch),
+            181 => Some(Permission::DavPrincipalSearch),
+            182 => Some(Permission::DavPrincipalSearchPropSet),
+            183 => Some(Permission::DavFilePropFind),
+            184 => Some(Permission::DavFilePropPatch),
+            185 => Some(Permission::DavFileGet),
+            186 => Some(Permission::DavFileMkCol),
+            187 => Some(Permission::DavFileDelete),
+            188 => Some(Permission::DavFilePut),
+            189 => Some(Permission::DavFileCopy),
+            190 => Some(Permission::DavFileMove),
+            191 => Some(Permission::DavFileLock),
+            192 => Some(Permission::DavFileAcl),
+            193 => Some(Permission::DavCardPropFind),
+            194 => Some(Permission::DavCardPropPatch),
+            195 => Some(Permission::DavCardGet),
+            196 => Some(Permission::DavCardMkCol),
+            197 => Some(Permission::DavCardDelete),
+            198 => Some(Permission::DavCardPut),
+            199 => Some(Permission::DavCardCopy),
+            200 => Some(Permission::DavCardMove),
+            201 => Some(Permission::DavCardLock),
+            202 => Some(Permission::DavCardAcl),
+            203 => Some(Permission::DavCardQuery),
+            204 => Some(Permission::DavCardMultiGet),
+            205 => Some(Permission::DavCalPropFind),
+            206 => Some(Permission::DavCalPropPatch),
+            207 => Some(Permission::DavCalGet),
+            208 => Some(Permission::DavCalMkCol),
+            209 => Some(Permission::DavCalDelete),
+            210 => Some(Permission::DavCalPut),
+            211 => Some(Permission::DavCalCopy),
+            212 => Some(Permission::DavCalMove),
+            213 => Some(Permission::DavCalLock),
+            214 => Some(Permission::DavCalAcl),
+            215 => Some(Permission::DavCalQuery),
+            216 => Some(Permission::DavCalMultiGet),
+            217 => Some(Permission::DavCalFreeBusyQuery),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            218 => Some(Permission::LiveTracing),
+            #[cfg(feature = "enterprise")]
+            219 => Some(Permission::LiveMetrics),
+            // SPDX-SnippetEnd
+            220 => Some(Permission::LiveDeliveryTest),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            221 => Some(Permission::ScimAccess),
+            // SPDX-SnippetEnd
+            222 => Some(Permission::SysAccountGet),
+            223 => Some(Permission::SysAccountCreate),
+            224 => Some(Permission::SysAccountUpdate),
+            225 => Some(Permission::SysAccountDestroy),
+            226 => Some(Permission::SysAccountQuery),
+            227 => Some(Permission::SysAccountPasswordGet),
+            228 => Some(Permission::SysAccountPasswordUpdate),
+            229 => Some(Permission::SysAccountSettingsGet),
+            230 => Some(Permission::SysAccountSettingsUpdate),
+            231 => Some(Permission::SysAcmeProviderGet),
+            232 => Some(Permission::SysAcmeProviderCreate),
+            233 => Some(Permission::SysAcmeProviderUpdate),
+            234 => Some(Permission::SysAcmeProviderDestroy),
+            235 => Some(Permission::SysAcmeProviderQuery),
+            236 => Some(Permission::ActionReloadSettings),
+            237 => Some(Permission::ActionReloadTlsCertificates),
+            238 => Some(Permission::ActionReloadLookupStores),
+            239 => Some(Permission::ActionReloadBlockedIps),
+            240 => Some(Permission::ActionUpdateApps),
+            241 => Some(Permission::ActionTroubleshootDmarc),
+            242 => Some(Permission::ActionClassifySpam),
+            243 => Some(Permission::ActionInvalidateCaches),
+            244 => Some(Permission::ActionInvalidateNegativeCaches),
+            245 => Some(Permission::ActionPauseMtaQueue),
+            246 => Some(Permission::ActionResumeMtaQueue),
+            247 => Some(Permission::SysActionCreate),
+            248 => Some(Permission::SysAddressBookGet),
+            249 => Some(Permission::SysAddressBookUpdate),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            250 => Some(Permission::SysAiModelGet),
+            #[cfg(feature = "enterprise")]
+            251 => Some(Permission::SysAiModelCreate),
+            #[cfg(feature = "enterprise")]
+            252 => Some(Permission::SysAiModelUpdate),
+            #[cfg(feature = "enterprise")]
+            253 => Some(Permission::SysAiModelDestroy),
+            #[cfg(feature = "enterprise")]
+            254 => Some(Permission::SysAiModelQuery),
+            #[cfg(feature = "enterprise")]
+            255 => Some(Permission::SysAlertGet),
+            #[cfg(feature = "enterprise")]
+            256 => Some(Permission::SysAlertCreate),
+            #[cfg(feature = "enterprise")]
+            257 => Some(Permission::SysAlertUpdate),
+            #[cfg(feature = "enterprise")]
+            258 => Some(Permission::SysAlertDestroy),
+            #[cfg(feature = "enterprise")]
+            259 => Some(Permission::SysAlertQuery),
+            // SPDX-SnippetEnd
+            260 => Some(Permission::SysAllowedIpGet),
+            261 => Some(Permission::SysAllowedIpCreate),
+            262 => Some(Permission::SysAllowedIpUpdate),
+            263 => Some(Permission::SysAllowedIpDestroy),
+            264 => Some(Permission::SysAllowedIpQuery),
+            265 => Some(Permission::SysApiKeyGet),
+            266 => Some(Permission::SysApiKeyCreate),
+            267 => Some(Permission::SysApiKeyUpdate),
+            268 => Some(Permission::SysApiKeyDestroy),
+            269 => Some(Permission::SysApiKeyQuery),
+            270 => Some(Permission::SysAppPasswordGet),
+            271 => Some(Permission::SysAppPasswordCreate),
+            272 => Some(Permission::SysAppPasswordUpdate),
+            273 => Some(Permission::SysAppPasswordDestroy),
+            274 => Some(Permission::SysAppPasswordQuery),
+            275 => Some(Permission::SysApplicationGet),
+            276 => Some(Permission::SysApplicationCreate),
+            277 => Some(Permission::SysApplicationUpdate),
+            278 => Some(Permission::SysApplicationDestroy),
+            279 => Some(Permission::SysApplicationQuery),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            280 => Some(Permission::SysArchivedItemGet),
+            #[cfg(feature = "enterprise")]
+            281 => Some(Permission::SysArchivedItemUpdate),
+            #[cfg(feature = "enterprise")]
+            282 => Some(Permission::SysArchivedItemDestroy),
+            #[cfg(feature = "enterprise")]
+            283 => Some(Permission::SysArchivedItemQuery),
+            // SPDX-SnippetEnd
+            284 => Some(Permission::SysArfExternalReportGet),
+            285 => Some(Permission::SysArfExternalReportDestroy),
+            286 => Some(Permission::SysArfExternalReportQuery),
+            287 => Some(Permission::SysAsnGet),
+            288 => Some(Permission::SysAsnUpdate),
+            289 => Some(Permission::SysAuthenticationGet),
+            290 => Some(Permission::SysAuthenticationUpdate),
+            291 => Some(Permission::SysBlobStoreGet),
+            292 => Some(Permission::SysBlobStoreUpdate),
+            293 => Some(Permission::SysBlockedIpGet),
+            294 => Some(Permission::SysBlockedIpCreate),
+            295 => Some(Permission::SysBlockedIpUpdate),
+            296 => Some(Permission::SysBlockedIpDestroy),
+            297 => Some(Permission::SysBlockedIpQuery),
+            298 => Some(Permission::SysBootstrapGet),
+            299 => Some(Permission::SysBootstrapUpdate),
+            300 => Some(Permission::SysCacheGet),
+            301 => Some(Permission::SysCacheUpdate),
+            302 => Some(Permission::SysCalendarGet),
+            303 => Some(Permission::SysCalendarUpdate),
+            304 => Some(Permission::SysCalendarAlarmGet),
+            305 => Some(Permission::SysCalendarAlarmUpdate),
+            306 => Some(Permission::SysCalendarSchedulingGet),
+            307 => Some(Permission::SysCalendarSchedulingUpdate),
+            308 => Some(Permission::SysCertificateGet),
+            309 => Some(Permission::SysCertificateCreate),
+            310 => Some(Permission::SysCertificateUpdate),
+            311 => Some(Permission::SysCertificateDestroy),
+            312 => Some(Permission::SysCertificateQuery),
+            313 => Some(Permission::SysClusterNodeGet),
+            314 => Some(Permission::SysClusterNodeQuery),
+            315 => Some(Permission::SysClusterRoleGet),
+            316 => Some(Permission::SysClusterRoleCreate),
+            317 => Some(Permission::SysClusterRoleUpdate),
+            318 => Some(Permission::SysClusterRoleDestroy),
+            319 => Some(Permission::SysClusterRoleQuery),
+            320 => Some(Permission::SysCoordinatorGet),
+            321 => Some(Permission::SysCoordinatorUpdate),
+            322 => Some(Permission::SysDataRetentionGet),
+            323 => Some(Permission::SysDataRetentionUpdate),
+            324 => Some(Permission::SysDataStoreGet),
+            325 => Some(Permission::SysDataStoreUpdate),
+            326 => Some(Permission::SysDirectoryGet),
+            327 => Some(Permission::SysDirectoryCreate),
+            328 => Some(Permission::SysDirectoryUpdate),
+            329 => Some(Permission::SysDirectoryDestroy),
+            330 => Some(Permission::SysDirectoryQuery),
+            331 => Some(Permission::SysDkimReportSettingsGet),
+            332 => Some(Permission::SysDkimReportSettingsUpdate),
+            333 => Some(Permission::SysDkimSignatureGet),
+            334 => Some(Permission::SysDkimSignatureCreate),
+            335 => Some(Permission::SysDkimSignatureUpdate),
+            336 => Some(Permission::SysDkimSignatureDestroy),
+            337 => Some(Permission::SysDkimSignatureQuery),
+            338 => Some(Permission::SysDmarcExternalReportGet),
+            339 => Some(Permission::SysDmarcExternalReportDestroy),
+            340 => Some(Permission::SysDmarcExternalReportQuery),
+            341 => Some(Permission::SysDmarcInternalReportGet),
+            342 => Some(Permission::SysDmarcInternalReportUpdate),
+            343 => Some(Permission::SysDmarcInternalReportDestroy),
+            344 => Some(Permission::SysDmarcInternalReportQuery),
+            345 => Some(Permission::SysDmarcReportSettingsGet),
+            346 => Some(Permission::SysDmarcReportSettingsUpdate),
+            347 => Some(Permission::SysDnsResolverGet),
+            348 => Some(Permission::SysDnsResolverUpdate),
+            349 => Some(Permission::SysDnsServerGet),
+            350 => Some(Permission::SysDnsServerCreate),
+            351 => Some(Permission::SysDnsServerUpdate),
+            352 => Some(Permission::SysDnsServerDestroy),
+            353 => Some(Permission::SysDnsServerQuery),
+            354 => Some(Permission::SysDomainGet),
+            355 => Some(Permission::SysDomainCreate),
+            356 => Some(Permission::SysDomainUpdate),
+            357 => Some(Permission::SysDomainDestroy),
+            358 => Some(Permission::SysDomainQuery),
+            359 => Some(Permission::SysDsnReportSettingsGet),
+            360 => Some(Permission::SysDsnReportSettingsUpdate),
+            361 => Some(Permission::SysEmailGet),
+            362 => Some(Permission::SysEmailUpdate),
+            643 => Some(Permission::SysEncryptionGet),
+            644 => Some(Permission::SysEncryptionUpdate),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            363 => Some(Permission::SysEnterpriseGet),
+            #[cfg(feature = "enterprise")]
+            364 => Some(Permission::SysEnterpriseUpdate),
+            // SPDX-SnippetEnd
+            365 => Some(Permission::SysEventTracingLevelGet),
+            366 => Some(Permission::SysEventTracingLevelCreate),
+            367 => Some(Permission::SysEventTracingLevelUpdate),
+            368 => Some(Permission::SysEventTracingLevelDestroy),
+            369 => Some(Permission::SysEventTracingLevelQuery),
+            645 => Some(Permission::SysExternalPublicKeyGet),
+            646 => Some(Permission::SysExternalPublicKeyCreate),
+            647 => Some(Permission::SysExternalPublicKeyUpdate),
+            648 => Some(Permission::SysExternalPublicKeyDestroy),
+            649 => Some(Permission::SysExternalPublicKeyQuery),
+            370 => Some(Permission::SysFileStorageGet),
+            371 => Some(Permission::SysFileStorageUpdate),
+            372 => Some(Permission::SysHttpGet),
+            373 => Some(Permission::SysHttpUpdate),
+            374 => Some(Permission::SysHttpFormGet),
+            375 => Some(Permission::SysHttpFormUpdate),
+            376 => Some(Permission::SysHttpLookupGet),
+            377 => Some(Permission::SysHttpLookupCreate),
+            378 => Some(Permission::SysHttpLookupUpdate),
+            379 => Some(Permission::SysHttpLookupDestroy),
+            380 => Some(Permission::SysHttpLookupQuery),
+            381 => Some(Permission::SysImapGet),
+            382 => Some(Permission::SysImapUpdate),
+            383 => Some(Permission::SysInMemoryStoreGet),
+            384 => Some(Permission::SysInMemoryStoreUpdate),
+            385 => Some(Permission::SysIndexQueueStatusGet),
+            386 => Some(Permission::SysIndexQueueStatusUpdate),
+            387 => Some(Permission::SysIndexQueueStatusQuery),
+            388 => Some(Permission::SysJmapGet),
+            389 => Some(Permission::SysJmapUpdate),
+            390 => Some(Permission::SysLogGet),
+            391 => Some(Permission::SysLogQuery),
+            392 => Some(Permission::SysMailingListGet),
+            393 => Some(Permission::SysMailingListCreate),
+            394 => Some(Permission::SysMailingListUpdate),
+            395 => Some(Permission::SysMailingListDestroy),
+            396 => Some(Permission::SysMailingListQuery),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            397 => Some(Permission::SysMaskedEmailGet),
+            #[cfg(feature = "enterprise")]
+            398 => Some(Permission::SysMaskedEmailCreate),
+            #[cfg(feature = "enterprise")]
+            399 => Some(Permission::SysMaskedEmailUpdate),
+            #[cfg(feature = "enterprise")]
+            400 => Some(Permission::SysMaskedEmailDestroy),
+            #[cfg(feature = "enterprise")]
+            401 => Some(Permission::SysMaskedEmailQuery),
+            // SPDX-SnippetEnd
+            402 => Some(Permission::SysMemoryLookupKeyGet),
+            403 => Some(Permission::SysMemoryLookupKeyCreate),
+            404 => Some(Permission::SysMemoryLookupKeyUpdate),
+            405 => Some(Permission::SysMemoryLookupKeyDestroy),
+            406 => Some(Permission::SysMemoryLookupKeyQuery),
+            407 => Some(Permission::SysMemoryLookupKeyValueGet),
+            408 => Some(Permission::SysMemoryLookupKeyValueCreate),
+            409 => Some(Permission::SysMemoryLookupKeyValueUpdate),
+            410 => Some(Permission::SysMemoryLookupKeyValueDestroy),
+            411 => Some(Permission::SysMemoryLookupKeyValueQuery),
+            412 => Some(Permission::SysMetadataGet),
+            413 => Some(Permission::SysMetadataUpdate),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            414 => Some(Permission::SysMetricGet),
+            #[cfg(feature = "enterprise")]
+            415 => Some(Permission::SysMetricQuery),
+            // SPDX-SnippetEnd
+            416 => Some(Permission::SysMetricsGet),
+            417 => Some(Permission::SysMetricsUpdate),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            418 => Some(Permission::SysMetricsStoreGet),
+            #[cfg(feature = "enterprise")]
+            419 => Some(Permission::SysMetricsStoreUpdate),
+            // SPDX-SnippetEnd
+            420 => Some(Permission::SysMtaConnectionStrategyGet),
+            421 => Some(Permission::SysMtaConnectionStrategyCreate),
+            422 => Some(Permission::SysMtaConnectionStrategyUpdate),
+            423 => Some(Permission::SysMtaConnectionStrategyDestroy),
+            424 => Some(Permission::SysMtaConnectionStrategyQuery),
+            425 => Some(Permission::SysMtaDeliveryScheduleGet),
+            426 => Some(Permission::SysMtaDeliveryScheduleCreate),
+            427 => Some(Permission::SysMtaDeliveryScheduleUpdate),
+            428 => Some(Permission::SysMtaDeliveryScheduleDestroy),
+            429 => Some(Permission::SysMtaDeliveryScheduleQuery),
+            430 => Some(Permission::SysMtaExtensionsGet),
+            431 => Some(Permission::SysMtaExtensionsUpdate),
+            432 => Some(Permission::SysMtaHookGet),
+            433 => Some(Permission::SysMtaHookCreate),
+            434 => Some(Permission::SysMtaHookUpdate),
+            435 => Some(Permission::SysMtaHookDestroy),
+            436 => Some(Permission::SysMtaHookQuery),
+            437 => Some(Permission::SysMtaInboundSessionGet),
+            438 => Some(Permission::SysMtaInboundSessionUpdate),
+            439 => Some(Permission::SysMtaInboundThrottleGet),
+            440 => Some(Permission::SysMtaInboundThrottleCreate),
+            441 => Some(Permission::SysMtaInboundThrottleUpdate),
+            442 => Some(Permission::SysMtaInboundThrottleDestroy),
+            443 => Some(Permission::SysMtaInboundThrottleQuery),
+            444 => Some(Permission::SysMtaMilterGet),
+            445 => Some(Permission::SysMtaMilterCreate),
+            446 => Some(Permission::SysMtaMilterUpdate),
+            447 => Some(Permission::SysMtaMilterDestroy),
+            448 => Some(Permission::SysMtaMilterQuery),
+            449 => Some(Permission::SysMtaOutboundStrategyGet),
+            450 => Some(Permission::SysMtaOutboundStrategyUpdate),
+            451 => Some(Permission::SysMtaOutboundThrottleGet),
+            452 => Some(Permission::SysMtaOutboundThrottleCreate),
+            453 => Some(Permission::SysMtaOutboundThrottleUpdate),
+            454 => Some(Permission::SysMtaOutboundThrottleDestroy),
+            455 => Some(Permission::SysMtaOutboundThrottleQuery),
+            456 => Some(Permission::SysMtaQueueQuotaGet),
+            457 => Some(Permission::SysMtaQueueQuotaCreate),
+            458 => Some(Permission::SysMtaQueueQuotaUpdate),
+            459 => Some(Permission::SysMtaQueueQuotaDestroy),
+            460 => Some(Permission::SysMtaQueueQuotaQuery),
+            461 => Some(Permission::SysMtaRouteGet),
+            462 => Some(Permission::SysMtaRouteCreate),
+            463 => Some(Permission::SysMtaRouteUpdate),
+            464 => Some(Permission::SysMtaRouteDestroy),
+            465 => Some(Permission::SysMtaRouteQuery),
+            466 => Some(Permission::SysMtaStageAuthGet),
+            467 => Some(Permission::SysMtaStageAuthUpdate),
+            468 => Some(Permission::SysMtaStageConnectGet),
+            469 => Some(Permission::SysMtaStageConnectUpdate),
+            470 => Some(Permission::SysMtaStageDataGet),
+            471 => Some(Permission::SysMtaStageDataUpdate),
+            472 => Some(Permission::SysMtaStageEhloGet),
+            473 => Some(Permission::SysMtaStageEhloUpdate),
+            474 => Some(Permission::SysMtaStageMailGet),
+            475 => Some(Permission::SysMtaStageMailUpdate),
+            476 => Some(Permission::SysMtaStageRcptGet),
+            477 => Some(Permission::SysMtaStageRcptUpdate),
+            478 => Some(Permission::SysMtaStsGet),
+            479 => Some(Permission::SysMtaStsUpdate),
+            480 => Some(Permission::SysMtaTlsStrategyGet),
+            481 => Some(Permission::SysMtaTlsStrategyCreate),
+            482 => Some(Permission::SysMtaTlsStrategyUpdate),
+            483 => Some(Permission::SysMtaTlsStrategyDestroy),
+            484 => Some(Permission::SysMtaTlsStrategyQuery),
+            485 => Some(Permission::SysMtaVirtualQueueGet),
+            486 => Some(Permission::SysMtaVirtualQueueCreate),
+            487 => Some(Permission::SysMtaVirtualQueueUpdate),
+            488 => Some(Permission::SysMtaVirtualQueueDestroy),
+            489 => Some(Permission::SysMtaVirtualQueueQuery),
+            490 => Some(Permission::SysNetworkListenerGet),
+            491 => Some(Permission::SysNetworkListenerCreate),
+            492 => Some(Permission::SysNetworkListenerUpdate),
+            493 => Some(Permission::SysNetworkListenerDestroy),
+            494 => Some(Permission::SysNetworkListenerQuery),
+            495 => Some(Permission::SysOAuthClientGet),
+            496 => Some(Permission::SysOAuthClientCreate),
+            497 => Some(Permission::SysOAuthClientUpdate),
+            498 => Some(Permission::SysOAuthClientDestroy),
+            499 => Some(Permission::SysOAuthClientQuery),
+            500 => Some(Permission::SysOAuthGrantGet),
+            501 => Some(Permission::SysOAuthGrantDestroy),
+            502 => Some(Permission::SysOAuthGrantQuery),
+            503 => Some(Permission::SysOidcProviderGet),
+            504 => Some(Permission::SysOidcProviderUpdate),
+            505 => Some(Permission::SysPublicKeyGet),
+            506 => Some(Permission::SysPublicKeyCreate),
+            507 => Some(Permission::SysPublicKeyUpdate),
+            508 => Some(Permission::SysPublicKeyDestroy),
+            509 => Some(Permission::SysPublicKeyQuery),
+            510 => Some(Permission::SysQueuedMessageGet),
+            511 => Some(Permission::SysQueuedMessageUpdate),
+            512 => Some(Permission::SysQueuedMessageDestroy),
+            513 => Some(Permission::SysQueuedMessageQuery),
+            514 => Some(Permission::SysReportSettingsGet),
+            515 => Some(Permission::SysReportSettingsUpdate),
+            516 => Some(Permission::SysRoleGet),
+            517 => Some(Permission::SysRoleCreate),
+            518 => Some(Permission::SysRoleUpdate),
+            519 => Some(Permission::SysRoleDestroy),
+            520 => Some(Permission::SysRoleQuery),
+            521 => Some(Permission::SysSearchGet),
+            522 => Some(Permission::SysSearchUpdate),
+            523 => Some(Permission::SysSearchStoreGet),
+            524 => Some(Permission::SysSearchStoreUpdate),
+            525 => Some(Permission::SysSecurityGet),
+            526 => Some(Permission::SysSecurityUpdate),
+            527 => Some(Permission::SysSenderAuthGet),
+            528 => Some(Permission::SysSenderAuthUpdate),
+            529 => Some(Permission::SysSharingGet),
+            530 => Some(Permission::SysSharingUpdate),
+            531 => Some(Permission::SysSieveSystemInterpreterGet),
+            532 => Some(Permission::SysSieveSystemInterpreterUpdate),
+            533 => Some(Permission::SysSieveSystemScriptGet),
+            534 => Some(Permission::SysSieveSystemScriptCreate),
+            535 => Some(Permission::SysSieveSystemScriptUpdate),
+            536 => Some(Permission::SysSieveSystemScriptDestroy),
+            537 => Some(Permission::SysSieveSystemScriptQuery),
+            538 => Some(Permission::SysSieveUserInterpreterGet),
+            539 => Some(Permission::SysSieveUserInterpreterUpdate),
+            540 => Some(Permission::SysSieveUserScriptGet),
+            541 => Some(Permission::SysSieveUserScriptCreate),
+            542 => Some(Permission::SysSieveUserScriptUpdate),
+            543 => Some(Permission::SysSieveUserScriptDestroy),
+            544 => Some(Permission::SysSieveUserScriptQuery),
+            650 => Some(Permission::SysSmimeTrustAnchorGet),
+            651 => Some(Permission::SysSmimeTrustAnchorCreate),
+            652 => Some(Permission::SysSmimeTrustAnchorUpdate),
+            653 => Some(Permission::SysSmimeTrustAnchorDestroy),
+            654 => Some(Permission::SysSmimeTrustAnchorQuery),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            545 => Some(Permission::SysSpamAiGet),
+            #[cfg(feature = "enterprise")]
+            546 => Some(Permission::SysSpamAiUpdate),
+            // SPDX-SnippetEnd
+            547 => Some(Permission::SysSpamClassifierGet),
+            548 => Some(Permission::SysSpamClassifierUpdate),
+            549 => Some(Permission::SysSpamDnsblServerGet),
+            550 => Some(Permission::SysSpamDnsblServerCreate),
+            551 => Some(Permission::SysSpamDnsblServerUpdate),
+            552 => Some(Permission::SysSpamDnsblServerDestroy),
+            553 => Some(Permission::SysSpamDnsblServerQuery),
+            554 => Some(Permission::SysSpamDnsblSettingsGet),
+            555 => Some(Permission::SysSpamDnsblSettingsUpdate),
+            556 => Some(Permission::SysSpamFileExtensionGet),
+            557 => Some(Permission::SysSpamFileExtensionCreate),
+            558 => Some(Permission::SysSpamFileExtensionUpdate),
+            559 => Some(Permission::SysSpamFileExtensionDestroy),
+            560 => Some(Permission::SysSpamFileExtensionQuery),
+            561 => Some(Permission::SysSpamPyzorGet),
+            562 => Some(Permission::SysSpamPyzorUpdate),
+            563 => Some(Permission::SysSpamRuleGet),
+            564 => Some(Permission::SysSpamRuleCreate),
+            565 => Some(Permission::SysSpamRuleUpdate),
+            566 => Some(Permission::SysSpamRuleDestroy),
+            567 => Some(Permission::SysSpamRuleQuery),
+            568 => Some(Permission::SysSpamSettingsGet),
+            569 => Some(Permission::SysSpamSettingsUpdate),
+            570 => Some(Permission::SysSpamTagGet),
+            571 => Some(Permission::SysSpamTagCreate),
+            572 => Some(Permission::SysSpamTagUpdate),
+            573 => Some(Permission::SysSpamTagDestroy),
+            574 => Some(Permission::SysSpamTagQuery),
+            575 => Some(Permission::SysSpamTrainingSampleGet),
+            576 => Some(Permission::SysSpamTrainingSampleCreate),
+            577 => Some(Permission::SysSpamTrainingSampleDestroy),
+            578 => Some(Permission::SysSpamTrainingSampleQuery),
+            579 => Some(Permission::SysSpfReportSettingsGet),
+            580 => Some(Permission::SysSpfReportSettingsUpdate),
+            581 => Some(Permission::SysStoreLookupGet),
+            582 => Some(Permission::SysStoreLookupCreate),
+            583 => Some(Permission::SysStoreLookupUpdate),
+            584 => Some(Permission::SysStoreLookupDestroy),
+            585 => Some(Permission::SysStoreLookupQuery),
+            656 => Some(Permission::SysSymmetricKeyGet),
+            657 => Some(Permission::SysSymmetricKeyCreate),
+            658 => Some(Permission::SysSymmetricKeyUpdate),
+            659 => Some(Permission::SysSymmetricKeyDestroy),
+            660 => Some(Permission::SysSymmetricKeyQuery),
+            586 => Some(Permission::SysSystemSettingsGet),
+            587 => Some(Permission::SysSystemSettingsUpdate),
+            588 => Some(Permission::TaskCalendarAlarmEmail),
+            589 => Some(Permission::TaskCalendarAlarmNotification),
+            590 => Some(Permission::TaskCalendarItipMessage),
+            591 => Some(Permission::TaskMergeThreads),
+            592 => Some(Permission::TaskDmarcReport),
+            593 => Some(Permission::TaskTlsReport),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            594 => Some(Permission::TaskRestoreArchivedItem),
+            // SPDX-SnippetEnd
+            595 => Some(Permission::TaskDestroyAccount),
+            596 => Some(Permission::TaskAccountMaintenance),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            597 => Some(Permission::TaskTenantMaintenance),
+            // SPDX-SnippetEnd
+            598 => Some(Permission::TaskStoreMaintenance),
+            599 => Some(Permission::TaskSpamFilterMaintenance),
+            600 => Some(Permission::TaskAcmeRenewal),
+            601 => Some(Permission::TaskDkimManagement),
+            602 => Some(Permission::TaskDnsManagement),
+            603 => Some(Permission::TaskShareRevokeCleanup),
+            604 => Some(Permission::TaskDmarcReportWindow),
+            605 => Some(Permission::TaskTlsReportWindow),
+            655 => Some(Permission::TaskExternalPublicKeyMaintenance),
+            661 => Some(Permission::TaskBlobRecode),
+            606 => Some(Permission::SysTaskGet),
+            607 => Some(Permission::SysTaskCreate),
+            608 => Some(Permission::SysTaskUpdate),
+            609 => Some(Permission::SysTaskDestroy),
+            610 => Some(Permission::SysTaskQuery),
+            611 => Some(Permission::SysTaskManagerGet),
+            612 => Some(Permission::SysTaskManagerUpdate),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            613 => Some(Permission::SysTenantGet),
+            #[cfg(feature = "enterprise")]
+            614 => Some(Permission::SysTenantCreate),
+            #[cfg(feature = "enterprise")]
+            615 => Some(Permission::SysTenantUpdate),
+            #[cfg(feature = "enterprise")]
+            616 => Some(Permission::SysTenantDestroy),
+            #[cfg(feature = "enterprise")]
+            617 => Some(Permission::SysTenantQuery),
+            // SPDX-SnippetEnd
+            618 => Some(Permission::SysTlsExternalReportGet),
+            619 => Some(Permission::SysTlsExternalReportDestroy),
+            620 => Some(Permission::SysTlsExternalReportQuery),
+            621 => Some(Permission::SysTlsInternalReportGet),
+            622 => Some(Permission::SysTlsInternalReportUpdate),
+            623 => Some(Permission::SysTlsInternalReportDestroy),
+            624 => Some(Permission::SysTlsInternalReportQuery),
+            625 => Some(Permission::SysTlsReportSettingsGet),
+            626 => Some(Permission::SysTlsReportSettingsUpdate),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            627 => Some(Permission::SysTraceGet),
+            #[cfg(feature = "enterprise")]
+            628 => Some(Permission::SysTraceQuery),
+            // SPDX-SnippetEnd
+            629 => Some(Permission::SysTracerGet),
+            630 => Some(Permission::SysTracerCreate),
+            631 => Some(Permission::SysTracerUpdate),
+            632 => Some(Permission::SysTracerDestroy),
+            633 => Some(Permission::SysTracerQuery),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            634 => Some(Permission::SysTracingStoreGet),
+            #[cfg(feature = "enterprise")]
+            635 => Some(Permission::SysTracingStoreUpdate),
+            // SPDX-SnippetEnd
+            636 => Some(Permission::SysWebDavGet),
+            637 => Some(Permission::SysWebDavUpdate),
+            638 => Some(Permission::SysWebHookGet),
+            639 => Some(Permission::SysWebHookCreate),
+            640 => Some(Permission::SysWebHookUpdate),
+            641 => Some(Permission::SysWebHookDestroy),
+            642 => Some(Permission::SysWebHookQuery),
             _ => None,
         }
     }
 
-    const COUNT: usize = 661;
+    const COUNT: usize = 662;
+}
+
+impl Permission {
+    pub const ALL: &[Permission] = &[
+        Permission::Authenticate,
+        Permission::AuthenticateWithAlias,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::InteractAi,
+        // SPDX-SnippetEnd
+        Permission::Impersonate,
+        Permission::UnlimitedRequests,
+        Permission::UnlimitedUploads,
+        Permission::FetchAnyBlob,
+        Permission::EmailSend,
+        Permission::EmailReceive,
+        Permission::CalendarAlarmsSend,
+        Permission::CalendarSchedulingSend,
+        Permission::CalendarSchedulingReceive,
+        Permission::JmapPushSubscriptionGet,
+        Permission::JmapPushSubscriptionCreate,
+        Permission::JmapPushSubscriptionUpdate,
+        Permission::JmapPushSubscriptionDestroy,
+        Permission::JmapMailboxGet,
+        Permission::JmapMailboxChanges,
+        Permission::JmapMailboxQuery,
+        Permission::JmapMailboxQueryChanges,
+        Permission::JmapMailboxCreate,
+        Permission::JmapMailboxUpdate,
+        Permission::JmapMailboxDestroy,
+        Permission::JmapThreadGet,
+        Permission::JmapThreadChanges,
+        Permission::JmapEmailGet,
+        Permission::JmapEmailChanges,
+        Permission::JmapEmailQuery,
+        Permission::JmapEmailQueryChanges,
+        Permission::JmapEmailCreate,
+        Permission::JmapEmailUpdate,
+        Permission::JmapEmailDestroy,
+        Permission::JmapEmailCopy,
+        Permission::JmapEmailImport,
+        Permission::JmapEmailParse,
+        Permission::JmapSearchSnippetGet,
+        Permission::JmapIdentityGet,
+        Permission::JmapIdentityChanges,
+        Permission::JmapIdentityCreate,
+        Permission::JmapIdentityUpdate,
+        Permission::JmapIdentityDestroy,
+        Permission::JmapEmailSubmissionGet,
+        Permission::JmapEmailSubmissionChanges,
+        Permission::JmapEmailSubmissionQuery,
+        Permission::JmapEmailSubmissionQueryChanges,
+        Permission::JmapEmailSubmissionCreate,
+        Permission::JmapEmailSubmissionUpdate,
+        Permission::JmapEmailSubmissionDestroy,
+        Permission::JmapVacationResponseGet,
+        Permission::JmapVacationResponseCreate,
+        Permission::JmapVacationResponseUpdate,
+        Permission::JmapVacationResponseDestroy,
+        Permission::JmapSieveScriptGet,
+        Permission::JmapSieveScriptQuery,
+        Permission::JmapSieveScriptValidate,
+        Permission::JmapSieveScriptCreate,
+        Permission::JmapSieveScriptUpdate,
+        Permission::JmapSieveScriptDestroy,
+        Permission::JmapPrincipalGet,
+        Permission::JmapPrincipalQuery,
+        Permission::JmapPrincipalChanges,
+        Permission::JmapPrincipalQueryChanges,
+        Permission::JmapPrincipalGetAvailability,
+        Permission::JmapQuotaGet,
+        Permission::JmapQuotaChanges,
+        Permission::JmapQuotaQuery,
+        Permission::JmapQuotaQueryChanges,
+        Permission::JmapBlobGet,
+        Permission::JmapBlobCopy,
+        Permission::JmapBlobLookup,
+        Permission::JmapBlobUpload,
+        Permission::JmapAddressBookGet,
+        Permission::JmapAddressBookChanges,
+        Permission::JmapAddressBookCreate,
+        Permission::JmapAddressBookUpdate,
+        Permission::JmapAddressBookDestroy,
+        Permission::JmapContactCardGet,
+        Permission::JmapContactCardChanges,
+        Permission::JmapContactCardQuery,
+        Permission::JmapContactCardQueryChanges,
+        Permission::JmapContactCardCreate,
+        Permission::JmapContactCardUpdate,
+        Permission::JmapContactCardDestroy,
+        Permission::JmapContactCardCopy,
+        Permission::JmapContactCardParse,
+        Permission::JmapFileNodeGet,
+        Permission::JmapFileNodeChanges,
+        Permission::JmapFileNodeQuery,
+        Permission::JmapFileNodeQueryChanges,
+        Permission::JmapFileNodeCreate,
+        Permission::JmapFileNodeUpdate,
+        Permission::JmapFileNodeDestroy,
+        Permission::JmapFileNodeCopy,
+        Permission::JmapShareNotificationGet,
+        Permission::JmapShareNotificationChanges,
+        Permission::JmapShareNotificationQuery,
+        Permission::JmapShareNotificationQueryChanges,
+        Permission::JmapShareNotificationCreate,
+        Permission::JmapShareNotificationUpdate,
+        Permission::JmapShareNotificationDestroy,
+        Permission::JmapCalendarGet,
+        Permission::JmapCalendarChanges,
+        Permission::JmapCalendarCreate,
+        Permission::JmapCalendarUpdate,
+        Permission::JmapCalendarDestroy,
+        Permission::JmapCalendarEventGet,
+        Permission::JmapCalendarEventChanges,
+        Permission::JmapCalendarEventQuery,
+        Permission::JmapCalendarEventQueryChanges,
+        Permission::JmapCalendarEventCreate,
+        Permission::JmapCalendarEventUpdate,
+        Permission::JmapCalendarEventDestroy,
+        Permission::JmapCalendarEventCopy,
+        Permission::JmapCalendarEventParse,
+        Permission::JmapCalendarEventNotificationGet,
+        Permission::JmapCalendarEventNotificationChanges,
+        Permission::JmapCalendarEventNotificationQuery,
+        Permission::JmapCalendarEventNotificationQueryChanges,
+        Permission::JmapCalendarEventNotificationCreate,
+        Permission::JmapCalendarEventNotificationUpdate,
+        Permission::JmapCalendarEventNotificationDestroy,
+        Permission::JmapParticipantIdentityGet,
+        Permission::JmapParticipantIdentityChanges,
+        Permission::JmapParticipantIdentityCreate,
+        Permission::JmapParticipantIdentityUpdate,
+        Permission::JmapParticipantIdentityDestroy,
+        Permission::JmapCoreEcho,
+        Permission::JmapMetadataGet,
+        Permission::JmapMetadataSet,
+        Permission::JmapMetadataPrivate,
+        Permission::ImapAuthenticate,
+        Permission::ImapAclGet,
+        Permission::ImapAclSet,
+        Permission::ImapMyRights,
+        Permission::ImapListRights,
+        Permission::ImapAppend,
+        Permission::ImapCapability,
+        Permission::ImapId,
+        Permission::ImapCopy,
+        Permission::ImapMove,
+        Permission::ImapCreate,
+        Permission::ImapDelete,
+        Permission::ImapEnable,
+        Permission::ImapExpunge,
+        Permission::ImapFetch,
+        Permission::ImapIdle,
+        Permission::ImapList,
+        Permission::ImapLsub,
+        Permission::ImapNamespace,
+        Permission::ImapRename,
+        Permission::ImapSearch,
+        Permission::ImapSort,
+        Permission::ImapSelect,
+        Permission::ImapExamine,
+        Permission::ImapStatus,
+        Permission::ImapStore,
+        Permission::ImapSubscribe,
+        Permission::ImapThread,
+        Permission::ImapMetadataGet,
+        Permission::ImapMetadataSet,
+        Permission::ImapMetadataPrivate,
+        Permission::Pop3Authenticate,
+        Permission::Pop3List,
+        Permission::Pop3Uidl,
+        Permission::Pop3Stat,
+        Permission::Pop3Retr,
+        Permission::Pop3Dele,
+        Permission::SieveAuthenticate,
+        Permission::SieveListScripts,
+        Permission::SieveSetActive,
+        Permission::SieveGetScript,
+        Permission::SievePutScript,
+        Permission::SieveDeleteScript,
+        Permission::SieveRenameScript,
+        Permission::SieveCheckScript,
+        Permission::SieveHaveSpace,
+        Permission::DavSyncCollection,
+        Permission::DavExpandProperty,
+        Permission::DavPrincipalAcl,
+        Permission::DavPrincipalList,
+        Permission::DavPrincipalMatch,
+        Permission::DavPrincipalSearch,
+        Permission::DavPrincipalSearchPropSet,
+        Permission::DavFilePropFind,
+        Permission::DavFilePropPatch,
+        Permission::DavFileGet,
+        Permission::DavFileMkCol,
+        Permission::DavFileDelete,
+        Permission::DavFilePut,
+        Permission::DavFileCopy,
+        Permission::DavFileMove,
+        Permission::DavFileLock,
+        Permission::DavFileAcl,
+        Permission::DavCardPropFind,
+        Permission::DavCardPropPatch,
+        Permission::DavCardGet,
+        Permission::DavCardMkCol,
+        Permission::DavCardDelete,
+        Permission::DavCardPut,
+        Permission::DavCardCopy,
+        Permission::DavCardMove,
+        Permission::DavCardLock,
+        Permission::DavCardAcl,
+        Permission::DavCardQuery,
+        Permission::DavCardMultiGet,
+        Permission::DavCalPropFind,
+        Permission::DavCalPropPatch,
+        Permission::DavCalGet,
+        Permission::DavCalMkCol,
+        Permission::DavCalDelete,
+        Permission::DavCalPut,
+        Permission::DavCalCopy,
+        Permission::DavCalMove,
+        Permission::DavCalLock,
+        Permission::DavCalAcl,
+        Permission::DavCalQuery,
+        Permission::DavCalMultiGet,
+        Permission::DavCalFreeBusyQuery,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::LiveTracing,
+        #[cfg(feature = "enterprise")]
+        Permission::LiveMetrics,
+        // SPDX-SnippetEnd
+        Permission::LiveDeliveryTest,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::ScimAccess,
+        // SPDX-SnippetEnd
+        Permission::SysAccountGet,
+        Permission::SysAccountCreate,
+        Permission::SysAccountUpdate,
+        Permission::SysAccountDestroy,
+        Permission::SysAccountQuery,
+        Permission::SysAccountPasswordGet,
+        Permission::SysAccountPasswordUpdate,
+        Permission::SysAccountSettingsGet,
+        Permission::SysAccountSettingsUpdate,
+        Permission::SysAcmeProviderGet,
+        Permission::SysAcmeProviderCreate,
+        Permission::SysAcmeProviderUpdate,
+        Permission::SysAcmeProviderDestroy,
+        Permission::SysAcmeProviderQuery,
+        Permission::ActionReloadSettings,
+        Permission::ActionReloadTlsCertificates,
+        Permission::ActionReloadLookupStores,
+        Permission::ActionReloadBlockedIps,
+        Permission::ActionUpdateApps,
+        Permission::ActionTroubleshootDmarc,
+        Permission::ActionClassifySpam,
+        Permission::ActionInvalidateCaches,
+        Permission::ActionInvalidateNegativeCaches,
+        Permission::ActionPauseMtaQueue,
+        Permission::ActionResumeMtaQueue,
+        Permission::SysActionCreate,
+        Permission::SysAddressBookGet,
+        Permission::SysAddressBookUpdate,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysAiModelGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysAiModelCreate,
+        #[cfg(feature = "enterprise")]
+        Permission::SysAiModelUpdate,
+        #[cfg(feature = "enterprise")]
+        Permission::SysAiModelDestroy,
+        #[cfg(feature = "enterprise")]
+        Permission::SysAiModelQuery,
+        #[cfg(feature = "enterprise")]
+        Permission::SysAlertGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysAlertCreate,
+        #[cfg(feature = "enterprise")]
+        Permission::SysAlertUpdate,
+        #[cfg(feature = "enterprise")]
+        Permission::SysAlertDestroy,
+        #[cfg(feature = "enterprise")]
+        Permission::SysAlertQuery,
+        // SPDX-SnippetEnd
+        Permission::SysAllowedIpGet,
+        Permission::SysAllowedIpCreate,
+        Permission::SysAllowedIpUpdate,
+        Permission::SysAllowedIpDestroy,
+        Permission::SysAllowedIpQuery,
+        Permission::SysApiKeyGet,
+        Permission::SysApiKeyCreate,
+        Permission::SysApiKeyUpdate,
+        Permission::SysApiKeyDestroy,
+        Permission::SysApiKeyQuery,
+        Permission::SysAppPasswordGet,
+        Permission::SysAppPasswordCreate,
+        Permission::SysAppPasswordUpdate,
+        Permission::SysAppPasswordDestroy,
+        Permission::SysAppPasswordQuery,
+        Permission::SysApplicationGet,
+        Permission::SysApplicationCreate,
+        Permission::SysApplicationUpdate,
+        Permission::SysApplicationDestroy,
+        Permission::SysApplicationQuery,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysArchivedItemGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysArchivedItemUpdate,
+        #[cfg(feature = "enterprise")]
+        Permission::SysArchivedItemDestroy,
+        #[cfg(feature = "enterprise")]
+        Permission::SysArchivedItemQuery,
+        // SPDX-SnippetEnd
+        Permission::SysArfExternalReportGet,
+        Permission::SysArfExternalReportDestroy,
+        Permission::SysArfExternalReportQuery,
+        Permission::SysAsnGet,
+        Permission::SysAsnUpdate,
+        Permission::SysAuthenticationGet,
+        Permission::SysAuthenticationUpdate,
+        Permission::SysBlobStoreGet,
+        Permission::SysBlobStoreUpdate,
+        Permission::SysBlockedIpGet,
+        Permission::SysBlockedIpCreate,
+        Permission::SysBlockedIpUpdate,
+        Permission::SysBlockedIpDestroy,
+        Permission::SysBlockedIpQuery,
+        Permission::SysBootstrapGet,
+        Permission::SysBootstrapUpdate,
+        Permission::SysCacheGet,
+        Permission::SysCacheUpdate,
+        Permission::SysCalendarGet,
+        Permission::SysCalendarUpdate,
+        Permission::SysCalendarAlarmGet,
+        Permission::SysCalendarAlarmUpdate,
+        Permission::SysCalendarSchedulingGet,
+        Permission::SysCalendarSchedulingUpdate,
+        Permission::SysCertificateGet,
+        Permission::SysCertificateCreate,
+        Permission::SysCertificateUpdate,
+        Permission::SysCertificateDestroy,
+        Permission::SysCertificateQuery,
+        Permission::SysClusterNodeGet,
+        Permission::SysClusterNodeQuery,
+        Permission::SysClusterRoleGet,
+        Permission::SysClusterRoleCreate,
+        Permission::SysClusterRoleUpdate,
+        Permission::SysClusterRoleDestroy,
+        Permission::SysClusterRoleQuery,
+        Permission::SysCoordinatorGet,
+        Permission::SysCoordinatorUpdate,
+        Permission::SysDataRetentionGet,
+        Permission::SysDataRetentionUpdate,
+        Permission::SysDataStoreGet,
+        Permission::SysDataStoreUpdate,
+        Permission::SysDirectoryGet,
+        Permission::SysDirectoryCreate,
+        Permission::SysDirectoryUpdate,
+        Permission::SysDirectoryDestroy,
+        Permission::SysDirectoryQuery,
+        Permission::SysDkimReportSettingsGet,
+        Permission::SysDkimReportSettingsUpdate,
+        Permission::SysDkimSignatureGet,
+        Permission::SysDkimSignatureCreate,
+        Permission::SysDkimSignatureUpdate,
+        Permission::SysDkimSignatureDestroy,
+        Permission::SysDkimSignatureQuery,
+        Permission::SysDmarcExternalReportGet,
+        Permission::SysDmarcExternalReportDestroy,
+        Permission::SysDmarcExternalReportQuery,
+        Permission::SysDmarcInternalReportGet,
+        Permission::SysDmarcInternalReportUpdate,
+        Permission::SysDmarcInternalReportDestroy,
+        Permission::SysDmarcInternalReportQuery,
+        Permission::SysDmarcReportSettingsGet,
+        Permission::SysDmarcReportSettingsUpdate,
+        Permission::SysDnsResolverGet,
+        Permission::SysDnsResolverUpdate,
+        Permission::SysDnsServerGet,
+        Permission::SysDnsServerCreate,
+        Permission::SysDnsServerUpdate,
+        Permission::SysDnsServerDestroy,
+        Permission::SysDnsServerQuery,
+        Permission::SysDomainGet,
+        Permission::SysDomainCreate,
+        Permission::SysDomainUpdate,
+        Permission::SysDomainDestroy,
+        Permission::SysDomainQuery,
+        Permission::SysDsnReportSettingsGet,
+        Permission::SysDsnReportSettingsUpdate,
+        Permission::SysEmailGet,
+        Permission::SysEmailUpdate,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysEnterpriseGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysEnterpriseUpdate,
+        // SPDX-SnippetEnd
+        Permission::SysEventTracingLevelGet,
+        Permission::SysEventTracingLevelCreate,
+        Permission::SysEventTracingLevelUpdate,
+        Permission::SysEventTracingLevelDestroy,
+        Permission::SysEventTracingLevelQuery,
+        Permission::SysFileStorageGet,
+        Permission::SysFileStorageUpdate,
+        Permission::SysHttpGet,
+        Permission::SysHttpUpdate,
+        Permission::SysHttpFormGet,
+        Permission::SysHttpFormUpdate,
+        Permission::SysHttpLookupGet,
+        Permission::SysHttpLookupCreate,
+        Permission::SysHttpLookupUpdate,
+        Permission::SysHttpLookupDestroy,
+        Permission::SysHttpLookupQuery,
+        Permission::SysImapGet,
+        Permission::SysImapUpdate,
+        Permission::SysInMemoryStoreGet,
+        Permission::SysInMemoryStoreUpdate,
+        Permission::SysIndexQueueStatusGet,
+        Permission::SysIndexQueueStatusUpdate,
+        Permission::SysIndexQueueStatusQuery,
+        Permission::SysJmapGet,
+        Permission::SysJmapUpdate,
+        Permission::SysLogGet,
+        Permission::SysLogQuery,
+        Permission::SysMailingListGet,
+        Permission::SysMailingListCreate,
+        Permission::SysMailingListUpdate,
+        Permission::SysMailingListDestroy,
+        Permission::SysMailingListQuery,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysMaskedEmailGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysMaskedEmailCreate,
+        #[cfg(feature = "enterprise")]
+        Permission::SysMaskedEmailUpdate,
+        #[cfg(feature = "enterprise")]
+        Permission::SysMaskedEmailDestroy,
+        #[cfg(feature = "enterprise")]
+        Permission::SysMaskedEmailQuery,
+        // SPDX-SnippetEnd
+        Permission::SysMemoryLookupKeyGet,
+        Permission::SysMemoryLookupKeyCreate,
+        Permission::SysMemoryLookupKeyUpdate,
+        Permission::SysMemoryLookupKeyDestroy,
+        Permission::SysMemoryLookupKeyQuery,
+        Permission::SysMemoryLookupKeyValueGet,
+        Permission::SysMemoryLookupKeyValueCreate,
+        Permission::SysMemoryLookupKeyValueUpdate,
+        Permission::SysMemoryLookupKeyValueDestroy,
+        Permission::SysMemoryLookupKeyValueQuery,
+        Permission::SysMetadataGet,
+        Permission::SysMetadataUpdate,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysMetricGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysMetricQuery,
+        // SPDX-SnippetEnd
+        Permission::SysMetricsGet,
+        Permission::SysMetricsUpdate,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysMetricsStoreGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysMetricsStoreUpdate,
+        // SPDX-SnippetEnd
+        Permission::SysMtaConnectionStrategyGet,
+        Permission::SysMtaConnectionStrategyCreate,
+        Permission::SysMtaConnectionStrategyUpdate,
+        Permission::SysMtaConnectionStrategyDestroy,
+        Permission::SysMtaConnectionStrategyQuery,
+        Permission::SysMtaDeliveryScheduleGet,
+        Permission::SysMtaDeliveryScheduleCreate,
+        Permission::SysMtaDeliveryScheduleUpdate,
+        Permission::SysMtaDeliveryScheduleDestroy,
+        Permission::SysMtaDeliveryScheduleQuery,
+        Permission::SysMtaExtensionsGet,
+        Permission::SysMtaExtensionsUpdate,
+        Permission::SysMtaHookGet,
+        Permission::SysMtaHookCreate,
+        Permission::SysMtaHookUpdate,
+        Permission::SysMtaHookDestroy,
+        Permission::SysMtaHookQuery,
+        Permission::SysMtaInboundSessionGet,
+        Permission::SysMtaInboundSessionUpdate,
+        Permission::SysMtaInboundThrottleGet,
+        Permission::SysMtaInboundThrottleCreate,
+        Permission::SysMtaInboundThrottleUpdate,
+        Permission::SysMtaInboundThrottleDestroy,
+        Permission::SysMtaInboundThrottleQuery,
+        Permission::SysMtaMilterGet,
+        Permission::SysMtaMilterCreate,
+        Permission::SysMtaMilterUpdate,
+        Permission::SysMtaMilterDestroy,
+        Permission::SysMtaMilterQuery,
+        Permission::SysMtaOutboundStrategyGet,
+        Permission::SysMtaOutboundStrategyUpdate,
+        Permission::SysMtaOutboundThrottleGet,
+        Permission::SysMtaOutboundThrottleCreate,
+        Permission::SysMtaOutboundThrottleUpdate,
+        Permission::SysMtaOutboundThrottleDestroy,
+        Permission::SysMtaOutboundThrottleQuery,
+        Permission::SysMtaQueueQuotaGet,
+        Permission::SysMtaQueueQuotaCreate,
+        Permission::SysMtaQueueQuotaUpdate,
+        Permission::SysMtaQueueQuotaDestroy,
+        Permission::SysMtaQueueQuotaQuery,
+        Permission::SysMtaRouteGet,
+        Permission::SysMtaRouteCreate,
+        Permission::SysMtaRouteUpdate,
+        Permission::SysMtaRouteDestroy,
+        Permission::SysMtaRouteQuery,
+        Permission::SysMtaStageAuthGet,
+        Permission::SysMtaStageAuthUpdate,
+        Permission::SysMtaStageConnectGet,
+        Permission::SysMtaStageConnectUpdate,
+        Permission::SysMtaStageDataGet,
+        Permission::SysMtaStageDataUpdate,
+        Permission::SysMtaStageEhloGet,
+        Permission::SysMtaStageEhloUpdate,
+        Permission::SysMtaStageMailGet,
+        Permission::SysMtaStageMailUpdate,
+        Permission::SysMtaStageRcptGet,
+        Permission::SysMtaStageRcptUpdate,
+        Permission::SysMtaStsGet,
+        Permission::SysMtaStsUpdate,
+        Permission::SysMtaTlsStrategyGet,
+        Permission::SysMtaTlsStrategyCreate,
+        Permission::SysMtaTlsStrategyUpdate,
+        Permission::SysMtaTlsStrategyDestroy,
+        Permission::SysMtaTlsStrategyQuery,
+        Permission::SysMtaVirtualQueueGet,
+        Permission::SysMtaVirtualQueueCreate,
+        Permission::SysMtaVirtualQueueUpdate,
+        Permission::SysMtaVirtualQueueDestroy,
+        Permission::SysMtaVirtualQueueQuery,
+        Permission::SysNetworkListenerGet,
+        Permission::SysNetworkListenerCreate,
+        Permission::SysNetworkListenerUpdate,
+        Permission::SysNetworkListenerDestroy,
+        Permission::SysNetworkListenerQuery,
+        Permission::SysOAuthClientGet,
+        Permission::SysOAuthClientCreate,
+        Permission::SysOAuthClientUpdate,
+        Permission::SysOAuthClientDestroy,
+        Permission::SysOAuthClientQuery,
+        Permission::SysOAuthGrantGet,
+        Permission::SysOAuthGrantDestroy,
+        Permission::SysOAuthGrantQuery,
+        Permission::SysOidcProviderGet,
+        Permission::SysOidcProviderUpdate,
+        Permission::SysPublicKeyGet,
+        Permission::SysPublicKeyCreate,
+        Permission::SysPublicKeyUpdate,
+        Permission::SysPublicKeyDestroy,
+        Permission::SysPublicKeyQuery,
+        Permission::SysQueuedMessageGet,
+        Permission::SysQueuedMessageUpdate,
+        Permission::SysQueuedMessageDestroy,
+        Permission::SysQueuedMessageQuery,
+        Permission::SysReportSettingsGet,
+        Permission::SysReportSettingsUpdate,
+        Permission::SysRoleGet,
+        Permission::SysRoleCreate,
+        Permission::SysRoleUpdate,
+        Permission::SysRoleDestroy,
+        Permission::SysRoleQuery,
+        Permission::SysSearchGet,
+        Permission::SysSearchUpdate,
+        Permission::SysSearchStoreGet,
+        Permission::SysSearchStoreUpdate,
+        Permission::SysSecurityGet,
+        Permission::SysSecurityUpdate,
+        Permission::SysSenderAuthGet,
+        Permission::SysSenderAuthUpdate,
+        Permission::SysSharingGet,
+        Permission::SysSharingUpdate,
+        Permission::SysSieveSystemInterpreterGet,
+        Permission::SysSieveSystemInterpreterUpdate,
+        Permission::SysSieveSystemScriptGet,
+        Permission::SysSieveSystemScriptCreate,
+        Permission::SysSieveSystemScriptUpdate,
+        Permission::SysSieveSystemScriptDestroy,
+        Permission::SysSieveSystemScriptQuery,
+        Permission::SysSieveUserInterpreterGet,
+        Permission::SysSieveUserInterpreterUpdate,
+        Permission::SysSieveUserScriptGet,
+        Permission::SysSieveUserScriptCreate,
+        Permission::SysSieveUserScriptUpdate,
+        Permission::SysSieveUserScriptDestroy,
+        Permission::SysSieveUserScriptQuery,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysSpamAiGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysSpamAiUpdate,
+        // SPDX-SnippetEnd
+        Permission::SysSpamClassifierGet,
+        Permission::SysSpamClassifierUpdate,
+        Permission::SysSpamDnsblServerGet,
+        Permission::SysSpamDnsblServerCreate,
+        Permission::SysSpamDnsblServerUpdate,
+        Permission::SysSpamDnsblServerDestroy,
+        Permission::SysSpamDnsblServerQuery,
+        Permission::SysSpamDnsblSettingsGet,
+        Permission::SysSpamDnsblSettingsUpdate,
+        Permission::SysSpamFileExtensionGet,
+        Permission::SysSpamFileExtensionCreate,
+        Permission::SysSpamFileExtensionUpdate,
+        Permission::SysSpamFileExtensionDestroy,
+        Permission::SysSpamFileExtensionQuery,
+        Permission::SysSpamPyzorGet,
+        Permission::SysSpamPyzorUpdate,
+        Permission::SysSpamRuleGet,
+        Permission::SysSpamRuleCreate,
+        Permission::SysSpamRuleUpdate,
+        Permission::SysSpamRuleDestroy,
+        Permission::SysSpamRuleQuery,
+        Permission::SysSpamSettingsGet,
+        Permission::SysSpamSettingsUpdate,
+        Permission::SysSpamTagGet,
+        Permission::SysSpamTagCreate,
+        Permission::SysSpamTagUpdate,
+        Permission::SysSpamTagDestroy,
+        Permission::SysSpamTagQuery,
+        Permission::SysSpamTrainingSampleGet,
+        Permission::SysSpamTrainingSampleCreate,
+        Permission::SysSpamTrainingSampleDestroy,
+        Permission::SysSpamTrainingSampleQuery,
+        Permission::SysSpfReportSettingsGet,
+        Permission::SysSpfReportSettingsUpdate,
+        Permission::SysStoreLookupGet,
+        Permission::SysStoreLookupCreate,
+        Permission::SysStoreLookupUpdate,
+        Permission::SysStoreLookupDestroy,
+        Permission::SysStoreLookupQuery,
+        Permission::SysSystemSettingsGet,
+        Permission::SysSystemSettingsUpdate,
+        Permission::TaskCalendarAlarmEmail,
+        Permission::TaskCalendarAlarmNotification,
+        Permission::TaskCalendarItipMessage,
+        Permission::TaskMergeThreads,
+        Permission::TaskDmarcReport,
+        Permission::TaskTlsReport,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::TaskRestoreArchivedItem,
+        // SPDX-SnippetEnd
+        Permission::TaskDestroyAccount,
+        Permission::TaskAccountMaintenance,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::TaskTenantMaintenance,
+        // SPDX-SnippetEnd
+        Permission::TaskStoreMaintenance,
+        Permission::TaskSpamFilterMaintenance,
+        Permission::TaskAcmeRenewal,
+        Permission::TaskDkimManagement,
+        Permission::TaskDnsManagement,
+        Permission::TaskShareRevokeCleanup,
+        Permission::TaskDmarcReportWindow,
+        Permission::TaskTlsReportWindow,
+        Permission::SysTaskGet,
+        Permission::SysTaskCreate,
+        Permission::SysTaskUpdate,
+        Permission::SysTaskDestroy,
+        Permission::SysTaskQuery,
+        Permission::SysTaskManagerGet,
+        Permission::SysTaskManagerUpdate,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysTenantGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysTenantCreate,
+        #[cfg(feature = "enterprise")]
+        Permission::SysTenantUpdate,
+        #[cfg(feature = "enterprise")]
+        Permission::SysTenantDestroy,
+        #[cfg(feature = "enterprise")]
+        Permission::SysTenantQuery,
+        // SPDX-SnippetEnd
+        Permission::SysTlsExternalReportGet,
+        Permission::SysTlsExternalReportDestroy,
+        Permission::SysTlsExternalReportQuery,
+        Permission::SysTlsInternalReportGet,
+        Permission::SysTlsInternalReportUpdate,
+        Permission::SysTlsInternalReportDestroy,
+        Permission::SysTlsInternalReportQuery,
+        Permission::SysTlsReportSettingsGet,
+        Permission::SysTlsReportSettingsUpdate,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysTraceGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysTraceQuery,
+        // SPDX-SnippetEnd
+        Permission::SysTracerGet,
+        Permission::SysTracerCreate,
+        Permission::SysTracerUpdate,
+        Permission::SysTracerDestroy,
+        Permission::SysTracerQuery,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        Permission::SysTracingStoreGet,
+        #[cfg(feature = "enterprise")]
+        Permission::SysTracingStoreUpdate,
+        // SPDX-SnippetEnd
+        Permission::SysWebDavGet,
+        Permission::SysWebDavUpdate,
+        Permission::SysWebHookGet,
+        Permission::SysWebHookCreate,
+        Permission::SysWebHookUpdate,
+        Permission::SysWebHookDestroy,
+        Permission::SysWebHookQuery,
+        Permission::SysEncryptionGet,
+        Permission::SysEncryptionUpdate,
+        Permission::SysExternalPublicKeyGet,
+        Permission::SysExternalPublicKeyCreate,
+        Permission::SysExternalPublicKeyUpdate,
+        Permission::SysExternalPublicKeyDestroy,
+        Permission::SysExternalPublicKeyQuery,
+        Permission::SysSmimeTrustAnchorGet,
+        Permission::SysSmimeTrustAnchorCreate,
+        Permission::SysSmimeTrustAnchorUpdate,
+        Permission::SysSmimeTrustAnchorDestroy,
+        Permission::SysSmimeTrustAnchorQuery,
+        Permission::TaskExternalPublicKeyMaintenance,
+        Permission::SysSymmetricKeyGet,
+        Permission::SysSymmetricKeyCreate,
+        Permission::SysSymmetricKeyUpdate,
+        Permission::SysSymmetricKeyDestroy,
+        Permission::SysSymmetricKeyQuery,
+        Permission::TaskBlobRecode,
+    ];
 }
 
 impl serde::Serialize for Permission {
@@ -8891,12 +12083,14 @@ impl<'de> serde::Deserialize<'de> for Permission {
 
 impl EnumImpl for PermissionsType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            PermissionsType,
             b"Inherit" => PermissionsType::Inherit,
             b"Merge" => PermissionsType::Merge,
             b"Replace" => PermissionsType::Replace,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -8944,12 +12138,14 @@ impl<'de> serde::Deserialize<'de> for PermissionsType {
 
 impl EnumImpl for PolicyEnforcement {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            PolicyEnforcement,
             b"enforce" => PolicyEnforcement::Enforce,
             b"testing" => PolicyEnforcement::Testing,
             b"disable" => PolicyEnforcement::Disable,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -8997,12 +12193,14 @@ impl<'de> serde::Deserialize<'de> for PolicyEnforcement {
 
 impl EnumImpl for PostgreSqlRecyclingMethod {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            PostgreSqlRecyclingMethod,
             b"fast" => PostgreSqlRecyclingMethod::Fast,
             b"verified" => PostgreSqlRecyclingMethod::Verified,
             b"clean" => PostgreSqlRecyclingMethod::Clean,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9050,8 +12248,9 @@ impl<'de> serde::Deserialize<'de> for PostgreSqlRecyclingMethod {
 
 impl EnumImpl for ProviderInfo {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ProviderInfo,
             b"providerName" => ProviderInfo::ProviderName,
             b"providerShortName" => ProviderInfo::ProviderShortName,
             b"userDocumentation" => ProviderInfo::UserDocumentation,
@@ -9061,6 +12260,7 @@ impl EnumImpl for ProviderInfo {
             b"logoWidth" => ProviderInfo::LogoWidth,
             b"logoHeight" => ProviderInfo::LogoHeight,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9116,15 +12316,185 @@ impl<'de> serde::Deserialize<'de> for ProviderInfo {
     }
 }
 
+impl EnumImpl for PublicKeyCapability {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            PublicKeyCapability,
+            b"aead" => PublicKeyCapability::Aead,
+            b"postQuantum" => PublicKeyCapability::PostQuantum,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            PublicKeyCapability::Aead => "aead",
+            PublicKeyCapability::PostQuantum => "postQuantum",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(PublicKeyCapability::Aead),
+            1 => Some(PublicKeyCapability::PostQuantum),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 2;
+}
+
+impl serde::Serialize for PublicKeyCapability {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for PublicKeyCapability {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for PublicKeyKind {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            PublicKeyKind,
+            b"openPgp" => PublicKeyKind::OpenPgp,
+            b"smime" => PublicKeyKind::Smime,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            PublicKeyKind::OpenPgp => "openPgp",
+            PublicKeyKind::Smime => "smime",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(PublicKeyKind::OpenPgp),
+            1 => Some(PublicKeyKind::Smime),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 2;
+}
+
+impl serde::Serialize for PublicKeyKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for PublicKeyKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for PublicKeyWarning {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            PublicKeyWarning,
+            b"weakRsa" => PublicKeyWarning::WeakRsa,
+            b"noKnownDecryptor" => PublicKeyWarning::NoKnownDecryptor,
+            b"postQuantumOnly" => PublicKeyWarning::PostQuantumOnly,
+            b"expiresSoon" => PublicKeyWarning::ExpiresSoon,
+            b"addressMismatch" => PublicKeyWarning::AddressMismatch,
+            b"unusable" => PublicKeyWarning::Unusable,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            PublicKeyWarning::WeakRsa => "weakRsa",
+            PublicKeyWarning::NoKnownDecryptor => "noKnownDecryptor",
+            PublicKeyWarning::PostQuantumOnly => "postQuantumOnly",
+            PublicKeyWarning::ExpiresSoon => "expiresSoon",
+            PublicKeyWarning::AddressMismatch => "addressMismatch",
+            PublicKeyWarning::Unusable => "unusable",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(PublicKeyWarning::WeakRsa),
+            1 => Some(PublicKeyWarning::NoKnownDecryptor),
+            2 => Some(PublicKeyWarning::PostQuantumOnly),
+            3 => Some(PublicKeyWarning::ExpiresSoon),
+            4 => Some(PublicKeyWarning::AddressMismatch),
+            5 => Some(PublicKeyWarning::Unusable),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 6;
+}
+
+impl serde::Serialize for PublicKeyWarning {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for PublicKeyWarning {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for PublicStringOptionalType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            PublicStringOptionalType,
             b"None" => PublicStringOptionalType::None,
             b"Value" => PublicStringOptionalType::Value,
             b"EnvironmentVariable" => PublicStringOptionalType::EnvironmentVariable,
             b"File" => PublicStringOptionalType::File,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9174,12 +12544,14 @@ impl<'de> serde::Deserialize<'de> for PublicStringOptionalType {
 
 impl EnumImpl for PublicTextType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            PublicTextType,
             b"Text" => PublicTextType::Text,
             b"EnvironmentVariable" => PublicTextType::EnvironmentVariable,
             b"File" => PublicTextType::File,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9227,11 +12599,13 @@ impl<'de> serde::Deserialize<'de> for PublicTextType {
 
 impl EnumImpl for QueueExpiryType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            QueueExpiryType,
             b"Ttl" => QueueExpiryType::Ttl,
             b"Attempts" => QueueExpiryType::Attempts,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9277,11 +12651,13 @@ impl<'de> serde::Deserialize<'de> for QueueExpiryType {
 
 impl EnumImpl for RecipientFlag {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            RecipientFlag,
             b"dsnSent" => RecipientFlag::DsnSent,
             b"spamPayload" => RecipientFlag::SpamPayload,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9327,13 +12703,15 @@ impl<'de> serde::Deserialize<'de> for RecipientFlag {
 
 impl EnumImpl for RecipientStatusType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            RecipientStatusType,
             b"Scheduled" => RecipientStatusType::Scheduled,
             b"Completed" => RecipientStatusType::Completed,
             b"TemporaryFailure" => RecipientStatusType::TemporaryFailure,
             b"PermanentFailure" => RecipientStatusType::PermanentFailure,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9383,11 +12761,13 @@ impl<'de> serde::Deserialize<'de> for RecipientStatusType {
 
 impl EnumImpl for RedisProtocol {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            RedisProtocol,
             b"resp2" => RedisProtocol::Resp2,
             b"resp3" => RedisProtocol::Resp3,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9431,13 +12811,73 @@ impl<'de> serde::Deserialize<'de> for RedisProtocol {
     }
 }
 
+impl EnumImpl for RedisSwapStoreType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            RedisSwapStoreType,
+            b"Default" => RedisSwapStoreType::Default,
+            b"Redis" => RedisSwapStoreType::Redis,
+            b"RedisCluster" => RedisSwapStoreType::RedisCluster,
+            b"RedisSentinel" => RedisSwapStoreType::RedisSentinel,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            RedisSwapStoreType::Default => "Default",
+            RedisSwapStoreType::Redis => "Redis",
+            RedisSwapStoreType::RedisCluster => "RedisCluster",
+            RedisSwapStoreType::RedisSentinel => "RedisSentinel",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(RedisSwapStoreType::Default),
+            1 => Some(RedisSwapStoreType::Redis),
+            2 => Some(RedisSwapStoreType::RedisCluster),
+            3 => Some(RedisSwapStoreType::RedisSentinel),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 4;
+}
+
+impl serde::Serialize for RedisSwapStoreType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for RedisSwapStoreType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for RolesType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            RolesType,
             b"Default" => RolesType::Default,
             b"Custom" => RolesType::Custom,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9483,8 +12923,9 @@ impl<'de> serde::Deserialize<'de> for RolesType {
 
 impl EnumImpl for S3StoreRegionType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            S3StoreRegionType,
             b"UsEast1" => S3StoreRegionType::UsEast1,
             b"UsEast2" => S3StoreRegionType::UsEast2,
             b"UsWest1" => S3StoreRegionType::UsWest1,
@@ -9529,6 +12970,7 @@ impl EnumImpl for S3StoreRegionType {
             b"WaApSoutheast2" => S3StoreRegionType::WaApSoutheast2,
             b"Custom" => S3StoreRegionType::Custom,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9656,16 +13098,16 @@ impl<'de> serde::Deserialize<'de> for S3StoreRegionType {
 
 impl EnumImpl for SearchCalendarField {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SearchCalendarField,
             b"title" => SearchCalendarField::Title,
             b"description" => SearchCalendarField::Description,
             b"location" => SearchCalendarField::Location,
             b"owner" => SearchCalendarField::Owner,
             b"attendee" => SearchCalendarField::Attendee,
-            b"start" => SearchCalendarField::Start,
-            b"uid" => SearchCalendarField::Uid,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9675,8 +13117,6 @@ impl EnumImpl for SearchCalendarField {
             SearchCalendarField::Location => "location",
             SearchCalendarField::Owner => "owner",
             SearchCalendarField::Attendee => "attendee",
-            SearchCalendarField::Start => "start",
-            SearchCalendarField::Uid => "uid",
         }
     }
 
@@ -9691,13 +13131,11 @@ impl EnumImpl for SearchCalendarField {
             2 => Some(SearchCalendarField::Location),
             3 => Some(SearchCalendarField::Owner),
             4 => Some(SearchCalendarField::Attendee),
-            5 => Some(SearchCalendarField::Start),
-            6 => Some(SearchCalendarField::Uid),
             _ => None,
         }
     }
 
-    const COUNT: usize = 7;
+    const COUNT: usize = 5;
 }
 
 impl serde::Serialize for SearchCalendarField {
@@ -9721,8 +13159,9 @@ impl<'de> serde::Deserialize<'de> for SearchCalendarField {
 
 impl EnumImpl for SearchContactField {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SearchContactField,
             b"member" => SearchContactField::Member,
             b"kind" => SearchContactField::Kind,
             b"name" => SearchContactField::Name,
@@ -9733,8 +13172,8 @@ impl EnumImpl for SearchContactField {
             b"onlineService" => SearchContactField::OnlineService,
             b"address" => SearchContactField::Address,
             b"note" => SearchContactField::Note,
-            b"uid" => SearchContactField::Uid,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9749,7 +13188,6 @@ impl EnumImpl for SearchContactField {
             SearchContactField::OnlineService => "onlineService",
             SearchContactField::Address => "address",
             SearchContactField::Note => "note",
-            SearchContactField::Uid => "uid",
         }
     }
 
@@ -9769,12 +13207,11 @@ impl EnumImpl for SearchContactField {
             7 => Some(SearchContactField::OnlineService),
             8 => Some(SearchContactField::Address),
             9 => Some(SearchContactField::Note),
-            10 => Some(SearchContactField::Uid),
             _ => None,
         }
     }
 
-    const COUNT: usize = 11;
+    const COUNT: usize = 10;
 }
 
 impl serde::Serialize for SearchContactField {
@@ -9798,8 +13235,9 @@ impl<'de> serde::Deserialize<'de> for SearchContactField {
 
 impl EnumImpl for SearchEmailField {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SearchEmailField,
             b"from" => SearchEmailField::From,
             b"to" => SearchEmailField::To,
             b"cc" => SearchEmailField::Cc,
@@ -9807,12 +13245,9 @@ impl EnumImpl for SearchEmailField {
             b"subject" => SearchEmailField::Subject,
             b"body" => SearchEmailField::Body,
             b"attachment" => SearchEmailField::Attachment,
-            b"receivedAt" => SearchEmailField::ReceivedAt,
-            b"sentAt" => SearchEmailField::SentAt,
-            b"size" => SearchEmailField::Size,
-            b"hasAttachment" => SearchEmailField::HasAttachment,
             b"headers" => SearchEmailField::Headers,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9824,10 +13259,6 @@ impl EnumImpl for SearchEmailField {
             SearchEmailField::Subject => "subject",
             SearchEmailField::Body => "body",
             SearchEmailField::Attachment => "attachment",
-            SearchEmailField::ReceivedAt => "receivedAt",
-            SearchEmailField::SentAt => "sentAt",
-            SearchEmailField::Size => "size",
-            SearchEmailField::HasAttachment => "hasAttachment",
             SearchEmailField::Headers => "headers",
         }
     }
@@ -9845,16 +13276,12 @@ impl EnumImpl for SearchEmailField {
             4 => Some(SearchEmailField::Subject),
             5 => Some(SearchEmailField::Body),
             6 => Some(SearchEmailField::Attachment),
-            7 => Some(SearchEmailField::ReceivedAt),
-            8 => Some(SearchEmailField::SentAt),
-            9 => Some(SearchEmailField::Size),
-            10 => Some(SearchEmailField::HasAttachment),
-            11 => Some(SearchEmailField::Headers),
+            7 => Some(SearchEmailField::Headers),
             _ => None,
         }
     }
 
-    const COUNT: usize = 12;
+    const COUNT: usize = 8;
 }
 
 impl serde::Serialize for SearchEmailField {
@@ -9878,11 +13305,13 @@ impl<'de> serde::Deserialize<'de> for SearchEmailField {
 
 impl EnumImpl for SearchFileField {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SearchFileField,
             b"name" => SearchFileField::Name,
             b"content" => SearchFileField::Content,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9928,8 +13357,9 @@ impl<'de> serde::Deserialize<'de> for SearchFileField {
 
 impl EnumImpl for SearchStoreType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SearchStoreType,
             b"Default" => SearchStoreType::Default,
             b"ElasticSearch" => SearchStoreType::ElasticSearch,
             b"Meilisearch" => SearchStoreType::Meilisearch,
@@ -9937,6 +13367,7 @@ impl EnumImpl for SearchStoreType {
             b"PostgreSql" => SearchStoreType::PostgreSql,
             b"MySql" => SearchStoreType::MySql,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -9988,68 +13419,17 @@ impl<'de> serde::Deserialize<'de> for SearchStoreType {
     }
 }
 
-impl EnumImpl for SearchTracingField {
-    fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
-            value.as_bytes(),
-            b"eventType" => SearchTracingField::EventType,
-            b"queueId" => SearchTracingField::QueueId,
-            b"keywords" => SearchTracingField::Keywords,
-        }
-    }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            SearchTracingField::EventType => "eventType",
-            SearchTracingField::QueueId => "queueId",
-            SearchTracingField::Keywords => "keywords",
-        }
-    }
-
-    fn to_id(&self) -> u16 {
-        *self as u16
-    }
-
-    fn from_id(id: u16) -> Option<Self> {
-        match id {
-            0 => Some(SearchTracingField::EventType),
-            1 => Some(SearchTracingField::QueueId),
-            2 => Some(SearchTracingField::Keywords),
-            _ => None,
-        }
-    }
-
-    const COUNT: usize = 3;
-}
-
-impl serde::Serialize for SearchTracingField {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for SearchTracingField {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = Cow::<str>::deserialize(deserializer)?;
-        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
-    }
-}
-
 impl EnumImpl for SecretKeyOptionalType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SecretKeyOptionalType,
             b"None" => SecretKeyOptionalType::None,
             b"Value" => SecretKeyOptionalType::Value,
             b"EnvironmentVariable" => SecretKeyOptionalType::EnvironmentVariable,
             b"File" => SecretKeyOptionalType::File,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10099,12 +13479,14 @@ impl<'de> serde::Deserialize<'de> for SecretKeyOptionalType {
 
 impl EnumImpl for SecretKeyType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SecretKeyType,
             b"Value" => SecretKeyType::Value,
             b"EnvironmentVariable" => SecretKeyType::EnvironmentVariable,
             b"File" => SecretKeyType::File,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10152,13 +13534,15 @@ impl<'de> serde::Deserialize<'de> for SecretKeyType {
 
 impl EnumImpl for SecretTextOptionalType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SecretTextOptionalType,
             b"None" => SecretTextOptionalType::None,
             b"Text" => SecretTextOptionalType::Text,
             b"EnvironmentVariable" => SecretTextOptionalType::EnvironmentVariable,
             b"File" => SecretTextOptionalType::File,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10208,12 +13592,14 @@ impl<'de> serde::Deserialize<'de> for SecretTextOptionalType {
 
 impl EnumImpl for SecretTextType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SecretTextType,
             b"Text" => SecretTextType::Text,
             b"EnvironmentVariable" => SecretTextType::EnvironmentVariable,
             b"File" => SecretTextType::File,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10261,8 +13647,9 @@ impl<'de> serde::Deserialize<'de> for SecretTextType {
 
 impl EnumImpl for ServiceProtocol {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            ServiceProtocol,
             b"jmap" => ServiceProtocol::Jmap,
             b"imap" => ServiceProtocol::Imap,
             b"pop3" => ServiceProtocol::Pop3,
@@ -10272,6 +13659,7 @@ impl EnumImpl for ServiceProtocol {
             b"webdav" => ServiceProtocol::Webdav,
             b"managesieve" => ServiceProtocol::Managesieve,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10327,10 +13715,69 @@ impl<'de> serde::Deserialize<'de> for ServiceProtocol {
     }
 }
 
+impl EnumImpl for SharedObjectType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            SharedObjectType,
+            b"mailbox" => SharedObjectType::Mailbox,
+            b"calendar" => SharedObjectType::Calendar,
+            b"addressBook" => SharedObjectType::AddressBook,
+            b"fileNode" => SharedObjectType::FileNode,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            SharedObjectType::Mailbox => "mailbox",
+            SharedObjectType::Calendar => "calendar",
+            SharedObjectType::AddressBook => "addressBook",
+            SharedObjectType::FileNode => "fileNode",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(SharedObjectType::Mailbox),
+            1 => Some(SharedObjectType::Calendar),
+            2 => Some(SharedObjectType::AddressBook),
+            3 => Some(SharedObjectType::FileNode),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 4;
+}
+
+impl serde::Serialize for SharedObjectType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for SharedObjectType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for SieveCapability {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SieveCapability,
             b"envelope" => SieveCapability::Envelope,
             b"envelope-dsn" => SieveCapability::EnvelopeDsn,
             b"envelope-deliverby" => SieveCapability::EnvelopeDeliverby,
@@ -10381,6 +13828,7 @@ impl EnumImpl for SieveCapability {
             b"vnd.stalwart.while" => SieveCapability::VndStalwartWhile,
             b"vnd.stalwart.expressions" => SieveCapability::VndStalwartExpressions,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10520,12 +13968,14 @@ impl<'de> serde::Deserialize<'de> for SieveCapability {
 
 impl EnumImpl for Sig0Algorithm {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            Sig0Algorithm,
             b"ecdsa-p256-sha256" => Sig0Algorithm::EcdsaP256Sha256,
             b"ecdsa-p384-sha384" => Sig0Algorithm::EcdsaP384Sha384,
             b"ed25519" => Sig0Algorithm::Ed25519,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10571,14 +14021,304 @@ impl<'de> serde::Deserialize<'de> for Sig0Algorithm {
     }
 }
 
+impl EnumImpl for SmimeCipher {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            SmimeCipher,
+            b"aes128Cbc" => SmimeCipher::Aes128Cbc,
+            b"aes192Cbc" => SmimeCipher::Aes192Cbc,
+            b"aes256Cbc" => SmimeCipher::Aes256Cbc,
+            b"aes128Gcm" => SmimeCipher::Aes128Gcm,
+            b"aes192Gcm" => SmimeCipher::Aes192Gcm,
+            b"aes256Gcm" => SmimeCipher::Aes256Gcm,
+            b"chaCha20Poly1305" => SmimeCipher::ChaCha20Poly1305,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            SmimeCipher::Aes128Cbc => "aes128Cbc",
+            SmimeCipher::Aes192Cbc => "aes192Cbc",
+            SmimeCipher::Aes256Cbc => "aes256Cbc",
+            SmimeCipher::Aes128Gcm => "aes128Gcm",
+            SmimeCipher::Aes192Gcm => "aes192Gcm",
+            SmimeCipher::Aes256Gcm => "aes256Gcm",
+            SmimeCipher::ChaCha20Poly1305 => "chaCha20Poly1305",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(SmimeCipher::Aes128Cbc),
+            1 => Some(SmimeCipher::Aes192Cbc),
+            2 => Some(SmimeCipher::Aes256Cbc),
+            3 => Some(SmimeCipher::Aes128Gcm),
+            4 => Some(SmimeCipher::Aes192Gcm),
+            5 => Some(SmimeCipher::Aes256Gcm),
+            6 => Some(SmimeCipher::ChaCha20Poly1305),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 7;
+}
+
+impl serde::Serialize for SmimeCipher {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for SmimeCipher {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
+impl EnumImpl for SpamAiLearnType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            SpamAiLearnType,
+            b"Disable" => SpamAiLearnType::Disable,
+            b"Enable" => SpamAiLearnType::Enable,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            SpamAiLearnType::Disable => "Disable",
+            SpamAiLearnType::Enable => "Enable",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(SpamAiLearnType::Disable),
+            1 => Some(SpamAiLearnType::Enable),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 2;
+}
+
+#[cfg(feature = "enterprise")]
+impl serde::Serialize for SpamAiLearnType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl<'de> serde::Deserialize<'de> for SpamAiLearnType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl EnumImpl for SpamAiMode {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            SpamAiMode,
+            b"Automatic" => SpamAiMode::Automatic,
+            b"Shadow" => SpamAiMode::Shadow,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            SpamAiMode::Automatic => "Automatic",
+            SpamAiMode::Shadow => "Shadow",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(SpamAiMode::Automatic),
+            1 => Some(SpamAiMode::Shadow),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 2;
+}
+
+#[cfg(feature = "enterprise")]
+impl serde::Serialize for SpamAiMode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl<'de> serde::Deserialize<'de> for SpamAiMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl EnumImpl for SpamAiType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            SpamAiType,
+            b"Disable" => SpamAiType::Disable,
+            b"Enable" => SpamAiType::Enable,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            SpamAiType::Disable => "Disable",
+            SpamAiType::Enable => "Enable",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(SpamAiType::Disable),
+            1 => Some(SpamAiType::Enable),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 2;
+}
+
+#[cfg(feature = "enterprise")]
+impl serde::Serialize for SpamAiType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl<'de> serde::Deserialize<'de> for SpamAiType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl EnumImpl for SpamAiWebSearchType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            SpamAiWebSearchType,
+            b"Disable" => SpamAiWebSearchType::Disable,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            SpamAiWebSearchType::Disable => "Disable",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(SpamAiWebSearchType::Disable),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 1;
+}
+
+#[cfg(feature = "enterprise")]
+impl serde::Serialize for SpamAiWebSearchType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[cfg(feature = "enterprise")]
+impl<'de> serde::Deserialize<'de> for SpamAiWebSearchType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+// SPDX-SnippetEnd
 impl EnumImpl for SpamClassifierModelType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpamClassifierModelType,
             b"FtrlFh" => SpamClassifierModelType::FtrlFh,
             b"FtrlCcfh" => SpamClassifierModelType::FtrlCcfh,
             b"Disabled" => SpamClassifierModelType::Disabled,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10626,13 +14366,15 @@ impl<'de> serde::Deserialize<'de> for SpamClassifierModelType {
 
 impl EnumImpl for SpamClassifyParameters {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpamClassifyParameters,
             b"bit7" => SpamClassifyParameters::Bit7,
             b"bit8Mime - 8-bit MIME message content" => SpamClassifyParameters::Bit8Mime8BitMIMEMessageContent,
             b"binaryMime" => SpamClassifyParameters::BinaryMime,
             b"smtpUtf8" => SpamClassifyParameters::SmtpUtf8,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10684,13 +14426,15 @@ impl<'de> serde::Deserialize<'de> for SpamClassifyParameters {
 
 impl EnumImpl for SpamClassifyResult {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpamClassifyResult,
             b"spam" => SpamClassifyResult::Spam,
             b"ham" => SpamClassifyResult::Ham,
             b"reject" => SpamClassifyResult::Reject,
             b"discard" => SpamClassifyResult::Discard,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10740,12 +14484,14 @@ impl<'de> serde::Deserialize<'de> for SpamClassifyResult {
 
 impl EnumImpl for SpamClassifyTagDisposition {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpamClassifyTagDisposition,
             b"score" => SpamClassifyTagDisposition::Score,
             b"reject" => SpamClassifyTagDisposition::Reject,
             b"discard" => SpamClassifyTagDisposition::Discard,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10793,8 +14539,9 @@ impl<'de> serde::Deserialize<'de> for SpamClassifyTagDisposition {
 
 impl EnumImpl for SpamDnsblServerType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpamDnsblServerType,
             b"Any" => SpamDnsblServerType::Any,
             b"Url" => SpamDnsblServerType::Url,
             b"Domain" => SpamDnsblServerType::Domain,
@@ -10803,6 +14550,7 @@ impl EnumImpl for SpamDnsblServerType {
             b"Header" => SpamDnsblServerType::Header,
             b"Body" => SpamDnsblServerType::Body,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10856,60 +14604,11 @@ impl<'de> serde::Deserialize<'de> for SpamDnsblServerType {
     }
 }
 
-impl EnumImpl for SpamLlmType {
-    fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
-            value.as_bytes(),
-            b"Disable" => SpamLlmType::Disable,
-            b"Enable" => SpamLlmType::Enable,
-        }
-    }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            SpamLlmType::Disable => "Disable",
-            SpamLlmType::Enable => "Enable",
-        }
-    }
-
-    fn to_id(&self) -> u16 {
-        *self as u16
-    }
-
-    fn from_id(id: u16) -> Option<Self> {
-        match id {
-            0 => Some(SpamLlmType::Disable),
-            1 => Some(SpamLlmType::Enable),
-            _ => None,
-        }
-    }
-
-    const COUNT: usize = 2;
-}
-
-impl serde::Serialize for SpamLlmType {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for SpamLlmType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = Cow::<str>::deserialize(deserializer)?;
-        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
-    }
-}
-
 impl EnumImpl for SpamRuleType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpamRuleType,
             b"Any" => SpamRuleType::Any,
             b"Url" => SpamRuleType::Url,
             b"Domain" => SpamRuleType::Domain,
@@ -10918,6 +14617,7 @@ impl EnumImpl for SpamRuleType {
             b"Header" => SpamRuleType::Header,
             b"Body" => SpamRuleType::Body,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -10973,12 +14673,14 @@ impl<'de> serde::Deserialize<'de> for SpamRuleType {
 
 impl EnumImpl for SpamTagType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpamTagType,
             b"Score" => SpamTagType::Score,
             b"Discard" => SpamTagType::Discard,
             b"Reject" => SpamTagType::Reject,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11026,8 +14728,9 @@ impl<'de> serde::Deserialize<'de> for SpamTagType {
 
 impl EnumImpl for SpecialUse {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpecialUse,
             b"inbox" => SpecialUse::Inbox,
             b"trash" => SpecialUse::Trash,
             b"junk" => SpecialUse::Junk,
@@ -11040,6 +14743,7 @@ impl EnumImpl for SpecialUse {
             b"scheduled" => SpecialUse::Scheduled,
             b"snoozed" => SpecialUse::Snoozed,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11103,8 +14807,9 @@ impl<'de> serde::Deserialize<'de> for SpecialUse {
 
 impl EnumImpl for SpfAuthResult {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpfAuthResult,
             b"none" => SpfAuthResult::None,
             b"neutral" => SpfAuthResult::Neutral,
             b"pass" => SpfAuthResult::Pass,
@@ -11113,6 +14818,7 @@ impl EnumImpl for SpfAuthResult {
             b"tempError" => SpfAuthResult::TempError,
             b"permError" => SpfAuthResult::PermError,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11168,12 +14874,14 @@ impl<'de> serde::Deserialize<'de> for SpfAuthResult {
 
 impl EnumImpl for SpfDomainScope {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SpfDomainScope,
             b"helo" => SpfDomainScope::Helo,
             b"mailFrom" => SpfDomainScope::MailFrom,
             b"unspecified" => SpfDomainScope::Unspecified,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11221,13 +14929,15 @@ impl<'de> serde::Deserialize<'de> for SpfDomainScope {
 
 impl EnumImpl for SqlAuthStoreType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SqlAuthStoreType,
             b"Default" => SqlAuthStoreType::Default,
             b"PostgreSql" => SqlAuthStoreType::PostgreSql,
             b"MySql" => SqlAuthStoreType::MySql,
             b"Sqlite" => SqlAuthStoreType::Sqlite,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11276,9 +14986,14 @@ impl<'de> serde::Deserialize<'de> for SqlAuthStoreType {
 }
 
 impl EnumImpl for StorageQuota {
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            StorageQuota,
             b"maxEmails" => StorageQuota::MaxEmails,
             b"maxMailboxes" => StorageQuota::MaxMailboxes,
             b"maxEmailSubmissions" => StorageQuota::MaxEmailSubmissions,
@@ -11299,6 +15014,35 @@ impl EnumImpl for StorageQuota {
             b"maxPublicKeys" => StorageQuota::MaxPublicKeys,
             b"maxDiskQuota" => StorageQuota::MaxDiskQuota,
         }
+        .copied()
+    }
+
+    // SPDX-SnippetEnd
+    #[cfg(not(feature = "enterprise"))]
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            StorageQuota,
+            b"maxEmails" => StorageQuota::MaxEmails,
+            b"maxMailboxes" => StorageQuota::MaxMailboxes,
+            b"maxEmailSubmissions" => StorageQuota::MaxEmailSubmissions,
+            b"maxEmailIdentities" => StorageQuota::MaxEmailIdentities,
+            b"maxParticipantIdentities" => StorageQuota::MaxParticipantIdentities,
+            b"maxSieveScripts" => StorageQuota::MaxSieveScripts,
+            b"maxPushSubscriptions" => StorageQuota::MaxPushSubscriptions,
+            b"maxCalendars" => StorageQuota::MaxCalendars,
+            b"maxCalendarEvents" => StorageQuota::MaxCalendarEvents,
+            b"maxCalendarEventNotifications" => StorageQuota::MaxCalendarEventNotifications,
+            b"maxAddressBooks" => StorageQuota::MaxAddressBooks,
+            b"maxContactCards" => StorageQuota::MaxContactCards,
+            b"maxFiles" => StorageQuota::MaxFiles,
+            b"maxFolders" => StorageQuota::MaxFolders,
+            b"maxAppPasswords" => StorageQuota::MaxAppPasswords,
+            b"maxApiKeys" => StorageQuota::MaxApiKeys,
+            b"maxPublicKeys" => StorageQuota::MaxPublicKeys,
+            b"maxDiskQuota" => StorageQuota::MaxDiskQuota,
+        }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11317,7 +15061,12 @@ impl EnumImpl for StorageQuota {
             StorageQuota::MaxContactCards => "maxContactCards",
             StorageQuota::MaxFiles => "maxFiles",
             StorageQuota::MaxFolders => "maxFolders",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             StorageQuota::MaxMaskedAddresses => "maxMaskedAddresses",
+            // SPDX-SnippetEnd
             StorageQuota::MaxAppPasswords => "maxAppPasswords",
             StorageQuota::MaxApiKeys => "maxApiKeys",
             StorageQuota::MaxPublicKeys => "maxPublicKeys",
@@ -11345,7 +15094,12 @@ impl EnumImpl for StorageQuota {
             11 => Some(StorageQuota::MaxContactCards),
             12 => Some(StorageQuota::MaxFiles),
             13 => Some(StorageQuota::MaxFolders),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             14 => Some(StorageQuota::MaxMaskedAddresses),
+            // SPDX-SnippetEnd
             15 => Some(StorageQuota::MaxAppPasswords),
             16 => Some(StorageQuota::MaxApiKeys),
             17 => Some(StorageQuota::MaxPublicKeys),
@@ -11378,12 +15132,14 @@ impl<'de> serde::Deserialize<'de> for StorageQuota {
 
 impl EnumImpl for SubAddressingType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            SubAddressingType,
             b"Enabled" => SubAddressingType::Enabled,
             b"Custom" => SubAddressingType::Custom,
             b"Disabled" => SubAddressingType::Disabled,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11429,15 +15185,70 @@ impl<'de> serde::Deserialize<'de> for SubAddressingType {
     }
 }
 
+impl EnumImpl for SymmetricCipher {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            SymmetricCipher,
+            b"aes256Gcm" => SymmetricCipher::Aes256Gcm,
+            b"chacha20Poly1305" => SymmetricCipher::Chacha20Poly1305,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            SymmetricCipher::Aes256Gcm => "aes256Gcm",
+            SymmetricCipher::Chacha20Poly1305 => "chacha20Poly1305",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(SymmetricCipher::Aes256Gcm),
+            1 => Some(SymmetricCipher::Chacha20Poly1305),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 2;
+}
+
+impl serde::Serialize for SymmetricCipher {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for SymmetricCipher {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for TaskAccountMaintenanceType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TaskAccountMaintenanceType,
             b"purge" => TaskAccountMaintenanceType::Purge,
             b"reindex" => TaskAccountMaintenanceType::Reindex,
             b"recalculateImapUid" => TaskAccountMaintenanceType::RecalculateImapUid,
             b"recalculateQuota" => TaskAccountMaintenanceType::RecalculateQuota,
+            b"rebuildShares" => TaskAccountMaintenanceType::RebuildShares,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11446,6 +15257,7 @@ impl EnumImpl for TaskAccountMaintenanceType {
             TaskAccountMaintenanceType::Reindex => "reindex",
             TaskAccountMaintenanceType::RecalculateImapUid => "recalculateImapUid",
             TaskAccountMaintenanceType::RecalculateQuota => "recalculateQuota",
+            TaskAccountMaintenanceType::RebuildShares => "rebuildShares",
         }
     }
 
@@ -11459,11 +15271,12 @@ impl EnumImpl for TaskAccountMaintenanceType {
             1 => Some(TaskAccountMaintenanceType::Reindex),
             2 => Some(TaskAccountMaintenanceType::RecalculateImapUid),
             3 => Some(TaskAccountMaintenanceType::RecalculateQuota),
+            4 => Some(TaskAccountMaintenanceType::RebuildShares),
             _ => None,
         }
     }
 
-    const COUNT: usize = 4;
+    const COUNT: usize = 5;
 }
 
 impl serde::Serialize for TaskAccountMaintenanceType {
@@ -11485,13 +15298,128 @@ impl<'de> serde::Deserialize<'de> for TaskAccountMaintenanceType {
     }
 }
 
+impl EnumImpl for TaskBlobRecodeCompression {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            TaskBlobRecodeCompression,
+            b"keep" => TaskBlobRecodeCompression::Keep,
+            b"disable" => TaskBlobRecodeCompression::Disable,
+            b"lz4" => TaskBlobRecodeCompression::Lz4,
+            b"zstd" => TaskBlobRecodeCompression::Zstd,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            TaskBlobRecodeCompression::Keep => "keep",
+            TaskBlobRecodeCompression::Disable => "disable",
+            TaskBlobRecodeCompression::Lz4 => "lz4",
+            TaskBlobRecodeCompression::Zstd => "zstd",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(TaskBlobRecodeCompression::Keep),
+            1 => Some(TaskBlobRecodeCompression::Disable),
+            2 => Some(TaskBlobRecodeCompression::Lz4),
+            3 => Some(TaskBlobRecodeCompression::Zstd),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 4;
+}
+
+impl serde::Serialize for TaskBlobRecodeCompression {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for TaskBlobRecodeCompression {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
+impl EnumImpl for TaskBlobRecodeEncryptionType {
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            TaskBlobRecodeEncryptionType,
+            b"Keep" => TaskBlobRecodeEncryptionType::Keep,
+            b"Disable" => TaskBlobRecodeEncryptionType::Disable,
+            b"Encrypt" => TaskBlobRecodeEncryptionType::Encrypt,
+        }
+        .copied()
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            TaskBlobRecodeEncryptionType::Keep => "Keep",
+            TaskBlobRecodeEncryptionType::Disable => "Disable",
+            TaskBlobRecodeEncryptionType::Encrypt => "Encrypt",
+        }
+    }
+
+    fn to_id(&self) -> u16 {
+        *self as u16
+    }
+
+    fn from_id(id: u16) -> Option<Self> {
+        match id {
+            0 => Some(TaskBlobRecodeEncryptionType::Keep),
+            1 => Some(TaskBlobRecodeEncryptionType::Disable),
+            2 => Some(TaskBlobRecodeEncryptionType::Encrypt),
+            _ => None,
+        }
+    }
+
+    const COUNT: usize = 3;
+}
+
+impl serde::Serialize for TaskBlobRecodeEncryptionType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for TaskBlobRecodeEncryptionType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Cow::<str>::deserialize(deserializer)?;
+        Self::parse(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &[]))
+    }
+}
+
 impl EnumImpl for TaskRetryStrategyType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TaskRetryStrategyType,
             b"ExponentialBackoff" => TaskRetryStrategyType::ExponentialBackoff,
             b"FixedDelay" => TaskRetryStrategyType::FixedDelay,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11537,14 +15465,16 @@ impl<'de> serde::Deserialize<'de> for TaskRetryStrategyType {
 
 impl EnumImpl for TaskSpamFilterMaintenanceType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TaskSpamFilterMaintenanceType,
             b"train" => TaskSpamFilterMaintenanceType::Train,
             b"retrain" => TaskSpamFilterMaintenanceType::Retrain,
             b"abort" => TaskSpamFilterMaintenanceType::Abort,
             b"reset" => TaskSpamFilterMaintenanceType::Reset,
             b"updateRules" => TaskSpamFilterMaintenanceType::UpdateRules,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11596,12 +15526,15 @@ impl<'de> serde::Deserialize<'de> for TaskSpamFilterMaintenanceType {
 
 impl EnumImpl for TaskStatusType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TaskStatusType,
             b"Pending" => TaskStatusType::Pending,
             b"Retry" => TaskStatusType::Retry,
             b"Failed" => TaskStatusType::Failed,
+            b"Stalled" => TaskStatusType::Stalled,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11609,6 +15542,7 @@ impl EnumImpl for TaskStatusType {
             TaskStatusType::Pending => "Pending",
             TaskStatusType::Retry => "Retry",
             TaskStatusType::Failed => "Failed",
+            TaskStatusType::Stalled => "Stalled",
         }
     }
 
@@ -11621,11 +15555,12 @@ impl EnumImpl for TaskStatusType {
             0 => Some(TaskStatusType::Pending),
             1 => Some(TaskStatusType::Retry),
             2 => Some(TaskStatusType::Failed),
+            3 => Some(TaskStatusType::Stalled),
             _ => None,
         }
     }
 
-    const COUNT: usize = 3;
+    const COUNT: usize = 4;
 }
 
 impl serde::Serialize for TaskStatusType {
@@ -11648,9 +15583,14 @@ impl<'de> serde::Deserialize<'de> for TaskStatusType {
 }
 
 impl EnumImpl for TaskStoreMaintenanceType {
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TaskStoreMaintenanceType,
             b"reindexAccounts" => TaskStoreMaintenanceType::ReindexAccounts,
             b"reindexTelemetry" => TaskStoreMaintenanceType::ReindexTelemetry,
             b"purgeAccounts" => TaskStoreMaintenanceType::PurgeAccounts,
@@ -11664,27 +15604,58 @@ impl EnumImpl for TaskStoreMaintenanceType {
             b"removeLockQueueMessage" => TaskStoreMaintenanceType::RemoveLockQueueMessage,
             b"removeLockTask" => TaskStoreMaintenanceType::RemoveLockTask,
             b"removeLockDav" => TaskStoreMaintenanceType::RemoveLockDav,
-            b"removeSieveId" => TaskStoreMaintenanceType::RemoveSieveId,
             b"removeGreylist" => TaskStoreMaintenanceType::RemoveGreylist,
         }
+        .copied()
+    }
+
+    // SPDX-SnippetEnd
+    #[cfg(not(feature = "enterprise"))]
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            TaskStoreMaintenanceType,
+            b"reindexAccounts" => TaskStoreMaintenanceType::ReindexAccounts,
+            b"purgeAccounts" => TaskStoreMaintenanceType::PurgeAccounts,
+            b"purgeData" => TaskStoreMaintenanceType::PurgeData,
+            b"purgeBlob" => TaskStoreMaintenanceType::PurgeBlob,
+            b"resetRateLimiters" => TaskStoreMaintenanceType::ResetRateLimiters,
+            b"resetUserQuotas" => TaskStoreMaintenanceType::ResetUserQuotas,
+            b"resetBlobQuotas" => TaskStoreMaintenanceType::ResetBlobQuotas,
+            b"removeAuthTokens" => TaskStoreMaintenanceType::RemoveAuthTokens,
+            b"removeLockQueueMessage" => TaskStoreMaintenanceType::RemoveLockQueueMessage,
+            b"removeLockTask" => TaskStoreMaintenanceType::RemoveLockTask,
+            b"removeLockDav" => TaskStoreMaintenanceType::RemoveLockDav,
+            b"removeGreylist" => TaskStoreMaintenanceType::RemoveGreylist,
+        }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
         match self {
             TaskStoreMaintenanceType::ReindexAccounts => "reindexAccounts",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             TaskStoreMaintenanceType::ReindexTelemetry => "reindexTelemetry",
+            // SPDX-SnippetEnd
             TaskStoreMaintenanceType::PurgeAccounts => "purgeAccounts",
             TaskStoreMaintenanceType::PurgeData => "purgeData",
             TaskStoreMaintenanceType::PurgeBlob => "purgeBlob",
             TaskStoreMaintenanceType::ResetRateLimiters => "resetRateLimiters",
             TaskStoreMaintenanceType::ResetUserQuotas => "resetUserQuotas",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             TaskStoreMaintenanceType::ResetTenantQuotas => "resetTenantQuotas",
+            // SPDX-SnippetEnd
             TaskStoreMaintenanceType::ResetBlobQuotas => "resetBlobQuotas",
             TaskStoreMaintenanceType::RemoveAuthTokens => "removeAuthTokens",
             TaskStoreMaintenanceType::RemoveLockQueueMessage => "removeLockQueueMessage",
             TaskStoreMaintenanceType::RemoveLockTask => "removeLockTask",
             TaskStoreMaintenanceType::RemoveLockDav => "removeLockDav",
-            TaskStoreMaintenanceType::RemoveSieveId => "removeSieveId",
             TaskStoreMaintenanceType::RemoveGreylist => "removeGreylist",
         }
     }
@@ -11696,25 +15667,34 @@ impl EnumImpl for TaskStoreMaintenanceType {
     fn from_id(id: u16) -> Option<Self> {
         match id {
             0 => Some(TaskStoreMaintenanceType::ReindexAccounts),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             1 => Some(TaskStoreMaintenanceType::ReindexTelemetry),
+            // SPDX-SnippetEnd
             2 => Some(TaskStoreMaintenanceType::PurgeAccounts),
             3 => Some(TaskStoreMaintenanceType::PurgeData),
             4 => Some(TaskStoreMaintenanceType::PurgeBlob),
             5 => Some(TaskStoreMaintenanceType::ResetRateLimiters),
             6 => Some(TaskStoreMaintenanceType::ResetUserQuotas),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             7 => Some(TaskStoreMaintenanceType::ResetTenantQuotas),
+            // SPDX-SnippetEnd
             8 => Some(TaskStoreMaintenanceType::ResetBlobQuotas),
             9 => Some(TaskStoreMaintenanceType::RemoveAuthTokens),
             10 => Some(TaskStoreMaintenanceType::RemoveLockQueueMessage),
             11 => Some(TaskStoreMaintenanceType::RemoveLockTask),
             12 => Some(TaskStoreMaintenanceType::RemoveLockDav),
-            13 => Some(TaskStoreMaintenanceType::RemoveSieveId),
-            14 => Some(TaskStoreMaintenanceType::RemoveGreylist),
+            13 => Some(TaskStoreMaintenanceType::RemoveGreylist),
             _ => None,
         }
     }
 
-    const COUNT: usize = 15;
+    const COUNT: usize = 14;
 }
 
 impl serde::Serialize for TaskStoreMaintenanceType {
@@ -11736,12 +15716,18 @@ impl<'de> serde::Deserialize<'de> for TaskStoreMaintenanceType {
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 impl EnumImpl for TaskTenantMaintenanceType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TaskTenantMaintenanceType,
             b"recalculateQuota" => TaskTenantMaintenanceType::RecalculateQuota,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11764,6 +15750,7 @@ impl EnumImpl for TaskTenantMaintenanceType {
     const COUNT: usize = 1;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for TaskTenantMaintenanceType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -11773,6 +15760,7 @@ impl serde::Serialize for TaskTenantMaintenanceType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for TaskTenantMaintenanceType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -11783,13 +15771,16 @@ impl<'de> serde::Deserialize<'de> for TaskTenantMaintenanceType {
     }
 }
 
+// SPDX-SnippetEnd
 impl EnumImpl for TaskType {
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
-            b"IndexDocument" => TaskType::IndexDocument,
-            b"UnindexDocument" => TaskType::UnindexDocument,
-            b"IndexTrace" => TaskType::IndexTrace,
+            TaskType,
             b"CalendarAlarmEmail" => TaskType::CalendarAlarmEmail,
             b"CalendarAlarmNotification" => TaskType::CalendarAlarmNotification,
             b"CalendarItipMessage" => TaskType::CalendarItipMessage,
@@ -11805,29 +15796,75 @@ impl EnumImpl for TaskType {
             b"AcmeRenewal" => TaskType::AcmeRenewal,
             b"DkimManagement" => TaskType::DkimManagement,
             b"DnsManagement" => TaskType::DnsManagement,
+            b"ShareRevokeCleanup" => TaskType::ShareRevokeCleanup,
+            b"DmarcReportWindow" => TaskType::DmarcReportWindow,
+            b"TlsReportWindow" => TaskType::TlsReportWindow,
+            b"ExternalPublicKeyMaintenance" => TaskType::ExternalPublicKeyMaintenance,
+            b"BlobRecode" => TaskType::BlobRecode,
         }
+        .copied()
+    }
+
+    // SPDX-SnippetEnd
+    #[cfg(not(feature = "enterprise"))]
+    fn parse(value: &str) -> Option<Self> {
+        hashify::map! {
+            value.as_bytes(),
+            TaskType,
+            b"CalendarAlarmEmail" => TaskType::CalendarAlarmEmail,
+            b"CalendarAlarmNotification" => TaskType::CalendarAlarmNotification,
+            b"CalendarItipMessage" => TaskType::CalendarItipMessage,
+            b"MergeThreads" => TaskType::MergeThreads,
+            b"DmarcReport" => TaskType::DmarcReport,
+            b"TlsReport" => TaskType::TlsReport,
+            b"DestroyAccount" => TaskType::DestroyAccount,
+            b"AccountMaintenance" => TaskType::AccountMaintenance,
+            b"StoreMaintenance" => TaskType::StoreMaintenance,
+            b"SpamFilterMaintenance" => TaskType::SpamFilterMaintenance,
+            b"AcmeRenewal" => TaskType::AcmeRenewal,
+            b"DkimManagement" => TaskType::DkimManagement,
+            b"DnsManagement" => TaskType::DnsManagement,
+            b"ShareRevokeCleanup" => TaskType::ShareRevokeCleanup,
+            b"DmarcReportWindow" => TaskType::DmarcReportWindow,
+            b"TlsReportWindow" => TaskType::TlsReportWindow,
+            b"ExternalPublicKeyMaintenance" => TaskType::ExternalPublicKeyMaintenance,
+            b"BlobRecode" => TaskType::BlobRecode,
+        }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
         match self {
-            TaskType::IndexDocument => "IndexDocument",
-            TaskType::UnindexDocument => "UnindexDocument",
-            TaskType::IndexTrace => "IndexTrace",
             TaskType::CalendarAlarmEmail => "CalendarAlarmEmail",
             TaskType::CalendarAlarmNotification => "CalendarAlarmNotification",
             TaskType::CalendarItipMessage => "CalendarItipMessage",
             TaskType::MergeThreads => "MergeThreads",
             TaskType::DmarcReport => "DmarcReport",
             TaskType::TlsReport => "TlsReport",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             TaskType::RestoreArchivedItem => "RestoreArchivedItem",
+            // SPDX-SnippetEnd
             TaskType::DestroyAccount => "DestroyAccount",
             TaskType::AccountMaintenance => "AccountMaintenance",
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
             TaskType::TenantMaintenance => "TenantMaintenance",
+            // SPDX-SnippetEnd
             TaskType::StoreMaintenance => "StoreMaintenance",
             TaskType::SpamFilterMaintenance => "SpamFilterMaintenance",
             TaskType::AcmeRenewal => "AcmeRenewal",
             TaskType::DkimManagement => "DkimManagement",
             TaskType::DnsManagement => "DnsManagement",
+            TaskType::ShareRevokeCleanup => "ShareRevokeCleanup",
+            TaskType::DmarcReportWindow => "DmarcReportWindow",
+            TaskType::TlsReportWindow => "TlsReportWindow",
+            TaskType::ExternalPublicKeyMaintenance => "ExternalPublicKeyMaintenance",
+            TaskType::BlobRecode => "BlobRecode",
         }
     }
 
@@ -11837,29 +15874,76 @@ impl EnumImpl for TaskType {
 
     fn from_id(id: u16) -> Option<Self> {
         match id {
-            0 => Some(TaskType::IndexDocument),
-            1 => Some(TaskType::UnindexDocument),
-            2 => Some(TaskType::IndexTrace),
-            3 => Some(TaskType::CalendarAlarmEmail),
-            4 => Some(TaskType::CalendarAlarmNotification),
-            5 => Some(TaskType::CalendarItipMessage),
-            6 => Some(TaskType::MergeThreads),
-            7 => Some(TaskType::DmarcReport),
-            8 => Some(TaskType::TlsReport),
-            9 => Some(TaskType::RestoreArchivedItem),
-            10 => Some(TaskType::DestroyAccount),
-            11 => Some(TaskType::AccountMaintenance),
-            12 => Some(TaskType::TenantMaintenance),
-            13 => Some(TaskType::StoreMaintenance),
-            14 => Some(TaskType::SpamFilterMaintenance),
-            15 => Some(TaskType::AcmeRenewal),
-            16 => Some(TaskType::DkimManagement),
-            17 => Some(TaskType::DnsManagement),
+            0 => Some(TaskType::CalendarAlarmEmail),
+            1 => Some(TaskType::CalendarAlarmNotification),
+            2 => Some(TaskType::CalendarItipMessage),
+            3 => Some(TaskType::MergeThreads),
+            4 => Some(TaskType::DmarcReport),
+            5 => Some(TaskType::TlsReport),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            6 => Some(TaskType::RestoreArchivedItem),
+            // SPDX-SnippetEnd
+            7 => Some(TaskType::DestroyAccount),
+            8 => Some(TaskType::AccountMaintenance),
+            // SPDX-SnippetBegin
+            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+            // SPDX-License-Identifier: LicenseRef-SEL
+            #[cfg(feature = "enterprise")]
+            9 => Some(TaskType::TenantMaintenance),
+            // SPDX-SnippetEnd
+            10 => Some(TaskType::StoreMaintenance),
+            11 => Some(TaskType::SpamFilterMaintenance),
+            12 => Some(TaskType::AcmeRenewal),
+            13 => Some(TaskType::DkimManagement),
+            14 => Some(TaskType::DnsManagement),
+            15 => Some(TaskType::ShareRevokeCleanup),
+            16 => Some(TaskType::DmarcReportWindow),
+            17 => Some(TaskType::TlsReportWindow),
+            18 => Some(TaskType::ExternalPublicKeyMaintenance),
+            19 => Some(TaskType::BlobRecode),
             _ => None,
         }
     }
 
-    const COUNT: usize = 18;
+    const COUNT: usize = 20;
+}
+
+impl TaskType {
+    pub const ALL: &[TaskType] = &[
+        TaskType::CalendarAlarmEmail,
+        TaskType::CalendarAlarmNotification,
+        TaskType::CalendarItipMessage,
+        TaskType::MergeThreads,
+        TaskType::DmarcReport,
+        TaskType::TlsReport,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        TaskType::RestoreArchivedItem,
+        // SPDX-SnippetEnd
+        TaskType::DestroyAccount,
+        TaskType::AccountMaintenance,
+        // SPDX-SnippetBegin
+        // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+        // SPDX-License-Identifier: LicenseRef-SEL
+        #[cfg(feature = "enterprise")]
+        TaskType::TenantMaintenance,
+        // SPDX-SnippetEnd
+        TaskType::StoreMaintenance,
+        TaskType::SpamFilterMaintenance,
+        TaskType::AcmeRenewal,
+        TaskType::DkimManagement,
+        TaskType::DnsManagement,
+        TaskType::ShareRevokeCleanup,
+        TaskType::DmarcReportWindow,
+        TaskType::TlsReportWindow,
+        TaskType::ExternalPublicKeyMaintenance,
+        TaskType::BlobRecode,
+    ];
 }
 
 impl serde::Serialize for TaskType {
@@ -11881,10 +15965,15 @@ impl<'de> serde::Deserialize<'de> for TaskType {
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 impl EnumImpl for TenantStorageQuota {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TenantStorageQuota,
             b"maxAccounts" => TenantStorageQuota::MaxAccounts,
             b"maxGroups" => TenantStorageQuota::MaxGroups,
             b"maxDomains" => TenantStorageQuota::MaxDomains,
@@ -11897,6 +15986,7 @@ impl EnumImpl for TenantStorageQuota {
             b"maxAcmeProviders" => TenantStorageQuota::MaxAcmeProviders,
             b"maxDiskQuota" => TenantStorageQuota::MaxDiskQuota,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -11939,6 +16029,7 @@ impl EnumImpl for TenantStorageQuota {
     const COUNT: usize = 11;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for TenantStorageQuota {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -11948,6 +16039,7 @@ impl serde::Serialize for TenantStorageQuota {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for TenantStorageQuota {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -11958,6 +16050,7 @@ impl<'de> serde::Deserialize<'de> for TenantStorageQuota {
     }
 }
 
+// SPDX-SnippetEnd
 impl EnumImpl for TimeZone {
     fn parse(value: &str) -> Option<Self> {
         hashify::map! {
@@ -13800,8 +17893,9 @@ impl<'de> serde::Deserialize<'de> for TimeZone {
 
 impl EnumImpl for TlsCipherSuite {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TlsCipherSuite,
             b"tls13-aes-256-gcm-sha384" => TlsCipherSuite::Tls13Aes256GcmSha384,
             b"tls13-aes-128-gcm-sha256" => TlsCipherSuite::Tls13Aes128GcmSha256,
             b"tls13-chacha20-poly1305-sha256" => TlsCipherSuite::Tls13Chacha20Poly1305Sha256,
@@ -13812,6 +17906,7 @@ impl EnumImpl for TlsCipherSuite {
             b"tls-ecdhe-rsa-with-aes-128-gcm-sha256" => TlsCipherSuite::TlsEcdheRsaWithAes128GcmSha256,
             b"tls-ecdhe-rsa-with-chacha20-poly1305-sha256" => TlsCipherSuite::TlsEcdheRsaWithChacha20Poly1305Sha256,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -13883,13 +17978,15 @@ impl<'de> serde::Deserialize<'de> for TlsCipherSuite {
 
 impl EnumImpl for TlsPolicyType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TlsPolicyType,
             b"tlsa" => TlsPolicyType::Tlsa,
             b"sts" => TlsPolicyType::Sts,
             b"noPolicyFound" => TlsPolicyType::NoPolicyFound,
             b"other" => TlsPolicyType::Other,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -13939,8 +18036,9 @@ impl<'de> serde::Deserialize<'de> for TlsPolicyType {
 
 impl EnumImpl for TlsResultType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TlsResultType,
             b"startTlsNotSupported" => TlsResultType::StartTlsNotSupported,
             b"certificateHostMismatch" => TlsResultType::CertificateHostMismatch,
             b"certificateExpired" => TlsResultType::CertificateExpired,
@@ -13954,6 +18052,7 @@ impl EnumImpl for TlsResultType {
             b"stsWebpkiInvalid" => TlsResultType::StsWebpkiInvalid,
             b"other" => TlsResultType::Other,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -14019,11 +18118,13 @@ impl<'de> serde::Deserialize<'de> for TlsResultType {
 
 impl EnumImpl for TlsVersion {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TlsVersion,
             b"tls12" => TlsVersion::Tls12,
             b"tls13" => TlsVersion::Tls13,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -14067,10 +18168,15 @@ impl<'de> serde::Deserialize<'de> for TlsVersion {
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 impl EnumImpl for TraceValueType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TraceValueType,
             b"String" => TraceValueType::String,
             b"UnsignedInt" => TraceValueType::UnsignedInt,
             b"Integer" => TraceValueType::Integer,
@@ -14083,6 +18189,7 @@ impl EnumImpl for TraceValueType {
             b"Event" => TraceValueType::Event,
             b"Null" => TraceValueType::Null,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -14125,6 +18232,7 @@ impl EnumImpl for TraceValueType {
     const COUNT: usize = 11;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for TraceValueType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -14134,6 +18242,7 @@ impl serde::Serialize for TraceValueType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for TraceValueType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -14144,16 +18253,19 @@ impl<'de> serde::Deserialize<'de> for TraceValueType {
     }
 }
 
+// SPDX-SnippetEnd
 impl EnumImpl for TracerType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TracerType,
             b"Log" => TracerType::Log,
             b"Stdout" => TracerType::Stdout,
             b"Journal" => TracerType::Journal,
             b"OtelHttp" => TracerType::OtelHttp,
             b"OtelGrpc" => TracerType::OtelGrpc,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -14205,14 +18317,16 @@ impl<'de> serde::Deserialize<'de> for TracerType {
 
 impl EnumImpl for TracingLevel {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TracingLevel,
             b"error" => TracingLevel::Error,
             b"warn" => TracingLevel::Warn,
             b"info" => TracingLevel::Info,
             b"debug" => TracingLevel::Debug,
             b"trace" => TracingLevel::Trace,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -14264,8 +18378,9 @@ impl<'de> serde::Deserialize<'de> for TracingLevel {
 
 impl EnumImpl for TracingLevelOpt {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TracingLevelOpt,
             b"disable" => TracingLevelOpt::Disable,
             b"error" => TracingLevelOpt::Error,
             b"warn" => TracingLevelOpt::Warn,
@@ -14273,6 +18388,7 @@ impl EnumImpl for TracingLevelOpt {
             b"debug" => TracingLevelOpt::Debug,
             b"trace" => TracingLevelOpt::Trace,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -14324,16 +18440,22 @@ impl<'de> serde::Deserialize<'de> for TracingLevelOpt {
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 impl EnumImpl for TracingStoreType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TracingStoreType,
             b"Disabled" => TracingStoreType::Disabled,
             b"Default" => TracingStoreType::Default,
             b"FoundationDb" => TracingStoreType::FoundationDb,
             b"PostgreSql" => TracingStoreType::PostgreSql,
             b"MySql" => TracingStoreType::MySql,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -14364,6 +18486,7 @@ impl EnumImpl for TracingStoreType {
     const COUNT: usize = 5;
 }
 
+#[cfg(feature = "enterprise")]
 impl serde::Serialize for TracingStoreType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -14373,6 +18496,7 @@ impl serde::Serialize for TracingStoreType {
     }
 }
 
+#[cfg(feature = "enterprise")]
 impl<'de> serde::Deserialize<'de> for TracingStoreType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -14383,10 +18507,12 @@ impl<'de> serde::Deserialize<'de> for TracingStoreType {
     }
 }
 
+// SPDX-SnippetEnd
 impl EnumImpl for TsigAlgorithm {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            TsigAlgorithm,
             b"hmac-md5" => TsigAlgorithm::HmacMd5,
             b"gss" => TsigAlgorithm::Gss,
             b"hmac-sha1" => TsigAlgorithm::HmacSha1,
@@ -14398,6 +18524,7 @@ impl EnumImpl for TsigAlgorithm {
             b"hmac-sha512" => TsigAlgorithm::HmacSha512,
             b"hmac-sha512-256" => TsigAlgorithm::HmacSha512256,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -14459,12 +18586,14 @@ impl<'de> serde::Deserialize<'de> for TsigAlgorithm {
 
 impl EnumImpl for UserRolesType {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            UserRolesType,
             b"User" => UserRolesType::User,
             b"Admin" => UserRolesType::Admin,
             b"Custom" => UserRolesType::Custom,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {
@@ -14512,11 +18641,13 @@ impl<'de> serde::Deserialize<'de> for UserRolesType {
 
 impl EnumImpl for VCardVersion {
     fn parse(value: &str) -> Option<Self> {
-        hashify::tiny_map! {
+        hashify::map! {
             value.as_bytes(),
+            VCardVersion,
             b"v4" => VCardVersion::V4,
             b"v3" => VCardVersion::V3,
         }
+        .copied()
     }
 
     fn as_str(&self) -> &'static str {

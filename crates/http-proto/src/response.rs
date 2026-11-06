@@ -5,7 +5,7 @@
  */
 
 use common::manager::application::Resource;
-use http_body_util::{BodyExt, Full};
+use http_body_util::{BodyExt, Full, combinators::BoxBody};
 use hyper::{
     StatusCode,
     body::Bytes,
@@ -15,7 +15,7 @@ use serde_json::json;
 
 use crate::{
     DownloadResponse, HtmlResponse, HttpResponse, HttpResponseBody, JsonProblemResponse,
-    JsonResponse, ToHttpResponse,
+    JsonResponse, ToHttpResponse, body::PrefixedBody,
 };
 
 impl HttpResponse {
@@ -121,10 +121,17 @@ impl HttpResponse {
         self.with_content_length(body_len)
     }
 
-    pub fn with_binary_body(mut self, body: impl Into<Vec<u8>>) -> Self {
+    pub fn with_binary_body(mut self, body: impl Into<Bytes>) -> Self {
         let body = body.into();
         let body_len = body.len();
         self.body = HttpResponseBody::Binary(body);
+        self.with_content_length(body_len)
+    }
+
+    pub fn with_prefixed_body(mut self, prefix: Bytes, body: Bytes) -> Self {
+        let body = PrefixedBody::new(prefix, body);
+        let body_len = body.len();
+        self.body = HttpResponseBody::Prefixed(body);
         self.with_content_length(body_len)
     }
 
@@ -204,29 +211,51 @@ impl HttpResponse {
         self
     }
 
+    pub fn with_sandbox_policy(mut self) -> Self {
+        self.builder = self
+            .builder
+            .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
+            .header(
+                header::CONTENT_SECURITY_POLICY,
+                "default-src 'none'; sandbox",
+            );
+        self
+    }
+
+    pub fn with_image_sandbox_policy(mut self) -> Self {
+        self.builder = self
+            .builder
+            .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
+            .header(
+                header::CONTENT_SECURITY_POLICY,
+                "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+            );
+        self
+    }
+
     pub fn size(&self) -> usize {
         match &self.body {
             HttpResponseBody::Text(value) => value.len(),
             HttpResponseBody::Binary(value) => value.len(),
+            HttpResponseBody::Prefixed(value) => value.len(),
             _ => 0,
         }
     }
 
-    pub fn build(
-        self,
-    ) -> hyper::Response<http_body_util::combinators::BoxBody<hyper::body::Bytes, hyper::Error>>
-    {
+    pub fn build(self) -> hyper::Response<BoxBody<Bytes, hyper::Error>> {
+        let status = self.status;
         match self.body {
             HttpResponseBody::Text(body) => self.builder.body(
                 Full::new(Bytes::from(body))
                     .map_err(|never| match never {})
                     .boxed(),
             ),
-            HttpResponseBody::Binary(body) => self.builder.body(
-                Full::new(Bytes::from(body))
-                    .map_err(|never| match never {})
-                    .boxed(),
-            ),
+            HttpResponseBody::Binary(body) => self
+                .builder
+                .body(Full::new(body).map_err(|never| match never {}).boxed()),
+            HttpResponseBody::Prefixed(body) => self
+                .builder
+                .body(body.map_err(|never| match never {}).boxed()),
             HttpResponseBody::Empty => {
                 let has_content_length = self
                     .builder
@@ -257,7 +286,7 @@ impl HttpResponse {
                         .boxed(),
                 ),
         }
-        .unwrap()
+        .unwrap_or_else(|err| build_failed(status, err))
     }
 
     pub fn body(&self) -> &HttpResponseBody {
@@ -271,6 +300,27 @@ impl HttpResponse {
     pub fn headers(&self) -> Option<&hyper::HeaderMap<HeaderValue>> {
         self.builder.headers_ref()
     }
+}
+
+#[cold]
+#[inline(never)]
+fn build_failed(
+    status: StatusCode,
+    err: hyper::http::Error,
+) -> hyper::Response<BoxBody<Bytes, hyper::Error>> {
+    trc::event!(
+        Http(trc::HttpEvent::Error),
+        Details = "Failed to build HTTP response",
+        Code = status.as_u16(),
+        Reason = err.to_string(),
+    );
+    let mut response = hyper::Response::new(
+        Full::new(Bytes::new())
+            .map_err(|never| match never {})
+            .boxed(),
+    );
+    *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+    response
 }
 
 impl<T: serde::Serialize> ToHttpResponse for JsonResponse<T> {
@@ -289,18 +339,21 @@ impl<T: serde::Serialize> ToHttpResponse for JsonResponse<T> {
 
 impl ToHttpResponse for DownloadResponse {
     fn into_http_response(self) -> HttpResponse {
-        HttpResponse::new(StatusCode::OK)
+        let response = HttpResponse::new(StatusCode::OK)
             .with_content_type(self.content_type)
             .with_content_disposition(format!(
                 "attachment; filename=\"{}\"",
                 self.filename.replace('\"', "\\\"")
             ))
-            .with_cache_control("private, immutable, max-age=31536000")
-            .with_binary_body(self.blob)
+            .with_cache_control("private, immutable, max-age=31536000");
+        match self.prefix {
+            Some(prefix) => response.with_prefixed_body(prefix, self.blob),
+            None => response.with_binary_body(self.blob),
+        }
     }
 }
 
-impl ToHttpResponse for Resource<Vec<u8>> {
+impl<T: Into<Bytes>> ToHttpResponse for Resource<T> {
     fn into_http_response(self) -> HttpResponse {
         HttpResponse::new(StatusCode::OK)
             .with_content_type(self.content_type.as_ref())
@@ -333,3 +386,8 @@ impl ToHttpResponse for JsonProblemResponse {
             )
     }
 }
+
+#[cfg(all(test, stalwart_tests))]
+#[rustfmt::skip]
+#[path = "../../../../stalwart-tests/unit/http-proto/src/response/tests.rs"]
+mod tests;
