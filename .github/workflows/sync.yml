@@ -12,6 +12,12 @@ name: Sync Upstream
 # 之前的问题：冲突只处理了 .md 和两个 workflow，剩下的没解决就 `git commit`，
 # 失败被 `|| echo "Nothing to commit"` 吞掉，`git push` 又显示 Everything up-to-date，
 # 于是工作流永远绿、main 却一直停在旧版本。
+#
+# 注意：main 的历史必须保留上游祖先（同步 = 在 main 上 merge upstream/main）。
+# 合并同步分支时**不要用 squash**：squash 会丢掉 upstream 的祖先链，之后每次同步的
+# merge base 都会退回很久以前，把 fork 的全部改动当成一个新 diff 重放，于是和上游
+# 改过的同一批文件反复冲突（2026-11-09 就因为 PR #8 被 squash 而红了一次）。
+# 修法是补一次空内容合并：`git merge -s ours upstream/main`（树不变，只接回祖先）。
 
 on:
   schedule:
@@ -70,6 +76,7 @@ jobs:
             if [ -n "$unresolved" ]; then
               echo "::error::以下文件存在冲突，需要人工合并（同步已中止，main 未被修改）："
               echo "$unresolved" | while read -r f; do echo "::error::  $f"; done
+              echo "::notice::若冲突集中在品牌串 / README / install.sh / groupware 这类 fork 自有差异上，多半是 main 丢过上游祖先（同步 PR 被 squash 合并过）。修法：git merge -s ours upstream/main 补一次空内容合并把祖先接回来。"
               git merge --abort || true
               exit 1
             fi
