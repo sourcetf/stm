@@ -343,9 +343,32 @@ async fn collect_sandbox_paths(
         sandbox.allow_write(&tracer.path);
     }
 
+    // cache 的本地溢出目录，以及「用 blob store 当溢出区」时的文件系统后端
     let cache = bp.setting_infallible::<cfg::Cache>().await;
-    if let cfg::CacheSwap::LocalFile(swap) = &cache.swap {
-        sandbox.allow_write(&swap.path);
+    match &cache.swap {
+        cfg::CacheSwap::LocalFile(swap) => sandbox.allow_write(&swap.path),
+        cfg::CacheSwap::BlobStore(swap) => {
+            if let cfg::BlobSwapStore::FileSystem(store) = &swap.store {
+                sandbox.allow_write(&store.path);
+            }
+        }
+        _ => {}
+    }
+
+    // 目录（认证）后端里用 SQLite 的
+    for directory in bp.list_infallible::<cfg::Directory>().await {
+        if let cfg::Directory::Sql(sql) = &directory.object {
+            if let cfg::SqlAuthStore::Sqlite(store) = &sql.store {
+                sandbox.allow_write(&store.path);
+            }
+        }
+    }
+
+    // store 型 lookup（HTTP/webhook 之外的那类）里用 SQLite 的
+    for lookup in bp.list_infallible::<cfg::StoreLookup>().await {
+        if let cfg::LookupStore::Sqlite(store) = &lookup.object.store {
+            sandbox.allow_write(&store.path);
+        }
     }
 
     for provider in bp.list_infallible::<cfg::AcmeProvider>().await {
