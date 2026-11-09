@@ -2,6 +2,202 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.0.3] - 2026-11-04
+
+**Third-party apps (not the WebUI) need the new Stalwart OAuth scopes.** Apps signing in through Stalwart or an external OpenID Connect provider could not manage app passwords, API keys or account settings. This access is now granted by the scopes `urn:stalwart:oauth:scope:security`, `urn:stalwart:oauth:scope:settings` and `urn:stalwart:oauth:scope:full`:
+- Apps registered in Stalwart: add the scopes the app needs to its OAuthClient `scopes` (only a superuser can allow `full`), and have the app request them.
+- Apps signing in through an external OpenID Connect provider: create the scopes in the provider and assign them to the apps that need them.
+- WebUI: no action needed.
+
+**Add the new permissions to the default roles (not a breaking change).** This release adds new permissions, and default roles are created only on the first start of a new installation, so on an upgraded server they are missing and the features they control stay unavailable. Restart the server once with the environment variable `STALWART_UPDATE_ROLE_PERMISSIONS=true` to add them, then remove the variable. See [Default roles on upgraded servers](https://stalw.art/docs/auth/authorization/permissions#default-roles-on-upgraded-servers) for details.
+
+## Added
+- Blob storage:
+  - Blob encryption at rest. Blobs can be encrypted by the server with symmetric keys (AES-256-GCM or ChaCha20-Poly1305) defined as `SymmetricKey` objects.
+  - Zstandard compression for blobs (`zstd` in `compressionAlgorithm`).
+  - `BlobRecode` task, which rewrites stored blobs with a chosen compression and encryption.
+- `STALWART_UPDATE_ROLE_PERMISSIONS` environment variable. When set to `true` (or `1`), startup adds to each default role every permission introduced after v1.0.0 that a new install would give that role and that the role is missing.
+- OAuth: Stalwart scopes `urn:stalwart:oauth:scope:security`, `urn:stalwart:oauth:scope:settings` and `urn:stalwart:oauth:scope:full`, so clients signing in through Stalwart or an external OpenID Connect provider can manage app passwords, API keys and account settings.
+
+## Fixed
+- JMAP:
+  - `/copy` methods called with the same `accountId` and `fromAccountId` return a clear error message.
+  - `PushSubscription` objects created with an empty `types` list no longer receive `StateChange` notifications, and `EmailPush` notifications are delivered regardless of `types`.
+- IMAP `SEARCH` accepts up to 32 levels of nested filters, so free-text searches from Apple Mail no longer fail with `Too many nested filters`.
+- OIDC: Bearer tokens are routed to the OpenID Connect directory whose issuer matches before the domain in their claims is tried, so a claim naming a domain the server does not host no longer sends the token to the default directory.
+- Security: Editing a default role, or a role nested in one, now invalidates the cached access tokens of accounts and groups that use the default role sets.
+
+## [1.0.2] - 2026-11-02
+
+**Encryption at rest must be re-enabled after upgrading.** The algorithm is now chosen from each user's key, so the per-account cipher choice of earlier versions (AES-128, AES-256, AES-256-GCM, ChaCha20-Poly1305) no longer exists, and accounts that had encryption at rest enabled are set to `Disabled` on upgrade. Until a user (or an administrator) selects their public key again under the account's encryption settings, new messages for that account are stored unencrypted. Registered public keys and messages already encrypted are not affected. The server-wide settings also moved: `Email.encryptAtRest` is replaced by `atRestEnable` in the new `Encryption` settings (enabled by default, so servers that had disabled it must disable it again), and `Email.encryptOnAppend` by the per-account `encryptOnAppend` setting. See the [encryption at rest documentation](https://stalw.art/docs/encryption/at-rest) for details.
+
+**Administrators of upgraded servers must be granted the new permissions.** Default roles are created only when a server is first installed, so on servers upgraded from an earlier version the System Administrator role does not include the permissions added in this release, and the Encryption, External Public Keys and S/MIME Trust Anchors sections stay hidden. Find the role id with `x:Role/get` (it is the id in `defaultAdminRoleIds`, returned by `x:Authentication/get` with `"ids": ["singleton"]`, that is not the User role), then grant the permissions with:
+
+```bash
+curl -u admin:PASSWORD -H 'Content-Type: application/json' https://mail.example.org/jmap/ -d '{
+  "using": ["urn:ietf:params:jmap:core", "urn:stalwart:jmap"],
+  "methodCalls": [["x:Role/set", {"update": {"ROLE_ID": {
+    "enabledPermissions/sysEncryptionGet": true,
+    "enabledPermissions/sysEncryptionUpdate": true,
+    "enabledPermissions/sysExternalPublicKeyGet": true,
+    "enabledPermissions/sysExternalPublicKeyCreate": true,
+    "enabledPermissions/sysExternalPublicKeyUpdate": true,
+    "enabledPermissions/sysExternalPublicKeyDestroy": true,
+    "enabledPermissions/sysExternalPublicKeyQuery": true,
+    "enabledPermissions/sysSmimeTrustAnchorGet": true,
+    "enabledPermissions/sysSmimeTrustAnchorCreate": true,
+    "enabledPermissions/sysSmimeTrustAnchorUpdate": true,
+    "enabledPermissions/sysSmimeTrustAnchorDestroy": true,
+    "enabledPermissions/sysSmimeTrustAnchorQuery": true,
+    "enabledPermissions/taskExternalPublicKeyMaintenance": true
+  }}}, "0"]]
+}'
+```
+
+## Added
+- Encryption:
+  - OpenPGP ([RFC 9580](https://www.rfc-editor.org/rfc/rfc9580)): v4 and v6 keys; RSA (2048 to 8192 bits), ECDH on NIST P-256, P-384 and P-521, legacy Curve25519, X25519 and X448 encryption keys; SEIPD v1 and SEIPD v2 with AES-OCB or AES-GCM, selected from the key's features and preferences.
+  - Post-quantum OpenPGP ([RFC 9980](https://www.rfc-editor.org/rfc/rfc9980)): ML-KEM-768+X25519 and ML-KEM-1024+X448 keys, with AES-256.
+  - S/MIME ([RFC 8551](https://www.rfc-editor.org/rfc/rfc8551)): RSA with PKCS #1 v1.5 or RSA-OAEP, ECDH on NIST P-256, P-384 and P-521, X25519 and X448 ([RFC 8418](https://www.rfc-editor.org/rfc/rfc8418)) and post-quantum ML-KEM-512, ML-KEM-768 and ML-KEM-1024 ([RFC 9936](https://www.rfc-editor.org/rfc/rfc9936)) certificates; CMS EnvelopedData with AES-256-CBC and AuthEnvelopedData with AES-256-GCM ([RFC 5083](https://www.rfc-editor.org/rfc/rfc5083)).
+  - Header protection ([RFC 9788](https://www.rfc-editor.org/rfc/rfc9788)) for encrypted messages, including Subject hiding and legacy display for messages sent through the gateway.
+  - Public keys: per-key `authenticatedEncryption` (AES-GCM with RSA-OAEP) and `strictKeyWrapEncoding` (RFC 5753 encoding instead of the Outlook-compatible one) switches, and server-computed `keyType`, `fingerprints`, `capabilities` and `warnings` (expiring soon, weak RSA, address mismatch, post-quantum only, no known decryptor, unusable).
+  - Encryption gateway: encrypts outgoing messages for remote recipients with their OpenPGP keys or S/MIME certificates, with a per-recipient `gatewayOutbound` policy (`disable`, `opportunistic` or `required`), a minimum key trust level, a separate encrypted copy per recipient with its own DKIM and DKIM2 signatures, and `5.7.5` bounces when encryption is required but not possible.
+  - External public keys: superuser-managed keys of remote recipients, entered manually or kept up to date from Web Key Directory (WKD), keys.openpgp.org (VKS), HKP keyservers or DNSSEC-validated OPENPGPKEY ([RFC 7929](https://www.rfc-editor.org/rfc/rfc7929)) and SMIMEA ([RFC 8162](https://www.rfc-editor.org/rfc/rfc8162)) records, with trust levels, pinning, approval of key changes, blocked keys and revocation handling. No lookups are made for unknown recipients.
+  - Key harvesting: S/MIME certificates (with their advertised capabilities) and Autocrypt keys are learned from DMARC-authenticated incoming mail, controlled by the `harvestKeys` expression.
+  - S/MIME certificate trust: bundled Mozilla email root certificates, custom trust anchors (`SmimeTrustAnchor`), intermediate certificate retrieval through Authority Information Access and daily certificate revocation list checks.
+  - New `encryption.*` telemetry events and metrics, including the `encryption.key-lookup-time` histogram.
+- DKIM2:
+  - DSNs are signed with a domain that matches a recipient in the `rt=` of the reported message, as required by spec-08 section 16.2. When no hosted domain matches, the DSN is signed with DKIM only.
+  - DSNs about forwarded messages are propagated to the previous hop in the DKIM2 chain, with the forwarding destination removed and the returned headers restored to how the message arrived (spec-08 section 16.3). This applies to inbound DKIM2 DSNs and to DSNs generated for messages Stalwart forwarded, such as failed Sieve redirects.
+  - New `dkim2.dsn-not-aligned` and `dkim2.dsn-propagated` telemetry events.
+- OAuth: `Application` objects have an `oauthScopes` list of extra scopes that the WebUI requests at sign-in, for external identity providers that release a claim only with a scope of its own.
+- OIDC directories: superuser-only `trustedProvider` setting lets a tenant-owned directory reach an identity provider on a private network.
+
+## Changed
+- DKIM2: The post-quantum composite `ML-DSA-44` and `Ed25519` algorithm with `SHA-512` is replaced by pure `ML-DSA-44` (as per [draft-ietf-dkim-dkim2-spec-08](https://datatracker.ietf.org/doc/html/draft-ietf-dkim-dkim2-spec-08)).
+- vCard and iCalendar: `QUOTED-PRINTABLE` values without a `CHARSET` parameter are decoded as UTF-8 when valid, otherwise as Windows-1252, instead of ISO-8859-1.
+
+## Fixed
+- DKIM: Relaxed body canonicalization ignores whitespace-only lines at the end of the body (RFC 6376, section 3.4.4), which produced a `bh=` that other implementations rejected.
+- iTIP: A full `REQUEST` with an older `SEQUENCE` no longer removes a newer override from the attendee's copy (RFC 5546, section 2.1.5).
+- Applications: A cached application bundle that failed the manifest check (such as the WebUI 1.x bundle left by v0.16 in a shared blob store) was never replaced, so `/admin` and `/account` returned 404; it is now downloaded again.
+- HTTP: Error responses sent before the request body is read (such as a `401`) include `Connection: close`, instead of the connection being closed without notice.
+- HTTP: A response with an invalid header value, such as a JMAP download whose `accept` parameter contains a line break, returns `500` instead of aborting the connection.
+- IMAP
+  - `RENAME` refuses to move a mailbox into its own subtree (such as `A` to `A/B/C`) with `NO [CANNOT]`, instead of creating a parent loop.
+  - Single-level mailbox names are checked against `maxMailboxNameLength`, which only applied to names containing `/`.
+  - Client quirks are detected from the `ID` command, and `UIDONLY` is not enabled for Microsoft's sync service (`Microsoft Office 365`), which left the new Outlook without folders or mail.
+- Mailboxes: IMAP, JMAP and Sieve `fileinto` accept names of up to `maxMailboxNameLength` octets (RFC 8621, section 1.6.1); JMAP `Mailbox/set` rejected names of exactly that length.
+- JMAP
+  - Messages added with IMAP `APPEND`/`MULTIAPPEND` or `Email/import` send an `EmailPush` with their id, so push subscribers no longer get an empty notification.
+  - `Email/queryChanges` with `collapseThreads` reports the previous representative of a thread as removed when a newer email joins the thread, and adds it back when that email is destroyed.
+  - `Email/set` places inline attachments that have a `cid` (image, audio or video, disposition not `attachment`) in `multipart/related` with the HTML body instead of `multipart/mixed`, so clients display them in the message body and `Email/get` returns them in `attachments`.
+  - `Email/get`, `Email/set`, `Email/copy` and `SearchSnippet/get` return `notFound` for an Email id destroyed by a thread merge instead of resolving it with the stale `threadId`.
+  - The upload endpoint rejects uploads to accounts the caller is not a member of and to account ids that do not exist, as `Blob/upload` already did.
+- OAuth: Scope values the server does not know, such as the OpenID Connect `email` and `profile` scopes, are ignored at the authorization endpoint instead of failing with `invalid_scope` (OpenID Connect Core, section 3.1.2.1).
+- OAuth: App passwords and API keys are refused at interactive sign-in (WebUI login and device code approval), which issued a session with the account's full permissions and skipped two-factor authentication.
+- Milter
+  - `SMFIC_BODY` carries only the message body instead of the whole message, so milters no longer receive the headers twice.
+  - Header names and values that are not valid UTF-8 are sent to the milter as raw bytes instead of empty strings.
+- Search indexing
+  - An email whose blob is missing is logged and skipped instead of failing its whole index partition and being retried forever.
+  - Tracing spans queued for indexing are discarded when no tracing store is configured (for example after the enterprise license expires) instead of failing with `store.not-configured` forever.
+- Calendar: events whose owner participant has no calendar address are treated as owned when checking the `mayWriteOwn` right.
+- vCard: yearless `--MM-DD` dates keep their day when uploaded, and month-only dates are written zero-padded (`--03`).
+- Spam filter: `MIXED_CHARSET` only compares the scripts of letters, so single-script text containing characters such as U+202F no longer triggers it.
+- Telemetry: Outbound HTTP errors log their cause, such as a refused non-public address, instead of only `error sending request`.
+- Accounts: `DestroyAccount` removes the account's spam training samples, whose message bodies otherwise stayed in the blob store for up to `holdSamplesFor`.
+
+## [1.0.1] - 2026-10-28
+
+## Added
+- Telemetry
+  - New OpenTelemetry (OTLP over HTTP and gRPC) and Prometheus exporters replace the `opentelemetry` and `prometheus` crates, with 4x to 14x faster encoding.
+  - Metric names follow the OpenTelemetry and Prometheus conventions (`stalwart.*` in OTLP, `stalwart_*` with unit and `_total` suffixes in Prometheus); dashboards and alerts must be updated.
+  - OpenMetrics output, plus `serviceName`, `serviceNamespace` and `resourceAttributes` settings replacing the `OTEL_*` environment variables.
+  - gRPC exporters support TLS options, authentication and custom headers; histogram buckets and counters are fixed (cumulative, inclusive, 64-bit).
+
+## Changed
+- Encryption at rest: JMAP messages stored with the `$draft` keyword are no longer encrypted on append, so they are submitted as written by the client. The Sent copy of messages submitted over JMAP is stored unencrypted.
+- OAuth: The consent screen is shown after sign-in and is skipped while the client is listed under the account's connected applications with the requested scopes. `prompt=consent` always shows it. All cluster nodes must be upgraded before relying on the new sign-in flow.
+- Registry: Listing connected applications, public keys, masked addresses and archived items returns only the requested account's objects, also for administrators. Administrators reach other accounts through the account id or an explicit `accountId` filter.
+
+## Fixed
+- ACME: DNS-01 challenges for a subdomain are written to the registrable domain's zone instead of the domain's own zone when no zone origin is configured.
+- iTIP
+  - Invitation emails for all-day events show the start as `00:00` with a time zone instead of the date only.
+  - Attendee replies are rejected when the client drops or changes the organizer's `PRIORITY`, for example when accepting an invitation from BusyCal.
+- JMAP
+  - `Mailbox/set` returns only the id of created mailboxes instead of also the server-set and defaulted properties (RFC 8620, section 5.3).
+  - `AddressBook/set`, `ContactCard/set` and `Identity/set` return only the id of created objects, and `Calendar/set` and `CalendarEvent/set` omit some defaulted properties (RFC 8620, section 5.3).
+- Registry
+  - `config.json` is created with the process umask (usually `0644`), so the data store credentials are readable by other local users.
+  - Listing archived items with an `accountId` filter fails with `unsupportedFilter` for users without the `impersonate` permission instead of ignoring the filter like the other account-owned objects.
+- RocksDB:
+  - Updated to 11.8.1 with the upstream fix for spurious compare-and-swap failures in the write group leader ([facebook/rocksdb#15415](https://github.com/facebook/rocksdb/pull/15415)).
+  - `aarch64` release builds crash with `SIGSEGV` under concurrent writes (C and C++ dependencies are now compiled with outline atomics).
+- Spam filter: `FORGED_RCVD_TRAIL` is added for every `Received` header whose reverse DNS name ends with a dot, such as those written by Gmail.
+- WebUI
+  - Saving objects that use schema defaults fails with "Invalid value for object property", for example when enabling the AI classifier.
+  - Object pickers on tenant-scoped objects (for example the ACME provider of a tenant domain) list objects from other tenants, and saving one fails with a generic "references another item that does not exist" error instead of saying the object belongs to another tenant.
+- Multi-tenancy: Tenant administrators given the `impersonate` permission can reach accounts of other tenants. The permission is now never granted to tenant members and cannot be added to a tenant's permissions.
+- Installer: The systemd unit written by `install.sh` uses `Type=simple` instead of `Type=notify`.
+
+## [1.0.0] - 2026-10-26
+
+This version includes **multiple breaking changes** and a new database layout, so existing v0.16.x deployments cannot be upgraded in place. Please read the [migration documentation](https://stalw.art/docs/migration/upgrade-0-16/) for more information on how to migrate from v0.16.x.
+
+## Added
+- Full-text search:
+  - Text extraction and indexing of PDF, Microsoft Office (`docx`, `xlsx`, `pptx`), OpenDocument (`odt`, `ods`, `odp`), EPUB and RTF documents found in attachments and files.
+  - Full-text search of file storage contents.
+  - Index queue with per-partition status, concurrency control, retries and index rebuilds.
+- Metadata:
+  - JMAP Object Metadata ([draft-ietf-jmap-metadata-04](https://datatracker.ietf.org/doc/html/draft-ietf-jmap-metadata-04)) for e-mails, mailboxes, Sieve scripts, calendars, events, address books, contacts and files.
+  - IMAP `METADATA` extension ([RFC 5464](https://www.rfc-editor.org/rfc/rfc5464.html)).
+- DKIM2:
+  - Post-quantum composite signatures using `ML-DSA-44` and `Ed25519` with `SHA-512`.
+  - Configurable `Message-Instance` hash algorithms (`SHA-256` and `SHA-512`).
+- OAuth and OIDC:
+  - OAuth Client ID Metadata Documents ([draft-ietf-oauth-client-id-metadata-document-02](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-client-id-metadata-document-02)).
+  - OAuth scopes (`mail`, `contacts`, `calendars` and `files`) per client and grant.
+  - Connected applications: users can list and revoke the applications authorized to access their account.
+  - First-party clients, post-logout redirect URIs and per-client grant types.
+  - External OIDC directories: audience matching, opaque token validation via UserInfo or token introspection and a policy for unscoped tokens.
+- Caching:
+  - Redesigned cache subsystem with a dedicated tier for large accounts.
+  - Cache snapshots can be swapped to local disk, Redis or the blob store.
+- Built-in local in-memory store for single-node deployments.
+- Azure Blob Storage authentication using shared keys, SAS tokens, client secrets, managed identities or workload identities.
+- Secondary LDAP servers for failover.
+- SSRF protection for outbound HTTP requests (webhooks, OIDC discovery, AI and DNS providers).
+- Configurable client IP source (`X-Forwarded-For` or `Forwarded`) and number of trusted proxy hops.
+- Memory budget for buffered data.
+- Configurable limits for e-mail headers, keywords and mailboxes per message, calendars, address books and spam filter text processing.
+- TLS options for Kafka and NATS cluster coordinators.
+- Automatic cleanup of per-user data after a share is revoked.
+- AI (*Enterprise*):
+  - AI models from multiple providers: OpenAI-compatible endpoints (OpenAI, Azure, vLLM, llama.cpp), Anthropic, Google Gemini and Ollama, with per-model rate limits, concurrency caps, timeouts and reasoning levels.
+  - AI spam classifier with structured verdicts, model tiers with escalation, training from AI verdicts and optional web search.
+
+## Changed
+- New database layout: the key layout was redesigned and the database schema version is now tied to the edition (AGPL-only or AGPL/SEL). Data must be migrated from v0.16.x using the migration tool.
+- Settings schema: multiple objects, fields and enumeration values were renamed, restructured (AI models, OIDC directories, Azure Blob Storage, HTTP forwarded headers) or removed, and internal identifiers were renumbered. See [SCHEMA_CHANGES.md](https://github.com/stalwartlabs/stalwart-migrate/blob/main/SCHEMA_CHANGES.md) for the full list.
+- Telemetry: New events and metrics were added and event identifiers were renumbered. See [SCHEMA_CHANGES.md](https://github.com/stalwartlabs/stalwart-migrate/blob/main/SCHEMA_CHANGES.md).
+- OAuth: The [OAuth Profile for Open Public Clients](https://datatracker.ietf.org/doc/draft-ietf-mailmaint-oauth-public/) is now fully enforced. If you use an external OIDC provider, make sure it conforms to the draft; otherwise mail clients such as Apple Mail will stop working with it as they adopt the profile. Ask your provider to add support, or, at your own risk, relax the corresponding security checks.
+- Updated IETF drafts:
+  - DKIM2 to [draft-ietf-dkim-dkim2-spec-07](https://datatracker.ietf.org/doc/html/draft-ietf-dkim-dkim2-spec-07).
+  - JMAP for Calendars to [draft-ietf-jmap-calendars-33](https://datatracker.ietf.org/doc/html/draft-ietf-jmap-calendars-33).
+  - JMAP for File Storage to [draft-ietf-jmap-filenode-18](https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-18).
+  - JSCalendar to [draft-ietf-calext-jscalendarbis-22](https://datatracker.ietf.org/doc/html/draft-ietf-calext-jscalendarbis-22) and [draft-ietf-calext-jscalendar-icalendar-28](https://datatracker.ietf.org/doc/html/draft-ietf-calext-jscalendar-icalendar-28).
+  - iCalendar tasks to [draft-ietf-calext-ical-tasks-17](https://datatracker.ietf.org/doc/html/draft-ietf-calext-ical-tasks-17).
+  - IMAP object identifiers to [draft-ietf-mailmaint-imap-objectid-bis-08](https://datatracker.ietf.org/doc/html/draft-ietf-mailmaint-imap-objectid-bis-08).
+- Performance improvements in storage backends, expression evaluation, IMAP parsing, spam filter tokenization and search.
+- Development: Test suites (unit, integration, conformance and stress) are now kept in a private repository, and new features are developed privately before release. The source code of every release remains public under the AGPL-3.0. [Learn why](https://stalw.art/blog/protecting-stalwart/)
+
+## Fixed
+- Multiple bug and security fixes.
+
 ## [0.16.27] - 2026-10-18
 
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.

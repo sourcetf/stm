@@ -5,13 +5,13 @@
  */
 
 use crate::BlobStore;
+use encodify::base32::STALWART;
 use registry::schema::structs;
 use std::{io::SeekFrom, ops::Range, path::PathBuf, sync::Arc};
 use tokio::{
     fs::{self, File},
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
 };
-use utils::codec::base32_custom::Base32Writer;
 
 pub struct FsStore {
     path: PathBuf,
@@ -85,6 +85,24 @@ impl FsStore {
         Ok(())
     }
 
+    pub(crate) async fn replace_blob(&self, key: &[u8], data: &[u8]) -> trc::Result<()> {
+        let blob_path = self.build_path(key);
+        let mut tmp_path = blob_path.clone().into_os_string();
+        tmp_path.push(format!(".{:x}.tmp", rand::random::<u64>()));
+        let tmp_path = PathBuf::from(tmp_path);
+        let result = async {
+            let mut blob_file = File::create(&tmp_path).await?;
+            blob_file.write_all(data).await?;
+            blob_file.sync_all().await?;
+            fs::rename(&tmp_path, &blob_path).await
+        }
+        .await;
+        if result.is_err() {
+            let _ = fs::remove_file(&tmp_path).await;
+        }
+        result.map_err(into_error)
+    }
+
     pub(crate) async fn delete_blob(&self, key: &[u8]) -> trc::Result<bool> {
         let blob_path = self.build_path(key);
         if fs::metadata(&blob_path).await.is_ok() {
@@ -101,7 +119,7 @@ impl FsStore {
         for byte in key.iter().take(self.hash_levels) {
             path.push(format!("{:x}", byte));
         }
-        path.push(Base32Writer::from_bytes(key).finalize());
+        path.push(STALWART.encode(key));
         path
     }
 }

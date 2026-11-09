@@ -4,160 +4,212 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::auth::EncryptionKeys;
-use mail_parser::decoders::base64::base64_decode;
-use registry::schema::structs::PublicKey;
-use sequoia_openpgp::{Cert, parse::Parse, policy::StandardPolicy, types::KeyFlags};
-use std::borrow::Cow;
+use crypto::{
+    EcdhWrapParameters, EncryptError, EncryptOptions, Encrypted, HeaderProtection, KeyError,
+    ParsedKeys, RecipientSet,
+};
+use encodify::base64::LENIENT;
+use mail_parser::Message;
+use registry::schema::{
+    enums::HeaderProtection as RegistryHeaderProtection,
+    structs::{EncryptionSettings, PublicKey},
+};
+use tokio::runtime::{Handle, RuntimeFlavor};
+use utils::cache::CacheItemWeight;
 
-const P: StandardPolicy<'static> = StandardPolicy::new();
+const ENCRYPT_INLINE_MAX: usize = 512 * 1024;
+
+#[derive(Debug)]
+pub struct AccountEncryption {
+    pub keys: EncryptionKeys,
+    pub options: EncryptOptions,
+    pub train_spam: bool,
+    pub encrypt_on_append: bool,
+}
+
+#[derive(Debug)]
+pub enum EncryptionKeys {
+    Usable {
+        recipients: RecipientSet,
+        expires_at: Option<u64>,
+    },
+    Unusable(UnusableReason),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EncryptionMethod {
-    PGP,
-    SMIME,
+pub enum UnusableReason {
+    KeyNotFound,
+    Invalid(KeyError),
 }
 
-pub struct EncryptionParams {
-    pub certs: EncryptionKeys,
-    pub method: EncryptionMethod,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SkipReason {
+    Expired,
+    Unusable(UnusableReason),
 }
 
-#[allow(clippy::type_complexity)]
-pub fn parse_public_key(pk: &PublicKey) -> Result<Option<EncryptionParams>, Cow<'static, str>> {
-    let bytes_ = pk.key.as_bytes();
-    let mut bytes = bytes_.iter().enumerate();
-    let mut buf = vec![];
-    let mut method = None;
-    let mut certs: Vec<Box<[u8]>> = vec![];
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EncryptFailure {
+    Skipped(SkipReason),
+    Error(EncryptError),
+}
 
-    loop {
-        // Find start of PEM block
-        let mut start_pos = 0;
-        for (pos, &ch) in bytes.by_ref() {
-            if ch.is_ascii_whitespace() {
-                continue;
-            } else if ch == b'-' {
-                start_pos = pos;
-                break;
-            } else {
-                return Ok(None);
-            }
-        }
+pub trait RecipientEncrypt {
+    fn encrypt_on_runtime(
+        &self,
+        message: &Message<'_>,
+        options: &EncryptOptions,
+    ) -> Result<Encrypted, EncryptError>;
+}
 
-        // Find block type
-        for (_, &ch) in bytes.by_ref() {
-            match ch {
-                b'-' => (),
-                b'\n' => break,
-                _ => {
-                    if ch.is_ascii() {
-                        buf.push(ch.to_ascii_uppercase());
-                    } else {
-                        return Ok(None);
+pub trait PublicKeyParse {
+    fn parse_keys(&self, now: u64) -> Result<ParsedKeys, KeyError>;
+}
+
+pub trait ToCrypto {
+    type Output;
+
+    fn to_crypto(self) -> Self::Output;
+}
+
+impl AccountEncryption {
+    pub fn build(settings: &EncryptionSettings, public_key: Option<&PublicKey>, now: u64) -> Self {
+        let mut options = EncryptOptions {
+            header_protection: settings.header_protection.to_crypto(),
+            ..Default::default()
+        };
+        let keys = match public_key {
+            Some(public_key) => match public_key.parse_keys(now).map_err(UnusableReason::Invalid) {
+                Ok(parsed) => {
+                    options.profile = parsed
+                        .set
+                        .inferred_profile(public_key.authenticated_encryption);
+                    if !public_key.strict_key_wrap_encoding {
+                        options.ecdh_wrap_parameters = EcdhWrapParameters::Null;
+                    }
+                    EncryptionKeys::Usable {
+                        recipients: parsed.set,
+                        expires_at: parsed.expires_at,
                     }
                 }
-            }
-        }
-        if buf.is_empty() {
-            break;
-        }
-
-        // Find type
-        let tag = std::str::from_utf8(&buf).unwrap();
-        if tag.contains("CERTIFICATE") {
-            if method.is_some_and(|m| m == EncryptionMethod::PGP) {
-                return Err("Cannot mix OpenPGP and S/MIME certificates".into());
-            } else {
-                method = Some(EncryptionMethod::SMIME);
-            }
-        } else if tag.contains("PGP") {
-            if method.is_some_and(|m| m == EncryptionMethod::SMIME) {
-                return Err("Cannot mix OpenPGP and S/MIME certificates".into());
-            } else {
-                method = Some(EncryptionMethod::PGP);
-            }
-        } else {
-            // Ignore block
-            let mut found_end = false;
-            for (_, &ch) in bytes.by_ref() {
-                if ch == b'-' {
-                    found_end = true;
-                } else if ch == b'\n' && found_end {
-                    break;
-                }
-            }
-            buf.clear();
-            continue;
-        }
-
-        // Collect base64
-        buf.clear();
-        let mut found_end = false;
-        let mut end_pos = 0;
-        for (pos, &ch) in bytes.by_ref() {
-            match ch {
-                b'-' => {
-                    found_end = true;
-                }
-                b'\n' => {
-                    if found_end {
-                        end_pos = pos;
-                        break;
-                    }
-                }
-                _ => {
-                    if !ch.is_ascii_whitespace() {
-                        buf.push(ch);
-                    }
-                }
-            }
-        }
-
-        // Decode base64
-        let cert = base64_decode(&buf)
-            .ok_or_else(|| Cow::from("Failed to decode base64 certificate."))?
-            .into_boxed_slice();
-        match method.unwrap() {
-            EncryptionMethod::PGP => match Cert::from_bytes(bytes_) {
-                Ok(cert) => {
-                    if !has_pgp_keys(cert) {
-                        return Err("Could not find any suitable keys in OpenPGP public key".into());
-                    }
-                    certs.push(
-                        bytes_
-                            .get(start_pos..end_pos + 1)
-                            .unwrap_or_default()
-                            .into(),
-                    );
-                }
-                Err(err) => {
-                    return Err(format!("Failed to decode OpenPGP public key: {err}").into());
-                }
+                Err(reason) => EncryptionKeys::Unusable(reason),
             },
-            EncryptionMethod::SMIME => {
-                if let Err(err) = rasn::der::decode::<rasn_pkix::Certificate>(&cert) {
-                    return Err(format!("Failed to decode X509 certificate: {err}").into());
-                }
-                certs.push(cert);
-            }
+            None => EncryptionKeys::Unusable(UnusableReason::KeyNotFound),
+        };
+        AccountEncryption {
+            keys,
+            options,
+            train_spam: settings.allow_spam_training,
+            encrypt_on_append: settings.encrypt_on_append,
         }
-        buf.clear();
     }
 
-    Ok(method.map(|method| EncryptionParams {
-        method,
-        certs: certs.into_boxed_slice(),
-    }))
+    pub fn recipients(&self, now: u64) -> Result<&RecipientSet, SkipReason> {
+        match &self.keys {
+            EncryptionKeys::Usable {
+                recipients,
+                expires_at,
+            } => {
+                if expires_at.is_none_or(|expires_at| expires_at > now) {
+                    Ok(recipients)
+                } else {
+                    Err(SkipReason::Expired)
+                }
+            }
+            EncryptionKeys::Unusable(UnusableReason::Invalid(KeyError::Expired)) => {
+                Err(SkipReason::Expired)
+            }
+            EncryptionKeys::Unusable(reason) => Err(SkipReason::Unusable(*reason)),
+        }
+    }
+
+    pub fn encrypt(&self, message: &Message<'_>, now: u64) -> Result<Encrypted, EncryptFailure> {
+        self.recipients(now)
+            .map_err(EncryptFailure::Skipped)?
+            .encrypt_on_runtime(message, &self.options)
+            .map_err(EncryptFailure::Error)
+    }
 }
 
-fn has_pgp_keys(cert: Cert) -> bool {
-    cert.keys()
-        .with_policy(&P, None)
-        .supported()
-        .alive()
-        .revoked(false)
-        .key_flags(KeyFlags::empty().set_transport_encryption())
-        .next()
-        .is_some()
+impl RecipientEncrypt for RecipientSet {
+    fn encrypt_on_runtime(
+        &self,
+        message: &Message<'_>,
+        options: &EncryptOptions,
+    ) -> Result<Encrypted, EncryptError> {
+        if message.raw().len() >= ENCRYPT_INLINE_MAX
+            && matches!(
+                Handle::try_current().map(|handle| handle.runtime_flavor()),
+                Ok(RuntimeFlavor::MultiThread)
+            )
+        {
+            tokio::task::block_in_place(|| self.encrypt(message, options))
+        } else {
+            self.encrypt(message, options)
+        }
+    }
 }
+
+impl UnusableReason {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            UnusableReason::KeyNotFound => "KeyNotFound",
+            UnusableReason::Invalid(err) => err.as_str(),
+        }
+    }
+}
+
+impl SkipReason {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SkipReason::Expired => "Expired",
+            SkipReason::Unusable(reason) => reason.as_str(),
+        }
+    }
+}
+
+impl CacheItemWeight for AccountEncryption {
+    fn weight(&self) -> u64 {
+        (size_of::<AccountEncryption>()
+            + match &self.keys {
+                EncryptionKeys::Usable { recipients, .. } => recipients.heap_size(),
+                EncryptionKeys::Unusable(_) => 0,
+            }) as u64
+    }
+}
+
+impl PublicKeyParse for PublicKey {
+    fn parse_keys(&self, now: u64) -> Result<ParsedKeys, KeyError> {
+        parse_key_text(&self.key, now)
+    }
+}
+
+pub(crate) fn parse_key_text(key: &str, now: u64) -> Result<ParsedKeys, KeyError> {
+    let key = key.trim_ascii();
+    if !key.starts_with("-----")
+        && let Ok(binary) = LENIENT.decode(key.as_bytes())
+        && !binary.is_empty()
+    {
+        crypto::parse_public_keys(&binary, now)
+    } else {
+        crypto::parse_public_keys(key.as_bytes(), now)
+    }
+}
+
+impl ToCrypto for RegistryHeaderProtection {
+    type Output = HeaderProtection;
+
+    fn to_crypto(self) -> HeaderProtection {
+        match self {
+            RegistryHeaderProtection::None => HeaderProtection::None,
+            RegistryHeaderProtection::NoConfidentiality | RegistryHeaderProtection::Baseline => {
+                HeaderProtection::Full
+            }
+        }
+    }
+}
+
+#[cfg(all(test, stalwart_tests))]
+#[rustfmt::skip]
+#[path = "../../../../../stalwart-tests/unit/common/src/storage/encryption/tests.rs"]
+mod tests;

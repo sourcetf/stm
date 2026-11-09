@@ -104,8 +104,18 @@ impl RegistryStore {
     }
 
     #[inline(always)]
+    pub fn process_nonce(&self) -> [u8; 16] {
+        self.0.process_nonce
+    }
+
+    #[inline(always)]
     pub fn is_recovery_mode(&self) -> bool {
         self.0.env_recovery_mode
+    }
+
+    #[inline(always)]
+    pub fn update_role_permissions(&self) -> bool {
+        self.0.env_update_role_permissions
     }
 
     #[inline(always)]
@@ -128,38 +138,9 @@ impl RegistryStore {
         inner.store = store;
         inner
     }
-
-    #[cfg(feature = "test_mode")]
-    pub fn clone_with_public_url(&self, url: String) -> Self {
-        let mut inner = self.0.as_ref().clone();
-        inner.env_public_url = Some(url);
-        Self(inner.into())
-    }
-
-    #[cfg(feature = "test_mode")]
-    pub async fn new(
-        path: &str,
-        store: Store,
-        hostname: String,
-        push_shard_id: u32,
-        cluster_role: Option<String>,
-    ) -> Self {
-        Self::from_inner(
-            RegistryStoreInner {
-                local_path: PathBuf::from(path),
-                store,
-                node_id: 0,
-                env_recovery_mode: false,
-                env_recovery_admin: Some(("admin".to_string(), "popolna_zapora".to_string())),
-                env_cluster_role: cluster_role,
-                env_push_shard_id: push_shard_id,
-                env_hostname: hostname,
-                env_public_url: None,
-                id_generator: utils::snowflake::SnowflakeIdGenerator::new(),
-            },
-            true,
-        )
-        .await
-        .unwrap()
-    }
 }
+
+#[cfg(stalwart_tests)]
+#[rustfmt::skip]
+#[path = "../../../../../stalwart-tests/unit/store/src/build/registry/test_support.rs"]
+mod test_support;

@@ -6,12 +6,14 @@
 
 use std::time::Instant;
 
-use crate::core::Session;
+use crate::{
+    auth_capability,
+    core::{Session, State},
+};
 use common::network::SessionStream;
 use imap_proto::{
     Command, StatusResponse,
     protocol::{
-        ImapResponse,
         capability::{Capability, Response},
         quoted_string,
     },
@@ -36,20 +38,29 @@ impl<T: SessionStream> Session<T> {
         self.write_bytes(
             StatusResponse::completed(Command::Capability)
                 .with_tag(request.tag)
-                .serialize(
-                    Response {
-                        capabilities: Capability::all_capabilities(
-                            self.state.is_authenticated(),
-                            !self.is_tls && self.instance.acceptor.is_tls(),
-                            self.is_tls || self.server.core.imap.allow_plain_auth,
-                            self.server.core.imap.max_messages_per_command,
-                            self.server.core.imap.max_messages_per_save,
-                        ),
-                    }
-                    .serialize(),
-                ),
+                .serialize_after(&Response {
+                    capabilities: self.capabilities(),
+                }),
         )
         .await
+    }
+
+    pub fn capabilities(&self) -> Vec<Capability> {
+        let mut capabilities = Capability::all_capabilities(
+            self.state.is_authenticated(),
+            !self.is_tls && self.instance.acceptor.is_tls(),
+            auth_capability(&self.server, self.is_tls),
+            self.server.core.imap.max_messages_per_command,
+            self.server.core.imap.max_messages_per_save,
+        );
+        if let State::Authenticated { data } | State::Selected { data, .. } = &self.state
+            && data
+                .access_token
+                .has_permission(Permission::ImapMetadataGet)
+        {
+            capabilities.extend([Capability::Metadata, Capability::ListMetadata]);
+        }
+        capabilities
     }
 
     pub async fn handle_id(&mut self, request: Request<Command>) -> trc::Result<()> {
@@ -57,6 +68,9 @@ impl<T: SessionStream> Session<T> {
         self.assert_has_permission(Permission::ImapId)?;
 
         let op_start = Instant::now();
+        let arguments = request.parse_id();
+        self.client = arguments.client;
+
         trc::event!(
             Imap(trc::ImapEvent::Id),
             SpanId = self.session_id,
@@ -65,7 +79,7 @@ impl<T: SessionStream> Session<T> {
 
         self.write_bytes(
             StatusResponse::completed(Command::Id)
-                .with_tag(request.tag)
+                .with_tag(arguments.tag)
                 .serialize(
                     concat!(
                         "* ID (\"name\" \"Stalwart\" \"version\" \"1.0.0\" \"vendor\" \"Stalwart Labs LLC\" ",
