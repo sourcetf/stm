@@ -14,7 +14,10 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  # 同一个 ref 上只让最新一次跑：否则后来的运行会一直 pending 排队
+  # （OpenBSD job 要 ~90 分钟，排队等一次几乎等于半天）。
+  # 需要并行验证时请推到一个独立分支——不同 ref 属于不同 concurrency 组。
+  cancel-in-progress: true
 
 jobs:
   linux:

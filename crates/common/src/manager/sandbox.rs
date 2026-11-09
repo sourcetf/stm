@@ -12,12 +12,18 @@
 //!   STALWART_PLEDGE="stdio rpath ..."    自定义 pledge 承诺集
 //!   STALWART_UNVEIL_EXTRA="/opt/x:rx,/srv/y:rwc"
 //!                                        追加 unveil 条目，权限用 r/w/c/d/x 表示
+//!   STALWART_UNVEIL_STRICT=on            严格模式：连“读”也只放行标准清单
+//!                                        （默认是 / 只读，见下面「已知限制」）
 //!
 //! 注意：pledge 之后进程只能使用承诺集里的系统调用，越界会被内核直接杀掉。
 //! 默认承诺集刻意给得比较宽（含 exec、proc 等，脚本插件要用），需要收紧时
 //! 用 STALWART_PLEDGE 覆盖并自行验证。
 //!
 //! 已知限制（unveil 一旦锁定就不能再放开，这是内核行为）：
+//!   * 默认策略下**读是不受限的**（unveil "/" r）：配置里的路径可以在任意位置，
+//!     逐个枚举并不现实。要收紧就读侧也白名单化：STALWART_UNVEIL_STRICT=on
+//!     （只放行 /etc/ssl、/etc/resolv.conf、/etc/passwd、zoneinfo、/dev 等标准清单
+//!     ＋登记过的读路径；缺什么它会报权限错误，用 STALWART_UNVEIL_EXTRA 补）。
 //!   * 通过 Web 控制台把存储/日志等**改成新的目录**时，新目录要等重启进程后
 //!     才可写；运行中会报权限错误。改配置后重启即可，或临时用
 //!     STALWART_UNVEIL_EXTRA 把它加进来。
@@ -38,12 +44,31 @@ pub const DEFAULT_PLEDGE: &str = "stdio rpath wpath cpath dpath fattr flock inet
 #[cfg_attr(not(target_os = "openbsd"), allow(dead_code))]
 pub struct SandboxPaths {
     enabled: bool,
+    /// 严格模式：不再对整个文件系统给读权限，只 unveil 下面这份标准清单 + 登记过的读路径
+    strict: bool,
     read: Vec<String>,
     write: Vec<String>,
     exec: Vec<String>,
     chroot: Option<String>,
     pledge: Option<String>,
 }
+
+/// 严格模式下放行的标准只读路径：跑一个邮件服务器绕不开的那些。
+const STANDARD_READ_PATHS: &[&str] = &[
+    "/etc/ssl",
+    "/etc/resolv.conf",
+    "/etc/hosts",
+    "/etc/services",
+    "/etc/protocols",
+    "/etc/passwd",
+    "/etc/group",
+    "/etc/localtime",
+    "/etc/mail",
+    "/usr/share/zoneinfo",
+    "/dev/urandom",
+    "/dev/random",
+    "/dev/null",
+];
 
 impl SandboxPaths {
     /// 从环境变量构造。默认启用；非 OpenBSD 平台上登记路径是无害的空操作。
@@ -65,6 +90,10 @@ impl SandboxPaths {
 
         sb.chroot = var("STALWART_CHROOT");
         sb.pledge = var("STALWART_PLEDGE");
+        sb.strict = matches!(
+            std::env::var("STALWART_UNVEIL_STRICT").as_deref(),
+            Ok("on") | Ok("1") | Ok("true") | Ok("yes")
+        );
 
         if let Some(extra) = var("STALWART_UNVEIL_EXTRA") {
             for entry in extra.split(',') {
@@ -104,15 +133,21 @@ impl SandboxPaths {
         push_unique(&mut self.read, path.as_ref());
     }
 
-    /// 登记一个可写路径。父目录会一并登记，因为存储目录往往还不存在，
-    /// 创建/替换它需要父目录的 cpath 权限。
+    /// 登记一个可写路径。父目录一并登记为 `rwc`：
+    ///
+    /// * 存储目录往往还不存在，创建它需要父目录的创建权限；
+    /// * 有些组件会在父目录里创建“兄弟文件”（mkstemp 的临时文件、SQLite 的
+    ///   `-wal`/`-journal`），这些都要能写；
+    /// * unveil 对同一路径是“最后一次调用覆盖前面的”，所以父目录不能只给 `c`：
+    ///   一旦某个更宽的登记把父目录降级，前面给的权限就没了（实测会让 mkstemp
+    ///   和多级缺失目录的写入一起失败）。
     pub fn allow_write(&mut self, path: impl AsRef<str>) {
         if !self.enabled {
             return;
         }
         let path = path.as_ref();
         push_unique(&mut self.write, path);
-        if let Some(parent) = std::path::Path::new(path).parent() {
+        if let Some(parent) = std::path::Path::new(path.trim_end_matches('/')).parent() {
             let parent = parent.to_string_lossy().into_owned();
             if parent.starts_with('/') && parent != "/" {
                 push_unique(&mut self.write, &parent);
@@ -154,13 +189,40 @@ impl SandboxPaths {
                 }
             }
 
-            // 其余位置一律只读：配置里的路径可以是任意位置
-            unveil("/", "r")?;
+            if self.strict {
+                // 严格模式：不给整个文件系统读权限，只放行标准清单 + 登记过的读路径
+                for path in STANDARD_READ_PATHS {
+                    unveil(path, "r")?;
+                }
+            } else {
+                // 默认：其余位置一律只读——配置里的路径可以是任意位置，逐个枚举不现实
+                unveil("/", "r")?;
+            }
             for path in &self.read {
                 unveil(path, "r")?;
             }
             for path in &self.write {
-                unveil(path, "rwc")?;
+                match unveil_raw(path, "rwc") {
+                    Ok(()) => {}
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                        // 路径里有还没建的中间目录（首次安装很常见）。unveil 要求除最后
+                        // 一段以外的父路径都存在，所以这时只能退一步：给「最近存在的
+                        // 祖先」整棵子树 rwc，让进程自己把缺的目录建出来并写进去。
+                        // 只给祖先 c 权限不够——目录能建出来，但写不进去。
+                        match nearest_existing_ancestor(path) {
+                            Some(ancestor) => {
+                                unveil(&ancestor, "rwc")?;
+                                eprintln!(
+                                    "OpenBSD sandbox: note: {path} does not exist yet;                                      granting its ancestor {ancestor} read/write instead."
+                                );
+                            }
+                            None => eprintln!(
+                                "OpenBSD sandbox: warning: {path} has no existing ancestor,                                  it will not be writable. Set STALWART_UNVEIL_EXTRA to fix."
+                            ),
+                        }
+                    }
+                    Err(err) => return Err(format!("unveil({path}, rwc): {err}")),
+                }
             }
             for path in &self.exec {
                 unveil(path, "rx")?;
@@ -209,6 +271,9 @@ impl SandboxPaths {
             self.exec.len(),
             self.pledge.as_deref().unwrap_or(DEFAULT_PLEDGE)
         );
+        if self.strict {
+            out.push_str(", strict");
+        }
         if let Some(jail) = &self.chroot {
             let _ = std::fmt::Write::write_fmt(&mut out, format_args!(", chroot({jail})"));
         }
@@ -295,20 +360,49 @@ fn push_unique(list: &mut Vec<String>, path: &str) {
     }
 }
 
+/// 从路径往上找第一个存在的目录（不含 "/"）。用于“中间目录还没建”时决定
+/// 该给哪一级创建权限。
+#[cfg(target_os = "openbsd")]
+fn nearest_existing_ancestor(path: &str) -> Option<String> {
+    let mut current = std::path::Path::new(path).to_path_buf();
+    // 去掉末尾斜杠再逐级向上
+    if current.is_file() || current.is_dir() {
+        return None;
+    }
+    while let Some(parent) = current.parent() {
+        if parent == std::path::Path::new("/") {
+            return None;
+        }
+        if parent.is_dir() {
+            return Some(parent.to_string_lossy().into_owned());
+        }
+        current = parent.to_path_buf();
+    }
+    None
+}
+
 #[cfg(target_os = "openbsd")]
 fn cstr(value: &str) -> Result<std::ffi::CString, String> {
     std::ffi::CString::new(value).map_err(|_| format!("path contains a NUL byte: {value:?}"))
 }
 
 #[cfg(target_os = "openbsd")]
-fn unveil(path: &str, perms: &str) -> Result<(), String> {
-    let path_c = cstr(path)?;
-    let perms_c = cstr(perms)?;
+fn unveil_raw(path: &str, perms: &str) -> Result<(), std::io::Error> {
+    let path_c = cstr_io(path)?;
+    let perms_c = cstr_io(perms)?;
     if unsafe { libc::unveil(path_c.as_ptr(), perms_c.as_ptr()) } != 0 {
-        return Err(format!(
-            "unveil({path}, {perms}): {}",
-            std::io::Error::last_os_error()
-        ));
+        return Err(std::io::Error::last_os_error());
     }
     Ok(())
+}
+
+#[cfg(target_os = "openbsd")]
+fn unveil(path: &str, perms: &str) -> Result<(), String> {
+    unveil_raw(path, perms).map_err(|err| format!("unveil({path}, {perms}): {err}"))
+}
+
+#[cfg(target_os = "openbsd")]
+fn cstr_io(value: &str) -> Result<std::ffi::CString, std::io::Error> {
+    std::ffi::CString::new(value)
+        .map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidInput))
 }
