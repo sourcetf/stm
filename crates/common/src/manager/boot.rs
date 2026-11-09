@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use super::{backup::BackupParams, console::store_console};
+use super::{backup::BackupParams, console::store_console, sandbox::SandboxPaths};
 use crate::{
     BuildServer, Caches, Core, Data, IPC_CHANNEL_BUFFER, Inner, Ipc,
     config::{
@@ -32,6 +32,8 @@ pub struct BootManager {
     pub inner: Arc<Inner>,
     pub servers: Listeners,
     pub ipc_rxs: IpcReceivers,
+    /// OpenBSD 沙箱（其它平台上是空操作）
+    pub sandbox: SandboxPaths,
 }
 
 pub struct IpcReceivers {
@@ -53,6 +55,7 @@ Options:
   -e, --export <PATH>              Export all store data to a specific path
   -i, --import <PATH>              Import store data from a specific path
   -o, --console                    Open the store console
+  --sandbox-check                  Verify that the OpenBSD sandbox (unveil/pledge) applies
   -h, --help                       Print help
   -V, --version                    Print version
 "#
@@ -125,6 +128,14 @@ impl BootManager {
             }
         }
 
+        // 配置文件所在目录：运行时改配置会写回这里，沙箱要放行
+        let config_dir = config_path.as_deref().and_then(|path| {
+            std::path::Path::new(path)
+                .parent()
+                .map(|parent| parent.to_string_lossy().into_owned())
+                .filter(|parent| parent.starts_with('/'))
+        });
+
         // Initialize registry
         let registry = RegistryStore::init(
             PathBuf::from(config_path.unwrap()),
@@ -137,6 +148,17 @@ impl BootManager {
         // Add safe defaults if missing
         if import_export == StoreOp::None {
             bootstrap.insert_safe_defaults().await;
+        }
+
+        // OpenBSD 沙箱第一步：按组件登记各自的目录，然后 chroot（可选）+ unveil 并锁定。
+        // 必须在绑定端口、放弃 root 权限之前完成。
+        let mut sandbox = SandboxPaths::from_env();
+        if import_export == StoreOp::None && sandbox.is_enabled() {
+            collect_sandbox_paths(&mut bootstrap, config_dir.as_deref(), &mut sandbox).await;
+            if let Err(err) = sandbox.lock_filesystem() {
+                failed(&format!("OpenBSD sandbox: {err}"));
+            }
+            eprintln!("OpenBSD sandbox: {}", sandbox.describe());
         }
 
         // Start listeners
@@ -246,11 +268,17 @@ impl BootManager {
                     .parse_tcp_acceptors(&mut bootstrap, inner.clone())
                     .await;
 
+                // OpenBSD 沙箱第二步：端口已绑定、权限已放弃，上 pledge
+                if let Err(err) = sandbox.apply_pledge() {
+                    failed(&format!("OpenBSD sandbox: {err}"));
+                }
+
                 BootManager {
                     inner,
                     bootstrap,
                     servers,
                     ipc_rxs,
+                    sandbox,
                 }
             }
             StoreOp::Export(path) => {
@@ -285,6 +313,52 @@ impl BootManager {
             }
         }
     }
+}
+
+/// 按组件收集 OpenBSD 沙箱需要的路径。
+///
+/// 只登记“运行时会写入”的位置：各存储后端、cache swap、tracer 日志、ACME 工作目录、
+/// 配置文件所在目录，外加 /tmp。其余位置在沙箱里一律只读（unveil "/" r），
+/// 因为配置里的路径可以是任意位置，逐个枚举并不现实。
+async fn collect_sandbox_paths(
+    bp: &mut Bootstrap,
+    config_dir: Option<&str>,
+    sandbox: &mut SandboxPaths,
+) {
+    use registry::schema::structs as cfg;
+
+    let boot = bp.setting_infallible::<cfg::Bootstrap>().await;
+
+    match &boot.data_store {
+        cfg::DataStore::RocksDb(store) => sandbox.allow_write(&store.path),
+        cfg::DataStore::Sqlite(store) => sandbox.allow_write(&store.path),
+        _ => {}
+    }
+    match &boot.blob_store {
+        cfg::BlobStore::FileSystem(store) => sandbox.allow_write(&store.path),
+        _ => {}
+    }
+    // 搜索后端（Elasticsearch / Meilisearch / SQL / FoundationDB）都是网络服务，没有本地路径
+    if let cfg::Tracer::Log(tracer) = &boot.tracer {
+        sandbox.allow_write(&tracer.path);
+    }
+
+    let cache = bp.setting_infallible::<cfg::Cache>().await;
+    if let cfg::CacheSwap::LocalFile(swap) = &cache.swap {
+        sandbox.allow_write(&swap.path);
+    }
+
+    for provider in bp.list_infallible::<cfg::AcmeProvider>().await {
+        sandbox.allow_write(&provider.object.directory);
+    }
+
+    if let Some(dir) = config_dir {
+        sandbox.allow_write(dir);
+    }
+
+    // 临时文件与 unix socket 都可能落在 /tmp
+    sandbox.allow_write("/tmp");
+    sandbox.allow_read("/etc/ssl");
 }
 
 pub fn build_ipc(has_pubsub: bool) -> (Ipc, IpcReceivers) {

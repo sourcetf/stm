@@ -42,6 +42,21 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: Jemalloc = Jemalloc;
 
 fn main() -> std::io::Result<ExitCode> {
+    // OpenBSD：`--sandbox-check` 只验证 unveil/pledge 能在当前系统上正常应用，
+    // 供 CI 在 VM 里冒烟测试，不读取任何配置。
+    if std::env::args().any(|arg| arg == "--sandbox-check") {
+        return match common::manager::sandbox::self_check() {
+            Ok(()) => {
+                println!("openbsd sandbox: unveil/pledge applied successfully");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(err) => {
+                eprintln!("openbsd sandbox self-check failed: {err}");
+                Ok(ExitCode::FAILURE)
+            }
+        };
+    }
+
     run_server(async_main())
 }
 

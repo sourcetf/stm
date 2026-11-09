@@ -20,6 +20,7 @@ pub mod boot;
 pub mod console;
 pub mod defaults;
 pub mod restore;
+pub mod sandbox;
 pub mod schema;
 #[cfg(target_os = "linux")]
 pub mod systemd;
