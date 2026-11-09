@@ -9,6 +9,18 @@
 #   阶段3  rcctl 托管 + 监听自检（IPv6-only 绑定告警）
 # just for test, for any bugs please open prs or issues
 # 重跑安全：已装好再跑 = 只修权限/参数 + 重启，不动数据。
+#
+# 沙箱（二进制内置，见 crates/common/src/manager/sandbox.rs）：
+# 启动时会按配置里各组件登记的目录自动 unveil（写权限只给这些目录，其余只读），
+# 再 pledge 上承诺集；启动日志里会打印一行
+#   OpenBSD sandbox: unveil(N r + M rwc + K rx), pledge(...)
+# 需要调整时用环境变量（例如写进 rc.d 的 _flags 或 `rcctl set stalwart_mail flags -c ...`）：
+#   STALWART_SANDBOX=off                          临时关闭沙箱
+#   STALWART_PLEDGE="stdio rpath wpath ..."       自定义 pledge 承诺集
+#   STALWART_UNVEIL_EXTRA="/opt/x:rx,/srv/y:rwc"  追加 unveil 条目（r/w/c/d/x）
+#   STALWART_CHROOT=/var/stalwart-jail            先 chroot（要求所有路径都在 jail 内，
+#                                                 并且要发生在放弃 root 权限之前）
+# 自检：/usr/local/bin/stalwart --sandbox-check  （只验证 unveil/pledge 能应用）
 
 SVC="_stalwart-smtp"
 BIN="/usr/local/bin/stalwart"
