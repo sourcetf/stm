@@ -356,9 +356,16 @@ async fn collect_sandbox_paths(
         sandbox.allow_write(dir);
     }
 
-    // 临时文件与 unix socket 都可能落在 /tmp
-    sandbox.allow_write("/tmp");
+    // 临时文件（std::env::temp_dir()，尊重 TMPDIR）与 unix socket
+    sandbox.allow_write(std::env::temp_dir().to_string_lossy());
     sandbox.allow_read("/etc/ssl");
+
+    // 一个写路径都没收集到说明配置没读出来，运行时会到处 EACCES，直接说清楚
+    if sandbox.write_paths().is_empty() {
+        eprintln!(
+            "OpenBSD sandbox: warning: no writable path was collected from the configuration,              runtime writes will likely fail. Set STALWART_UNVEIL_EXTRA=\"/your/data:rwc\"              or STALWART_SANDBOX=off."
+        );
+    }
 }
 
 pub fn build_ipc(has_pubsub: bool) -> (Ipc, IpcReceivers) {

@@ -16,11 +16,22 @@
 //! 注意：pledge 之后进程只能使用承诺集里的系统调用，越界会被内核直接杀掉。
 //! 默认承诺集刻意给得比较宽（含 exec、proc 等，脚本插件要用），需要收紧时
 //! 用 STALWART_PLEDGE 覆盖并自行验证。
+//!
+//! 已知限制（unveil 一旦锁定就不能再放开，这是内核行为）：
+//!   * 通过 Web 控制台把存储/日志等**改成新的目录**时，新目录要等重启进程后
+//!     才可写；运行中会报权限错误。改配置后重启即可，或临时用
+//!     STALWART_UNVEIL_EXTRA 把它加进来。
+//!   * 脚本插件的 `exec` 需要被执行的文件带 `x` 权限，而命令是脚本里动态指定的，
+//!     无法预先枚举：要用它请显式登记，例如
+//!     STALWART_UNVEIL_EXTRA="/bin/sh:rx,/usr/local/bin/your-tool:rx"。
+//!   * chroot 需自行保证配置里的路径在 jail 内（相对路径按启动时的 cwd 解析）。
 
 use std::fmt;
 
 /// 默认 pledge 承诺集：覆盖邮件服务器的常见需求（文件、网络、DNS、UNIX socket、
 /// 读取用户/组信息、fork/exec 脚本插件、伪终端、进程/内存信息）。
+/// 逐一在 OpenBSD 7.9 上验证过：这些名字都被内核接受（`tmppath` 已被移除，
+/// 7.9 上 pledge 会报 EINVAL，不要加）。
 pub const DEFAULT_PLEDGE: &str = "stdio rpath wpath cpath dpath fattr flock inet unix dns getpw id proc exec tty ps vminfo";
 
 #[derive(Debug, Default, Clone)]
@@ -78,6 +89,11 @@ impl SandboxPaths {
 
     pub fn is_enabled(&self) -> bool {
         self.enabled
+    }
+
+    /// 已登记的可写路径（用于启动时的自检/告警）。
+    pub fn write_paths(&self) -> &[String] {
+        &self.write
     }
 
     /// 登记一个只读路径（例如配置文件、证书）。
@@ -181,7 +197,7 @@ impl SandboxPaths {
         Ok(())
     }
 
-    /// 用于启动日志。
+    /// 用于启动日志：列出实际登记的路径，便于确认“按组件收集”真的生效了。
     pub fn describe(&self) -> String {
         if !self.enabled {
             return "disabled".to_string();
@@ -195,6 +211,15 @@ impl SandboxPaths {
         );
         if let Some(jail) = &self.chroot {
             let _ = std::fmt::Write::write_fmt(&mut out, format_args!(", chroot({jail})"));
+        }
+        for (label, list) in [("rwc", &self.write), ("rx", &self.exec)] {
+            if !list.is_empty() {
+                let _ = std::fmt::Write::write_fmt(
+                    &mut out,
+                    format_args!("
+  {label}: {}", list.join(" ")),
+                );
+            }
         }
         out
     }
@@ -243,11 +268,26 @@ fn var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
 }
 
+/// 登记前把路径规范化成绝对路径：配置里可以写相对路径（相对于启动时的 cwd），
+/// unveil(2) 只接受绝对路径，静默丢掉会导致运行时写入被拒。
 fn push_unique(list: &mut Vec<String>, path: &str) {
     let path = path.trim();
-    if path.is_empty() || !path.starts_with('/') {
+    if path.is_empty() {
         return;
     }
+
+    let path = if path.starts_with('/') {
+        path.to_string()
+    } else {
+        match std::env::current_dir() {
+            Ok(cwd) => cwd.join(path).to_string_lossy().into_owned(),
+            Err(_) => {
+                eprintln!("OpenBSD sandbox: cannot resolve relative path {path:?}, skipping");
+                return;
+            }
+        }
+    };
+
     let path = path.trim_end_matches('/');
     let path = if path.is_empty() { "/" } else { path };
     if !list.iter().any(|existing| existing == path) {
