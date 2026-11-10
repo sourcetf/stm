@@ -128,12 +128,22 @@ impl BootManager {
             }
         }
 
-        // 配置文件所在目录：运行时改配置会写回这里，沙箱要放行
+        // 配置文件所在目录：运行时改配置会写回这里，沙箱要放行。
+        // 配置路径本身可以是相对路径（相对启动 cwd），这里统一解析成绝对路径，
+        // 否则会被后面「只接受绝对路径」的过滤丢掉。
         let config_dir = config_path.as_deref().and_then(|path| {
-            std::path::Path::new(path)
-                .parent()
-                .map(|parent| parent.to_string_lossy().into_owned())
-                .filter(|parent| parent.starts_with('/'))
+            let parent = std::path::Path::new(path).parent()?;
+            let parent = if parent.as_os_str().is_empty() {
+                std::path::Path::new(".")
+            } else {
+                parent
+            };
+            let absolute = if parent.is_absolute() {
+                parent.to_path_buf()
+            } else {
+                std::env::current_dir().ok()?.join(parent)
+            };
+            Some(absolute.to_string_lossy().into_owned())
         });
 
         // Initialize registry
