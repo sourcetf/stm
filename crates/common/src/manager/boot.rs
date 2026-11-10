@@ -374,9 +374,9 @@ async fn collect_sandbox_paths(
         }
     }
 
-    for provider in bp.list_infallible::<cfg::AcmeProvider>().await {
-        sandbox.allow_write(&provider.object.directory);
-    }
+    // 注意：AcmeProvider.directory 是 ACME 服务端的 **URL**
+    // （如 https://acme-v02.api.letsencrypt.org/directory），不是本地目录。
+    // ACME 的账户/证书都存进 data/blob store，所以这里不该登记任何路径。
 
     if let Some(dir) = config_dir {
         sandbox.allow_write(dir);
