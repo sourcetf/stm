@@ -128,7 +128,32 @@ printf '{"@type":"Sqlite","path":"%s/var/lib/db.sqlite"}' "$d" > "$d/etc/config.
 run_case "webapp-unpack" "$d" "$d/etc/config.json" "$d/var/lib/db.sqlite"
 say "  (webapp 解压目录只在配置了 unpackDirectory 时才登记，这里验证默认路径不报错)"
 
-# ---------- 7. store 导出（沙箱关闭，任意外部路径） ----------
+# ---------- 7. 引导模式（配置文件不存在 → 首次安装向导） ----------
+# 这是最容易被沙箱搞坏的一条路径：没有配置文件时数据存储由向导决定，
+# 沙箱此时应当只登记很有限的路径，并且进程不能崩。
+d="$WORK/bootstrap"; mkdir -p "$d/etc"
+say "== bootstrap-mode (no config file)"
+( cd "$d" && "$BIN" -c "$d/etc/missing.json" ) > "$d/server.log" 2>&1 &
+pid=$!
+sleep 25
+alive=0
+kill -0 "$pid" 2>/dev/null && alive=1
+kill -TERM "$pid" 2>/dev/null
+wait "$pid" 2>/dev/null
+if [ "$alive" = "1" ]; then ok "bootstrap mode: server stayed up"; else fail "bootstrap mode: server died"; fi
+if grep -q "OpenBSD sandbox:" "$d/server.log"; then
+    ok "bootstrap mode: sandbox line present"
+else
+    fail "bootstrap mode: no sandbox line"
+fi
+if grep -qi "bootstrap mode" "$d/server.log"; then
+    ok "bootstrap mode: wizard reported"
+else
+    fail "bootstrap mode: wizard not reported"
+    tail -25 "$d/server.log"
+fi
+
+# ---------- 8. store 导出（沙箱关闭，任意外部路径） ----------
 d="$WORK/export"; mkdir -p "$d/etc" "$d/var/lib"
 printf '{"@type":"Sqlite","path":"%s/var/lib/db.sqlite"}' "$d" > "$d/etc/config.json"
 out="$WORK/export-out.bin"
