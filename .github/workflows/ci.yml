@@ -195,18 +195,21 @@ jobs:
             /home/build/target/release/stalwart --sandbox-check
 
             # ---- 沙箱下的真实启动冒烟 ----
-            # 用「多级目录都还不存在」的 SQLite 路径启动服务器，覆盖：
-            # 配置读取 -> 沙箱锁定 -> 建库（多级目录）-> 服务起监听 -> SIGTERM 干净退出。
+            # 启动真实二进制，覆盖：配置读取 -> 沙箱锁定 -> 建库 -> 起服务 -> SIGTERM 退出。
+            # 配置和数据放在两棵不同的树上（真实部署就是这样：/etc/stalwart 与
+            # /var/lib/stalwart）。这样能验证“按组件收集路径”真的生效，而不是靠
+            # 配置文件所在目录顺带覆盖。
             SMOKE=/home/build/smoke
-            rm -rf "$SMOKE"; mkdir -p "$SMOKE"
-            printf '{"@type":"Sqlite","path":"%s/data/db.sqlite"}' "$SMOKE" > "$SMOKE/config.json"
+            rm -rf "$SMOKE"
+            mkdir -p "$SMOKE/etc" "$SMOKE/var/lib"
+            printf '{"@type":"Sqlite","path":"%s/var/lib/db.sqlite"}' "$SMOKE" > "$SMOKE/etc/config.json"
             set +e
-            /home/build/target/release/stalwart -c "$SMOKE/config.json" > "$SMOKE/server.log" 2>&1 &
+            /home/build/target/release/stalwart -c "$SMOKE/etc/config.json" > "$SMOKE/server.log" 2>&1 &
             SMOKE_PID=$!
             ALIVE=0
             for _ in $(seq 1 90); do
               kill -0 "$SMOKE_PID" 2>/dev/null || break
-              if [ -f "$SMOKE/data/db.sqlite" ]; then ALIVE=1; break; fi
+              if [ -f "$SMOKE/var/lib/db.sqlite" ]; then ALIVE=1; break; fi
               sleep 1
             done
             kill -0 "$SMOKE_PID" 2>/dev/null && ALIVE=1
@@ -218,8 +221,10 @@ jobs:
             echo "----- server.log (tail) -----"
             tail -60 "$SMOKE/server.log" || true
             grep -q "OpenBSD sandbox:" "$SMOKE/server.log" || { echo "::error::sandbox startup line missing"; exit 1; }
+            # 收集是否真的读到了配置里那棵树：日志里的 rwc 清单必须包含 var/lib
+            grep -q "rwc: .*$SMOKE/var/lib" "$SMOKE/server.log" || { echo "::error::data store path was not collected from the configuration"; sed -n '/OpenBSD sandbox:/,+4p' "$SMOKE/server.log"; exit 1; }
             [ "$ALIVE" = "1" ] || { echo "::error::server died during startup under the sandbox"; exit 1; }
-            [ -f "$SMOKE/data/db.sqlite" ] || { echo "::error::store file was not created (write denied under sandbox?)"; exit 1; }
+            [ -f "$SMOKE/var/lib/db.sqlite" ] || { echo "::error::store file was not created (write denied under sandbox?)"; exit 1; }
 
             strip /home/build/target/release/stalwart
             mkdir -p artifacts

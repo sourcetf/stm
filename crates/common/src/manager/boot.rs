@@ -327,20 +327,23 @@ async fn collect_sandbox_paths(
 ) {
     use registry::schema::structs as cfg;
 
-    let boot = bp.setting_infallible::<cfg::Bootstrap>().await;
-
-    match &boot.data_store {
+    // 注意：不要读 cfg::Bootstrap —— 它是 OBJ_NOT_STORED（只在 API 层出现、不落库），
+    // 运行时读出来永远是默认值，等于什么都没收集到。要按组件一个个读：
+    // DataStore 走 RegistryStore::get 对 ObjectType::DataStore 的特殊分支（读配置文件），
+    // BlobStore / SearchStore 是 OBJ_SINGLETON 落库对象，Tracer 是列表对象。
+    match bp.setting_infallible::<cfg::DataStore>().await {
         cfg::DataStore::RocksDb(store) => sandbox.allow_write(&store.path),
         cfg::DataStore::Sqlite(store) => sandbox.allow_write(&store.path),
         _ => {}
     }
-    match &boot.blob_store {
-        cfg::BlobStore::FileSystem(store) => sandbox.allow_write(&store.path),
-        _ => {}
+    if let cfg::BlobStore::FileSystem(store) = bp.setting_infallible::<cfg::BlobStore>().await {
+        sandbox.allow_write(&store.path);
     }
     // 搜索后端（Elasticsearch / Meilisearch / SQL / FoundationDB）都是网络服务，没有本地路径
-    if let cfg::Tracer::Log(tracer) = &boot.tracer {
-        sandbox.allow_write(&tracer.path);
+    for tracer in bp.list_infallible::<cfg::Tracer>().await {
+        if let cfg::Tracer::Log(tracer) = &tracer.object {
+            sandbox.allow_write(&tracer.path);
+        }
     }
 
     // cache 的本地溢出目录，以及「用 blob store 当溢出区」时的文件系统后端
