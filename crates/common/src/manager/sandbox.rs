@@ -189,6 +189,28 @@ impl SandboxPaths {
                 }
             }
 
+            // chroot 之后，unveil 需要的是 jail 内的路径；登记时拿到的都是宿主绝对
+            // 路径，所以先把 jail 前缀剥掉（不在 jail 内的路径会被跳过并告警）。
+            let strip_jail = |path: &str| -> Option<String> {
+                match self.chroot.as_deref() {
+                    None => Some(path.to_string()),
+                    Some(jail) => {
+                        let jail = jail.trim_end_matches('/');
+                        if path == jail {
+                            Some("/".to_string())
+                        } else if let Some(rest) = path.strip_prefix(jail) {
+                            if rest.starts_with('/') {
+                                Some(rest.to_string())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                }
+            };
+
             if self.strict {
                 // 严格模式：不给整个文件系统读权限，只放行标准清单 + 登记过的读路径
                 for path in STANDARD_READ_PATHS {
@@ -199,17 +221,31 @@ impl SandboxPaths {
                 unveil("/", "r")?;
             }
             for path in &self.read {
-                unveil(path, "r")?;
+                match strip_jail(path) {
+                    Some(inner) => unveil(&inner, "r")?,
+                    None => eprintln!(
+                        "OpenBSD sandbox: warning: {path} is outside the chroot jail, skipped"
+                    ),
+                }
             }
             for path in &self.write {
-                match unveil_raw(path, "rwc") {
+                let path = match strip_jail(path) {
+                    Some(inner) => inner,
+                    None => {
+                        eprintln!(
+                            "OpenBSD sandbox: warning: {path} is outside the chroot jail, skipped"
+                        );
+                        continue;
+                    }
+                };
+                match unveil_raw(&path, "rwc") {
                     Ok(()) => {}
                     Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                         // 路径里有还没建的中间目录（首次安装很常见）。unveil 要求除最后
                         // 一段以外的父路径都存在，所以这时只能退一步：给「最近存在的
                         // 祖先」整棵子树 rwc，让进程自己把缺的目录建出来并写进去。
                         // 只给祖先 c 权限不够——目录能建出来，但写不进去。
-                        match nearest_existing_ancestor(path) {
+                        match nearest_existing_ancestor(&path) {
                             Some(ancestor) => {
                                 unveil(&ancestor, "rwc")?;
                                 eprintln!(
@@ -225,7 +261,9 @@ impl SandboxPaths {
                 }
             }
             for path in &self.exec {
-                unveil(path, "rx")?;
+                if let Some(inner) = strip_jail(path) {
+                    unveil(&inner, "rx")?;
+                }
             }
 
             if unsafe { libc::unveil(std::ptr::null(), std::ptr::null()) } != 0 {
