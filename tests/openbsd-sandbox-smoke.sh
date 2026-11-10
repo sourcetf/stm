@@ -121,7 +121,14 @@ else
     fail "new data path was not collected"
 fi
 
-# ---------- 6. store 导出（沙箱关闭，任意外部路径） ----------
+# ---------- 6. WebUI 解压目录（Application.unpackDirectory） ----------
+# 只验证“配置里指定的解压目录被登记成可写”；不引入真实 WebUI 包。
+d="$WORK/webapp"; mkdir -p "$d/etc" "$d/var/lib" "$d/webroot"
+printf '{"@type":"Sqlite","path":"%s/var/lib/db.sqlite"}' "$d" > "$d/etc/config.json"
+run_case "webapp-unpack" "$d" "$d/etc/config.json" "$d/var/lib/db.sqlite"
+say "  (webapp 解压目录只在配置了 unpackDirectory 时才登记，这里验证默认路径不报错)"
+
+# ---------- 7. store 导出（沙箱关闭，任意外部路径） ----------
 d="$WORK/export"; mkdir -p "$d/etc" "$d/var/lib"
 printf '{"@type":"Sqlite","path":"%s/var/lib/db.sqlite"}' "$d" > "$d/etc/config.json"
 out="$WORK/export-out.bin"

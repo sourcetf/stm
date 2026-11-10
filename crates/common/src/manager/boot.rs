@@ -384,6 +384,13 @@ async fn collect_sandbox_paths(
         }
     }
 
+    // WebUI 包会解压到 unpackDirectory（未配置时落在临时目录）
+    for app in bp.list_infallible::<cfg::Application>().await {
+        if let Some(dir) = &app.object.unpack_directory {
+            sandbox.allow_write(dir);
+        }
+    }
+
     // 注意：AcmeProvider.directory 是 ACME 服务端的 **URL**
     // （如 https://acme-v02.api.letsencrypt.org/directory），不是本地目录。
     // ACME 的账户/证书都存进 data/blob store，所以这里不该登记任何路径。
