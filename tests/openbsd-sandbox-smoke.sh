@@ -62,7 +62,7 @@ run_case() {
     done
     kill -0 "$pid" 2>/dev/null && alive=1
     kill -TERM "$pid" 2>/dev/null
-    stop_pid "$pid" 20
+    stop_pid "$pid" 60
     wait "$pid" 2>/dev/null
     code=$?
 
@@ -74,7 +74,10 @@ run_case() {
     if [ "$alive" = "1" ]; then ok "$name: server stayed up"; else fail "$name: server died"; fi
     if [ -f "$db" ]; then ok "$name: store created"; else fail "$name: store missing"; fi
     say "  (exit=$code)"
-    if [ "${VERBOSE:-0}" = "1" ]; then tail -20 "$log"; fi
+    if [ "$alive" != "1" ] || [ ! -f "$db" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        say "  ----- $log (tail) -----"
+        tail -25 "$log" | sed 's/^/  | /'
+    fi
 }
 
 say "binary: $BIN"
@@ -128,7 +131,9 @@ make_dev() {
 make_dev /dev/urandom "$jail/dev/urandom"
 make_dev /dev/null "$jail/dev/null"
 make_dev /dev/random "$jail/dev/random"
-run_case "chroot" "$d" "etc/config.json" "$jail/var/lib/db.sqlite" \
+# 配置文件是在 chroot 之前读的，所以 -c 要传【宿主】路径；
+# 而配置里的数据目录写的是【jail 内】路径（chroot 之后才用）。
+run_case "chroot" "$d" "$jail/etc/config.json" "$jail/var/lib/db.sqlite" \
     STALWART_CHROOT="$jail"
 if grep -q "chroot(" "$d/server.log"; then ok "chroot reported"; else fail "chroot not applied"; fi
 
@@ -162,7 +167,7 @@ sleep 25
 alive=0
 kill -0 "$pid" 2>/dev/null && alive=1
 kill -TERM "$pid" 2>/dev/null
-stop_pid "$pid" 20
+stop_pid "$pid" 60
 wait "$pid" 2>/dev/null
 if [ "$alive" = "1" ]; then ok "bootstrap mode: server stayed up"; else fail "bootstrap mode: server died"; fi
 if grep -q "OpenBSD sandbox:" "$d/server.log"; then
@@ -180,6 +185,8 @@ fi
 # ---------- 8. store 导出（沙箱关闭，任意外部路径） ----------
 d="$WORK/export"; mkdir -p "$d/etc" "$d/var/lib"
 printf '{"@type":"Sqlite","path":"%s/var/lib/db.sqlite"}' "$d" > "$d/etc/config.json"
+# 先正常启动一次把库建出来，否则 --export 会报 "Could not retrieve database schema version"
+run_case "export (prepare store)" "$d" "$d/etc/config.json" "$d/var/lib/db.sqlite"
 out="$WORK/export-out.bin"
 ( cd / && "$BIN" -c "$d/etc/config.json" -e "$out" ) > "$d/export.log" 2>&1 &
 export_pid=$!

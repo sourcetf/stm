@@ -212,9 +212,13 @@ impl SandboxPaths {
             };
 
             if self.strict {
-                // 严格模式：不给整个文件系统读权限，只放行标准清单 + 登记过的读路径
+                // 严格模式：不给整个文件系统读权限，只放行标准清单 + 登记过的读路径。
+                // chroot 时这些标准路径同样要按 jail 内路径处理。
                 for path in STANDARD_READ_PATHS {
-                    unveil(path, "r")?;
+                    match strip_jail(path) {
+                        Some(inner) => unveil(&inner, "r")?,
+                        None => {}
+                    }
                 }
             } else {
                 // 默认：其余位置一律只读——配置里的路径可以是任意位置，逐个枚举不现实

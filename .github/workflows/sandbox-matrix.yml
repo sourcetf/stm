@@ -85,5 +85,5 @@ jobs:
             set -e
             chmod +x bin/stalwart
             ./bin/stalwart --sandbox-check
-            WORK=/home/build/sandbox-matrix \
+            VERBOSE=1 WORK=/home/build/sandbox-matrix \
               sh tests/openbsd-sandbox-smoke.sh "$PWD/bin/stalwart"
