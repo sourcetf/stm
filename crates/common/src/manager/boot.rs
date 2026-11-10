@@ -356,16 +356,13 @@ async fn collect_sandbox_paths(
         }
     }
 
-    // cache 的本地溢出目录，以及「用 blob store 当溢出区」时的文件系统后端
+    // cache 的本地溢出目录。
+    // 注意：CacheSwap::BlobStore 用的是 BlobSwapStore，v1.1.0 里它没有 FileSystem
+    // 变体（只有 Default/S3/Azure/FoundationDb/SQL），本地文件系统只能通过
+    // CacheSwap::LocalFile。
     let cache = bp.setting_infallible::<cfg::Cache>().await;
-    match &cache.swap {
-        cfg::CacheSwap::LocalFile(swap) => sandbox.allow_write(&swap.path),
-        cfg::CacheSwap::BlobStore(swap) => {
-            if let cfg::BlobSwapStore::FileSystem(store) = &swap.store {
-                sandbox.allow_write(&store.path);
-            }
-        }
-        _ => {}
+    if let cfg::CacheSwap::LocalFile(swap) = &cache.swap {
+        sandbox.allow_write(&swap.path);
     }
 
     // 目录（认证）后端里用 SQLite 的
@@ -381,6 +378,23 @@ async fn collect_sandbox_paths(
     for lookup in bp.list_infallible::<cfg::StoreLookup>().await {
         if let cfg::LookupStore::Sqlite(store) = &lookup.object.store {
             sandbox.allow_write(&store.path);
+        }
+    }
+
+    // v1.1.0 的 Keep 协调器可以引用本地 TLS 文件（集群 mTLS）：
+    // 这些是只读路径，但要能读到（严格模式下尤其重要）。
+    if let cfg::Coordinator::Keep(keep) = bp.setting_infallible::<cfg::Coordinator>().await {
+        match &keep.tls {
+            cfg::KeepTls::Authority(auth) => {
+                sandbox.allow_read(&auth.ca_path);
+                sandbox.allow_read(&auth.cert_path);
+                sandbox.allow_read(&auth.key_path);
+            }
+            cfg::KeepTls::RawPublicKeys(keys) => {
+                sandbox.allow_read(&keys.key_path);
+                sandbox.allow_read(&keys.server_keys_path);
+            }
+            cfg::KeepTls::Disabled => {}
         }
     }
 
