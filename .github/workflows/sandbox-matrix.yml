@@ -1,0 +1,89 @@
+name: OpenBSD Sandbox Matrix
+
+# 沙箱矩阵：拿 CI 已经编译好的 OpenBSD 制品，在全新的 OpenBSD VM 里跑
+# tests/openbsd-sandbox-smoke.sh（默认/相对路径/严格读/chroot/改路径重启/
+# WebUI 解压目录/引导模式/store 导出）。
+#
+# 拆成独立 workflow 的原因：
+#   * 完整构建要 2.5 小时，改一行测试脚本不该重编一遍；
+#   * 矩阵跑挂了也不会拖住发版 job（之前一个不响应 SIGTERM 的进程把 job
+#     挂到 5 小时，就是 build job 里直接跑脚本导致的）。
+#
+# 触发：
+#   * workflow_dispatch（可指定 run_id，默认取 main 上最近一次成功的 CI）
+#   * workflow_run：CI 在 main 上成功后自动跑
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "CI run id to take the OpenBSD artifact from (empty = latest successful on main)"
+        required: false
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  matrix:
+    name: Matrix / x86_64-unknown-openbsd
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve artifact source
+        id: src
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          RID="${{ github.event.inputs.run_id }}"
+          if [ -z "$RID" ]; then
+            RID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=1" \
+                  --jq '.workflow_runs[0].id')
+          fi
+          echo "run_id=$RID" >> "$GITHUB_OUTPUT"
+          echo "using CI run $RID"
+
+      - name: Download OpenBSD artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact-x86_64-unknown-openbsd
+          path: bin
+          run-id: ${{ steps.src.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Show binary
+        run: |
+          ls -l bin
+          file bin/stalwart
+
+      - name: Run sandbox matrix in OpenBSD VM
+        uses: vmactions/openbsd-vm@v1
+        with:
+          release: "7.9"
+          usesh: true
+          mem: 2048
+          cpu: 2
+          sync: rsync
+          copyback: true
+          prepare: |
+            set -e
+            df -h / /var /home || true
+          run: |
+            set -e
+            chmod +x bin/stalwart
+            ./bin/stalwart --sandbox-check
+            WORK=/home/build/sandbox-matrix \
+              sh tests/openbsd-sandbox-smoke.sh "$PWD/bin/stalwart"

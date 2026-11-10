@@ -16,6 +16,28 @@ BIN=${1:?usage: $0 /path/to/stalwart}
 WORK=${WORK:-/home/build/sandbox-matrix}
 FAILS=0
 
+# 有界等待：SIGTERM 之后最多等 $2 秒，然后 SIGKILL，最后绝不再无限 wait。
+# 之前 CI 挂 5 小时就是因为在等一个不响应 SIGTERM 的进程。
+stop_pid() {
+    pid=$1
+    limit=${2:-20}
+    i=0
+    while [ "$i" -lt "$limit" ]; do
+        kill -0 "$pid" 2>/dev/null || return 0
+        i=$((i + 1))
+        sleep 1
+    done
+    kill -KILL "$pid" 2>/dev/null
+    i=0
+    while [ "$i" -lt 5 ]; do
+        kill -0 "$pid" 2>/dev/null || return 0
+        i=$((i + 1))
+        sleep 1
+    done
+    printf '  warning: pid %s survived SIGKILL (stuck in kernel?), leaving it
+' "$pid"
+}
+
 say()  { printf '%s\n' "$*"; }
 fail() { FAILS=$((FAILS + 1)); printf '  FAIL %s\n' "$*"; }
 ok()   { printf '  ok   %s\n' "$*"; }
@@ -40,6 +62,7 @@ run_case() {
     done
     kill -0 "$pid" 2>/dev/null && alive=1
     kill -TERM "$pid" 2>/dev/null
+    stop_pid "$pid" 20
     wait "$pid" 2>/dev/null
     code=$?
 
@@ -139,6 +162,7 @@ sleep 25
 alive=0
 kill -0 "$pid" 2>/dev/null && alive=1
 kill -TERM "$pid" 2>/dev/null
+stop_pid "$pid" 20
 wait "$pid" 2>/dev/null
 if [ "$alive" = "1" ]; then ok "bootstrap mode: server stayed up"; else fail "bootstrap mode: server died"; fi
 if grep -q "OpenBSD sandbox:" "$d/server.log"; then
@@ -157,7 +181,19 @@ fi
 d="$WORK/export"; mkdir -p "$d/etc" "$d/var/lib"
 printf '{"@type":"Sqlite","path":"%s/var/lib/db.sqlite"}' "$d" > "$d/etc/config.json"
 out="$WORK/export-out.bin"
-( cd / && "$BIN" -c "$d/etc/config.json" -e "$out" ) > "$d/export.log" 2>&1
+( cd / && "$BIN" -c "$d/etc/config.json" -e "$out" ) > "$d/export.log" 2>&1 &
+export_pid=$!
+i=0
+while [ "$i" -lt 120 ] && kill -0 "$export_pid" 2>/dev/null; do
+    i=$((i + 1))
+    sleep 1
+done
+if kill -0 "$export_pid" 2>/dev/null; then
+    fail "export did not finish in 120s"
+    stop_pid "$export_pid" 5
+else
+    wait "$export_pid" 2>/dev/null
+fi
 if [ -f "$out" ]; then ok "export to arbitrary path"; else fail "export failed"; tail -20 "$d/export.log"; fi
 
 say ""

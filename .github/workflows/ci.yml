@@ -194,10 +194,9 @@ jobs:
             # 沙箱冒烟测试：unveil/pledge 能正常应用（承诺集有问题时进程会被内核杀掉）
             /home/build/target/release/stalwart --sandbox-check
 
-            # ---- 沙箱矩阵：真实二进制、多种场景 ----
-            # 覆盖默认模式、相对路径、严格读模式、chroot、改数据目录后重启、store 导出。
-            WORK=/home/build/sandbox-matrix \
-              sh tests/openbsd-sandbox-smoke.sh /home/build/target/release/stalwart
+            # 沙箱矩阵不在这里跑：它需要真实的多场景重启，放到独立的
+            # sandbox-matrix.yml（拿本 job 的制品在干净 VM 里跑），这样改一行
+            # 测试脚本不必重编 2.5 小时。
 
             strip /home/build/target/release/stalwart
             mkdir -p artifacts
