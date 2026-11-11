@@ -298,14 +298,36 @@ impl Resolvers {
         let mut opts_dnssec = opts.clone();
         opts_dnssec.validate = true;
 
-        let dnssec = DnssecResolver {
-            resolver: TokioResolver::builder_with_config(
-                config_dnssec,
-                TokioRuntimeProvider::default(),
-            )
-            .with_options(opts_dnssec)
-            .build()
-            .expect("Failed to build DNSSEC resolver"),
+        let dnssec = match TokioResolver::builder_with_config(
+            config_dnssec.clone(),
+            TokioRuntimeProvider::default(),
+        )
+        .with_options(opts_dnssec)
+        .build()
+        {
+            Ok(resolver) => DnssecResolver { resolver },
+            Err(err) => {
+                // 精简环境里很常见：chroot jail、没装 ca-certificates 的容器，
+                // 系统 CA 为空，校验器建不起来（rustls-platform-verifier 报
+                // "No CA certificates were loaded from the system"）。
+                // 这时候不能 panic——没有 DNSSEC 校验只是降级，不该让整个服务
+                // 起不来。改成不校验，并留下告警让管理员补 CA。
+                bp.build_warning(
+                    ObjectType::DnsResolver.singleton(),
+                    format!(
+                        "DNSSEC validation disabled: could not build the validating resolver: {err}"
+                    ),
+                );
+                DnssecResolver {
+                    resolver: TokioResolver::builder_with_config(
+                        config_dnssec,
+                        TokioRuntimeProvider::default(),
+                    )
+                    .with_options(opts.clone())
+                    .build()
+                    .expect("Failed to build DNS resolver"),
+                }
+            }
         };
 
         let negative_ttl = bp.setting_infallible::<Cache>().await.negative_ttl;

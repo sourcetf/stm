@@ -72,7 +72,18 @@ launch() {
     cd "$START_DIR" || exit 1
 }
 
-# 启动一次并等待“活着”，随后 SIGTERM
+# 进程已经 bind 的 TCP 监听数量。用来判断“启动真的走完了”：
+# 数据库文件在启动很早的阶段（RegistryStore::init 建表）就出现了，但 tokio 的
+# SIGTERM 处理器要到 async_main 末尾才装上；这之前发 SIGTERM 会被默认处置
+# 直接杀掉（exit=143），那是测试发得太早，不是服务不响应。监听端口是启动
+# 后期才 bind 的，拿它当“就绪”信号。
+listen_count() {
+    # 不要按地址族过滤：默认监听绑的是 [::]，OpenBSD 默认 v6only，用 -f inet
+    # 会一条都看不到。
+    netstat -an 2>/dev/null | grep -c 'LISTEN' || true
+}
+
+# 启动一次并等待“就绪”，随后 SIGTERM
 # $1 场景名  $2 工作目录  $3 配置文件路径（传给 -c）  $4 期望出现的库文件
 run_case() {
     name=$1; dir=$2; cfg=$3; db=$4
@@ -81,6 +92,7 @@ run_case() {
     say "== $name"
     rm -f "$db"
     t0=$(date +%s)
+    base_listen=$(listen_count)
     launch "$dir" "$log" "$@" "$BIN" -c "$cfg"
     pid=$LAUNCH_PID
     alive=0
@@ -91,6 +103,17 @@ run_case() {
         i=$((i + 1))
         sleep 1
     done
+    ready=0
+    i=0
+    while [ "$i" -lt 60 ]; do
+        pid_alive "$pid" || break
+        if [ "$(listen_count)" -gt "$base_listen" ]; then ready=1; break; fi
+        i=$((i + 1))
+        sleep 1
+    done
+    # 监听是由 spawn 出来的任务 bind 的，而 SIGTERM 处理器在随后的几行才装上。
+    # 见到 LISTEN 后再让启动流程往前跑两秒，免得信号落在装处理器之前。
+    [ "$ready" = "1" ] && sleep 2
     pid_alive "$pid" && alive=1
     kill -TERM "$pid" 2>/dev/null
     stop_pid "$pid" 60 && graceful=1 || graceful=0
@@ -103,6 +126,7 @@ run_case() {
         fail "$name: no sandbox line in log"
     fi
     if [ "$alive" = "1" ]; then ok "$name: server stayed up"; else fail "$name: server died"; fi
+    if [ "$ready" = "1" ]; then ok "$name: listeners bound"; else fail "$name: no listener appeared within 60s"; fi
     if [ -f "$db" ]; then ok "$name: store created"; else fail "$name: store missing"; fi
     if [ "$graceful" = "1" ] && [ "$code" = "0" ]; then
         ok "$name: exited cleanly on SIGTERM"
@@ -110,7 +134,7 @@ run_case() {
         fail "$name: did not exit cleanly on SIGTERM (exit=$code)"
     fi
     say "  (exit=$code, $(( $(date +%s) - t0 ))s)"
-    if [ "$alive" != "1" ] || [ "$graceful" != "1" ] || [ ! -f "$db" ] || [ "${VERBOSE:-0}" = "1" ]; then
+    if [ "$alive" != "1" ] || [ "$graceful" != "1" ] || [ "$ready" != "1" ] || [ ! -f "$db" ] || [ "${VERBOSE:-0}" = "1" ]; then
         say "  ----- $log (tail) -----"
         tail -25 "$log" | sed 's/^/  | /'
     fi
