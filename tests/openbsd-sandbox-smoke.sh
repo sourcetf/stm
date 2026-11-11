@@ -181,6 +181,17 @@ cp /etc/passwd "$jail/etc/passwd" 2>/dev/null
 cp /etc/group "$jail/etc/group" 2>/dev/null
 cp /etc/resolv.conf "$jail/etc/resolv.conf" 2>/dev/null
 cp /etc/hosts "$jail/etc/hosts" 2>/dev/null
+# CA 信任锚：出站 TLS（DoT、DANE、HTTPS、ACME）建校验器时要读系统 CA 库。
+# OpenBSD 上是 /etc/ssl/cert.pem（rustls-native-certs 通过 openssl-probe 找的就是它）。
+# jail 里没有这个文件时，hickory 的 build() 会在构造 TlsConfig 时失败
+# （"No CA certificates were loaded from the system"），启动直接 panic——
+# 之前 chroot 场景就是这么挂的。真实部署同样要把 CA 带进 jail。
+if [ -f /etc/ssl/cert.pem ]; then
+    mkdir -p "$jail/etc/ssl"
+    cp /etc/ssl/cert.pem "$jail/etc/ssl/cert.pem"
+else
+    say "  warning: /etc/ssl/cert.pem not found on this host; chroot case may fail"
+fi
 # /dev 下是字符设备节点：从 ls -ln 的第 5/6 列取 major,minor 后重建
 make_dev() {
     pair=$(ls -ln "$1" | awk '{ gsub(/,$/, "", $5); print $5, $6 }')

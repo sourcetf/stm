@@ -36,8 +36,12 @@
 //!     STALWART_UNVEIL_EXTRA="/bin/sh:rx,/usr/local/bin/your-tool:rx"。
 //!   * chroot 需自行保证配置里的路径在 jail 内（相对路径按**进 jail 之后**的
 //!     cwd 解析，也就是 "/"）。jail 里至少要能读到配置文件、写数据目录；
-//!     DNS 解析要 /etc/resolv.conf，读随机数要 /dev/urandom（严格模式或 jail
-//!     里没有这些文件时，对应功能会失败而不是启动失败）。
+//!     DNS 解析要 /etc/resolv.conf（以及 /etc/hosts），读随机数要 /dev/urandom。
+//!   * jail 里还要有 CA 信任锚（OpenBSD 上是 /etc/ssl/cert.pem）。启动流程在没有
+//!     CA 时会直接失败而不是降级：hickory 的 `ResolverBuilder::build()` 总是构造
+//!     TLS 上下文（`TlsConfig::new()` → `client_config()` → rustls-platform-verifier），
+//!     UDP 解析器也一样要，所以 DNS/DNSSEC 解析器和出站 TLS 连接器都建不起来。
+//!     jail 里缺这个文件时报的是 "No CA certificates were loaded from the system"。
 
 use std::fmt;
 
