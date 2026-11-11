@@ -128,6 +128,17 @@ impl BootManager {
             }
         }
 
+        // OpenBSD 沙箱第一步：chroot（可选）。必须在读配置文件、打开存储之前，
+        // 因为 chroot 之后 `-c` 和配置里的所有路径都按 **jail 内** 的绝对路径解释
+        // （宿主的 -c 路径在 jail 里不存在）。store 是在 RegistryStore::init 里打开的，
+        // 所以 chroot 不能晚于它，否则会拿宿主路径去开 jail 内的库。
+        let mut sandbox = SandboxPaths::from_env();
+        if import_export == StoreOp::None && sandbox.is_enabled() {
+            if let Err(err) = sandbox.enter_chroot() {
+                failed(&format!("OpenBSD sandbox: {err}"));
+            }
+        }
+
         // 配置文件所在目录：运行时改配置会写回这里，沙箱要放行。
         // 配置路径本身可以是相对路径（相对启动 cwd），这里统一解析成绝对路径，
         // 否则会被后面「只接受绝对路径」的过滤丢掉。
@@ -160,9 +171,8 @@ impl BootManager {
             bootstrap.insert_safe_defaults().await;
         }
 
-        // OpenBSD 沙箱第一步：按组件登记各自的目录，然后 chroot（可选）+ unveil 并锁定。
-        // 必须在绑定端口、放弃 root 权限之前完成。
-        let mut sandbox = SandboxPaths::from_env();
+        // OpenBSD 沙箱第二步：按组件登记各自的目录，然后 unveil 并锁定。
+        // 必须在绑定端口、放弃 root 权限之前完成；chroot 已在上面做过。
         if import_export == StoreOp::None && sandbox.is_enabled() {
             collect_sandbox_paths(&mut bootstrap, config_dir.as_deref(), &mut sandbox).await;
             if let Err(err) = sandbox.lock_filesystem() {
@@ -420,7 +430,9 @@ async fn collect_sandbox_paths(
     // 一个写路径都没收集到说明配置没读出来，运行时会到处 EACCES，直接说清楚
     if sandbox.write_paths().is_empty() {
         eprintln!(
-            "OpenBSD sandbox: warning: no writable path was collected from the configuration,              runtime writes will likely fail. Set STALWART_UNVEIL_EXTRA=\"/your/data:rwc\"              or STALWART_SANDBOX=off."
+            "OpenBSD sandbox: warning: no writable path was collected from the configuration, \
+             runtime writes will likely fail. Set STALWART_UNVEIL_EXTRA=\"/your/data:rwc\" \
+             or STALWART_SANDBOX=off."
         );
     }
 }

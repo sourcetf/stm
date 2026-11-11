@@ -8,7 +8,11 @@
 //! 环境变量：
 //!   STALWART_SANDBOX=off                 完全关闭沙箱（默认开启）
 //!   STALWART_CHROOT=/jail                先 chroot（要求配置里的路径都在 jail 内，
-//!                                        且必须在放弃 root 权限前调用）
+//!                                        且必须在放弃 root 权限前调用）。
+//!                                        `-c` 与配置里的路径都按 **jail 内** 解释：
+//!                                        宿主的 /jail/etc/config.json 在 jail 里就是
+//!                                        /etc/config.json，启动时要写成
+//!                                        `STALWART_CHROOT=/jail stalwart -c /etc/config.json`。
 //!   STALWART_PLEDGE="stdio rpath ..."    自定义 pledge 承诺集
 //!   STALWART_UNVEIL_EXTRA="/opt/x:rx,/srv/y:rwc"
 //!                                        追加 unveil 条目，权限用 r/w/c/d/x 表示
@@ -38,7 +42,8 @@ use std::fmt;
 /// 读取用户/组信息、fork/exec 脚本插件、伪终端、进程/内存信息）。
 /// 逐一在 OpenBSD 7.9 上验证过：这些名字都被内核接受（`tmppath` 已被移除，
 /// 7.9 上 pledge 会报 EINVAL，不要加）。
-pub const DEFAULT_PLEDGE: &str = "stdio rpath wpath cpath dpath fattr flock inet unix dns getpw id proc exec tty ps vminfo";
+pub const DEFAULT_PLEDGE: &str =
+    "stdio rpath wpath cpath dpath fattr flock inet unix dns getpw id proc exec tty ps vminfo";
 
 #[derive(Debug, Default, Clone)]
 #[cfg_attr(not(target_os = "openbsd"), allow(dead_code))]
@@ -54,6 +59,7 @@ pub struct SandboxPaths {
 }
 
 /// 严格模式下放行的标准只读路径：跑一个邮件服务器绕不开的那些。
+#[cfg_attr(not(target_os = "openbsd"), allow(dead_code))]
 const STANDARD_READ_PATHS: &[&str] = &[
     "/etc/ssl",
     "/etc/resolv.conf",
@@ -163,7 +169,37 @@ impl SandboxPaths {
         push_unique(&mut self.exec, path.as_ref());
     }
 
-    /// chroot（可选）与 unveil，最后用 `unveil(NULL, NULL)` 锁定。
+    /// 进入 chroot（若配置了）。**必须在读取配置、打开存储之前调用**：
+    /// chroot 之后，配置文件与所有数据路径都按 jail 内的绝对路径解释。
+    pub fn enter_chroot(&self) -> Result<(), String> {
+        if !self.enabled {
+            return Ok(());
+        }
+
+        #[cfg(target_os = "openbsd")]
+        {
+            if let Some(jail) = &self.chroot {
+                let jail_c = cstr(jail)?;
+                if unsafe { libc::chroot(jail_c.as_ptr()) } != 0 {
+                    return Err(format!(
+                        "chroot({jail}): {}",
+                        std::io::Error::last_os_error()
+                    ));
+                }
+                let root = cstr("/")?;
+                if unsafe { libc::chdir(root.as_ptr()) } != 0 {
+                    return Err(format!(
+                        "chdir(/) after chroot: {}",
+                        std::io::Error::last_os_error()
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// unveil 并锁定（chroot 已在 [`enter_chroot`] 里完成）。
     /// 必须在放弃 root 权限、打开存储之前调用。
     pub fn lock_filesystem(&self) -> Result<(), String> {
         if !self.enabled {
@@ -172,52 +208,15 @@ impl SandboxPaths {
 
         #[cfg(target_os = "openbsd")]
         {
-            if let Some(jail) = &self.chroot {
-                let jail = cstr(jail)?;
-                if unsafe { libc::chroot(jail.as_ptr()) } != 0 {
-                    return Err(format!(
-                        "chroot: {}",
-                        std::io::Error::last_os_error()
-                    ));
-                }
-                let root = cstr("/")?;
-                if unsafe { libc::chdir(root.as_ptr()) } != 0 {
-                    return Err(format!(
-                        "chdir after chroot: {}",
-                        std::io::Error::last_os_error()
-                    ));
-                }
-            }
-
-            // chroot 之后，unveil 需要的是 jail 内的路径；登记时拿到的都是宿主绝对
-            // 路径，所以先把 jail 前缀剥掉（不在 jail 内的路径会被跳过并告警）。
-            let strip_jail = |path: &str| -> Option<String> {
-                match self.chroot.as_deref() {
-                    None => Some(path.to_string()),
-                    Some(jail) => {
-                        let jail = jail.trim_end_matches('/');
-                        if path == jail {
-                            Some("/".to_string())
-                        } else if let Some(rest) = path.strip_prefix(jail) {
-                            if rest.starts_with('/') {
-                                Some(rest.to_string())
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    }
-                }
-            };
-
             if self.strict {
                 // 严格模式：不给整个文件系统读权限，只放行标准清单 + 登记过的读路径。
-                // chroot 时这些标准路径同样要按 jail 内路径处理。
+                // chroot 时清单里那些 jail 内不存在的条目（例如没拷 /etc/mail）不能当
+                // 致命错误——unveil 对不存在的路径返回 ENOENT，这里跳过即可。
                 for path in STANDARD_READ_PATHS {
-                    match strip_jail(path) {
-                        Some(inner) => unveil(&inner, "r")?,
-                        None => {}
+                    match unveil_raw(path, "r") {
+                        Ok(()) => {}
+                        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(err) => return Err(format!("unveil({path}, r): {err}")),
                     }
                 }
             } else {
@@ -225,39 +224,33 @@ impl SandboxPaths {
                 unveil("/", "r")?;
             }
             for path in &self.read {
-                match strip_jail(path) {
-                    Some(inner) => unveil(&inner, "r")?,
-                    None => eprintln!(
-                        "OpenBSD sandbox: warning: {path} is outside the chroot jail, skipped"
-                    ),
+                // 只读路径常常还不存在（证书、可选目录；chroot 时 jail 里更是什么都没有），
+                // unveil 对不存在的路径返回 ENOENT，不能因此拒绝启动。
+                match unveil_raw(path, "r") {
+                    Ok(()) => {}
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(err) => return Err(format!("unveil({path}, r): {err}")),
                 }
             }
             for path in &self.write {
-                let path = match strip_jail(path) {
-                    Some(inner) => inner,
-                    None => {
-                        eprintln!(
-                            "OpenBSD sandbox: warning: {path} is outside the chroot jail, skipped"
-                        );
-                        continue;
-                    }
-                };
-                match unveil_raw(&path, "rwc") {
+                match unveil_raw(path, "rwc") {
                     Ok(()) => {}
                     Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                         // 路径里有还没建的中间目录（首次安装很常见）。unveil 要求除最后
                         // 一段以外的父路径都存在，所以这时只能退一步：给「最近存在的
                         // 祖先」整棵子树 rwc，让进程自己把缺的目录建出来并写进去。
                         // 只给祖先 c 权限不够——目录能建出来，但写不进去。
-                        match nearest_existing_ancestor(&path) {
+                        match nearest_existing_ancestor(path) {
                             Some(ancestor) => {
                                 unveil(&ancestor, "rwc")?;
                                 eprintln!(
-                                    "OpenBSD sandbox: note: {path} does not exist yet;                                      granting its ancestor {ancestor} read/write instead."
+                                    "OpenBSD sandbox: note: {path} does not exist yet; \
+                                     granting its ancestor {ancestor} read/write instead."
                                 );
                             }
                             None => eprintln!(
-                                "OpenBSD sandbox: warning: {path} has no existing ancestor,                                  it will not be writable. Set STALWART_UNVEIL_EXTRA to fix."
+                                "OpenBSD sandbox: warning: {path} has no existing ancestor, \
+                                 it will not be writable. Set STALWART_UNVEIL_EXTRA to fix."
                             ),
                         }
                     }
@@ -265,16 +258,20 @@ impl SandboxPaths {
                 }
             }
             for path in &self.exec {
-                if let Some(inner) = strip_jail(path) {
-                    unveil(&inner, "rx")?;
+                // 可执行路径来自 STALWART_UNVEIL_EXTRA，写错了不该让服务起不来。
+                match unveil_raw(path, "rx") {
+                    Ok(()) => {}
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                        eprintln!(
+                            "OpenBSD sandbox: warning: exec path {path} does not exist, skipped"
+                        )
+                    }
+                    Err(err) => return Err(format!("unveil({path}, rx): {err}")),
                 }
             }
 
             if unsafe { libc::unveil(std::ptr::null(), std::ptr::null()) } != 0 {
-                return Err(format!(
-                    "unveil lock: {}",
-                    std::io::Error::last_os_error()
-                ));
+                return Err(format!("unveil lock: {}", std::io::Error::last_os_error()));
             }
         }
 
@@ -291,10 +288,7 @@ impl SandboxPaths {
         {
             let promises = cstr(self.pledge.as_deref().unwrap_or(DEFAULT_PLEDGE))?;
             if unsafe { libc::pledge(promises.as_ptr(), std::ptr::null()) } != 0 {
-                return Err(format!(
-                    "pledge: {}",
-                    std::io::Error::last_os_error()
-                ));
+                return Err(format!("pledge: {}", std::io::Error::last_os_error()));
             }
         }
 
@@ -323,8 +317,11 @@ impl SandboxPaths {
             if !list.is_empty() {
                 let _ = std::fmt::Write::write_fmt(
                     &mut out,
-                    format_args!("
-  {label}: {}", list.join(" ")),
+                    format_args!(
+                        "
+  {label}: {}",
+                        list.join(" ")
+                    ),
                 );
             }
         }
@@ -354,8 +351,7 @@ pub fn self_check() -> Result<(), String> {
         sb.apply_pledge()?;
 
         // 触发几种被承诺覆盖的系统调用，若承诺集有问题进程会在此前后被内核杀掉
-        std::fs::metadata("/etc")
-            .map_err(|err| format!("stat /etc after pledge: {err}"))?;
+        std::fs::metadata("/etc").map_err(|err| format!("stat /etc after pledge: {err}"))?;
         std::fs::read_dir("/tmp")
             .map_err(|err| format!("readdir /tmp after pledge: {err}"))?
             .next()
