@@ -155,7 +155,15 @@ jobs:
             export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
             export CARGO_PROFILE_RELEASE_STRIP=false
             export CARGO_PROFILE_RELEASE_OPT_LEVEL=1
-            export CARGO_BUILD_JOBS=1
+            # JOBS=1 曾是防 OOM 的保险，但代价是 574 个 crate 串行编译 ~64 分钟。
+            # 这台 VM 有 15G 内存 + 6.8G swap，实测最吃内存的单个单元（librocksdb-sys
+            # 的 C++ 构建、final link）也不到 6G，所以放到 min(vCPU, 4)。
+            # 并行度带来的额外峰值主要来自多个 rustc 同时跑；如果真撞上 OOM，
+            # 下面的第二次构建会用 JOBS=1 接着编（已完成单元全部命中缓存，不会重来）。
+            JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 2)
+            if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
+            if [ "$JOBS" -lt 2 ]; then JOBS=2; fi
+            export CARGO_BUILD_JOBS="$JOBS"
 
             LLVM_CONFIG=/usr/local/llvm19/bin/llvm-config
             if [ ! -x "$LLVM_CONFIG" ]; then
@@ -187,7 +195,35 @@ jobs:
 
             # OpenBSD 7.9 的 pkg rust 是 1.94.1，而 v1.0 的依赖（mail-parser 1.0.1 等）
             # 声明 rust-version = 1.98；先忽略这个元数据检查，看代码能否真的编过。
-            cargo build --release --ignore-rust-version -p stalwart --no-default-features --features "sqlite postgres mysql rocks s3 redis azure nats enterprise"
+            stamp() { echo "=== $* at $(date -u +%H:%M:%S) ==="; }
+            stamp "build start (jobs=$CARGO_BUILD_JOBS)"
+
+            build_once() {
+              cargo build --release --ignore-rust-version -p stalwart \
+                --no-default-features \
+                --features "sqlite postgres mysql rocks s3 redis azure nats enterprise" 2>&1
+            }
+
+            # 并行构建先试一把。只有在明确是“内存/磁盘不够”时才降级重试：
+            # 真正的编译错误重试一遍纯属浪费一小时（之前每次失败都这样）。
+            # 退出码用哨兵文件带出来：管道的 $? 是 tee 的，POSIX sh 没有 PIPESTATUS；
+            # 子 shell 里 set -e 会抢在写哨兵文件之前 abort，所以显式 set +e。
+            set +e
+            ( set +e; build_once; echo $? > /home/build/rc ) 2>&1 | tee /home/build/build.log
+            rc=$(tr -d '[:space:]' < /home/build/rc 2>/dev/null)
+            rc=${rc:-1}
+            set -e
+            if [ "$rc" -ne 0 ] && grep -qiE "signal: 9|SIGKILL|killed|cannot allocate|memory allocation|out of memory|no space left|out of swap" /home/build/build.log; then
+              echo "::warning::parallel build died from resource exhaustion; retrying serially (cached units are reused)"
+              swapctl -l || true
+              stamp "serial retry (jobs=1)"
+              CARGO_BUILD_JOBS=1 cargo build --release --ignore-rust-version -p stalwart \
+                --no-default-features \
+                --features "sqlite postgres mysql rocks s3 redis azure nats enterprise"
+            elif [ "$rc" -ne 0 ]; then
+              exit "$rc"
+            fi
+            stamp "build done"
 
             test -x /home/build/target/release/stalwart
 
