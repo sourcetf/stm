@@ -34,7 +34,10 @@
 //!   * 脚本插件的 `exec` 需要被执行的文件带 `x` 权限，而命令是脚本里动态指定的，
 //!     无法预先枚举：要用它请显式登记，例如
 //!     STALWART_UNVEIL_EXTRA="/bin/sh:rx,/usr/local/bin/your-tool:rx"。
-//!   * chroot 需自行保证配置里的路径在 jail 内（相对路径按启动时的 cwd 解析）。
+//!   * chroot 需自行保证配置里的路径在 jail 内（相对路径按**进 jail 之后**的
+//!     cwd 解析，也就是 "/"）。jail 里至少要能读到配置文件、写数据目录；
+//!     DNS 解析要 /etc/resolv.conf，读随机数要 /dev/urandom（严格模式或 jail
+//!     里没有这些文件时，对应功能会失败而不是启动失败）。
 
 use std::fmt;
 
