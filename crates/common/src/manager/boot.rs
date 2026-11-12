@@ -359,6 +359,16 @@ async fn collect_sandbox_paths(
     if let cfg::BlobStore::FileSystem(store) = bp.setting_infallible::<cfg::BlobStore>().await {
         sandbox.allow_write(&store.path);
     }
+    // 企业版的 BlobStore::Sharded 可以带多个 FileSystem 分片（每个分片一个目录）；
+    // 只登记顶层变体会把分片目录漏掉，写 blob 时就 EACCES。
+    #[cfg(feature = "enterprise")]
+    if let cfg::BlobStore::Sharded(sharded) = bp.setting_infallible::<cfg::BlobStore>().await {
+        for base in sharded.stores.iter() {
+            if let cfg::BlobStoreBase::FileSystem(store) = base {
+                sandbox.allow_write(&store.path);
+            }
+        }
+    }
     // 搜索后端（Elasticsearch / Meilisearch / SQL / FoundationDB）都是网络服务，没有本地路径
     for tracer in bp.list_infallible::<cfg::Tracer>().await {
         if let cfg::Tracer::Log(tracer) = &tracer.object {
@@ -418,6 +428,64 @@ async fn collect_sandbox_paths(
     // 注意：AcmeProvider.directory 是 ACME 服务端的 **URL**
     // （如 https://acme-v02.api.letsencrypt.org/directory），不是本地目录。
     // ACME 的账户/证书都存进 data/blob store，所以这里不该登记任何路径。
+
+    // 配置里还有一批「值可以写成 @type: File」的密钥/证书字段
+    // （DKIM 私钥、TLS 证书与私钥、OIDC 签名密钥、DNS TSIG 密钥、
+    //  JMAP WebPush 密钥、NATS 凭据、FoundationDB 的 cluster 文件）。
+    // 默认策略下读本来就不受限，这些登记是给 STALWART_UNVEIL_STRICT=on 用的；
+    // 严格模式下漏登记会让对应功能在运行时读不到文件。
+    // 注意这是**显式枚举**：没有统一的扫描接口，以后新增这类字段要在这里补一行。
+    for signature in bp.list_infallible::<cfg::DkimSignature>().await {
+        if let cfg::SecretText::File(file) = signature.object.private_key() {
+            sandbox.allow_read(&file.file_path);
+        }
+    }
+    for cert in bp.list_infallible::<cfg::Certificate>().await {
+        if let cfg::PublicText::File(file) = &cert.object.certificate {
+            sandbox.allow_read(&file.file_path);
+        }
+        if let cfg::SecretText::File(file) = &cert.object.private_key {
+            sandbox.allow_read(&file.file_path);
+        }
+    }
+    let oidc = bp.setting_infallible::<cfg::OidcProvider>().await;
+    if let cfg::SecretText::File(file) = &oidc.signature_key {
+        sandbox.allow_read(&file.file_path);
+    }
+    if let cfg::SecretKey::File(file) = &oidc.encryption_key {
+        sandbox.allow_read(&file.file_path);
+    }
+    for server in bp.list_infallible::<cfg::DnsServer>().await {
+        // 只有 TSIG 用本地文件；其余服务商是 API 凭据，走 Value/Env。
+        if let cfg::DnsServer::Tsig(tsig) = &server.object
+            && let cfg::SecretKey::File(file) = &tsig.key
+        {
+            sandbox.allow_read(&file.file_path);
+        }
+    }
+    let jmap = bp.setting_infallible::<cfg::Jmap>().await;
+    if let cfg::SecretTextOptional::File(file) = &jmap.web_push_key {
+        sandbox.allow_read(&file.file_path);
+    }
+    if let cfg::Coordinator::Nats(nats) = bp.setting_infallible::<cfg::Coordinator>().await {
+        if let cfg::SecretKeyOptional::File(file) = &nats.auth_secret {
+            sandbox.allow_read(&file.file_path);
+        }
+        if let cfg::SecretTextOptional::File(file) = &nats.credentials {
+            sandbox.allow_read(&file.file_path);
+        }
+    }
+    // FoundationDB 的 cluster_file 是本地路径（集群描述文件）
+    if let cfg::DataStore::FoundationDb(store) = bp.setting_infallible::<cfg::DataStore>().await
+        && let Some(file) = &store.cluster_file
+    {
+        sandbox.allow_read(file);
+    }
+    if let cfg::BlobStore::FoundationDb(store) = bp.setting_infallible::<cfg::BlobStore>().await
+        && let Some(file) = &store.cluster_file
+    {
+        sandbox.allow_read(file);
+    }
 
     if let Some(dir) = config_dir {
         sandbox.allow_write(dir);
