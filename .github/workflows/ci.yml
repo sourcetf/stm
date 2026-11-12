@@ -83,6 +83,26 @@ jobs:
           free -h
           swapon --show
 
+      # 跨 run 缓存。VM 每次都是全新的，所以缓存必须放在宿主的
+      # /home/runner/work 下：vmactions 会把这个目录整体 rsync 进 VM，构建完再
+      # copyback 回来，于是 actions/cache 能把它存下来。
+      # 用 restore/save 拆开的两步，这样能只在构建成功时才写缓存。
+      #
+      # key 只用 Cargo.lock 的哈希（不带 run_id）：命中就跳过保存，依赖没变就一直
+      # 复用同一份；依赖变了 key 变、靠 restore-keys 前缀复用旧 target，cargo 自己
+      # 判断哪些 unit 还有效。带 run_id 的话每次都会存一份新的 ~5G 缓存，两次就把
+      # 仓库的 10G 配额挤爆并触发 LRU 淘汰。
+      - name: Restore cargo cache
+        id: cargo-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /home/runner/work/cargo-cache/.cargo
+            /home/runner/work/cargo-cache/target
+          key: openbsd-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            openbsd-cargo-
+
       - name: Build on OpenBSD VM
         uses: vmactions/openbsd-vm@v1
         with:
@@ -126,12 +146,19 @@ jobs:
           run: |
             set -e
             ulimit -d unlimited 2>/dev/null || ulimit -d hard
-            # Prefer /home over /tmp (OpenBSD /tmp may be mfs / share the root FS).
-            mkdir -p /home/build
-            # VM 根分区只有 986M（可用 ~800M），cargo 默认把 registry 解包到
-            # /root/.cargo，v1.0 依赖变多后直接 ENOSPC。放到 /home（113G）上。
-            export CARGO_HOME=/home/build/.cargo
-            export CARGO_TARGET_DIR=/home/build/target
+            # 跨 run 缓存目录：宿主上 /home/runner/work 会被 rsync 进 VM（VM 内是同一
+            # 绝对路径），构建完再 copyback 回宿主，交给后面的 actions/cache/save。
+            # 放在 /home 下（113G）——VM 根分区只有 986M。
+            CACHE_ROOT=/home/runner/work/cargo-cache
+            mkdir -p "$CACHE_ROOT"
+            export CARGO_HOME="$CACHE_ROOT/.cargo"
+            export CARGO_TARGET_DIR="$CACHE_ROOT/target"
+            mkdir -p "$CARGO_HOME" "$CARGO_TARGET_DIR"
+            echo "cache size on entry: $(du -sh "$CACHE_ROOT" 2>/dev/null | cut -f1)"
+            if [ -f "$CARGO_TARGET_DIR/release/stalwart" ]; then
+              echo "previous build artifact present: $(ls -lh "$CARGO_TARGET_DIR/release/stalwart" | awk '{print $5}')"
+            fi
+            df -h /home | tail -1
             export CARGO_TERM_COLOR=always
             export CARGO_INCREMENTAL=0
             export MAKE=gmake
@@ -209,11 +236,11 @@ jobs:
             # 退出码用哨兵文件带出来：管道的 $? 是 tee 的，POSIX sh 没有 PIPESTATUS；
             # 子 shell 里 set -e 会抢在写哨兵文件之前 abort，所以显式 set +e。
             set +e
-            ( set +e; build_once; echo $? > /home/build/rc ) 2>&1 | tee /home/build/build.log
-            rc=$(tr -d '[:space:]' < /home/build/rc 2>/dev/null)
+            ( set +e; build_once; echo $? > "$CACHE_ROOT/rc" ) 2>&1 | tee "$CACHE_ROOT/build.log"
+            rc=$(tr -d '[:space:]' < "$CACHE_ROOT/rc" 2>/dev/null)
             rc=${rc:-1}
             set -e
-            if [ "$rc" -ne 0 ] && grep -qiE "signal: 9|SIGKILL|killed|cannot allocate|memory allocation|out of memory|no space left|out of swap" /home/build/build.log; then
+            if [ "$rc" -ne 0 ] && grep -qiE "signal: 9|SIGKILL|killed|cannot allocate|memory allocation|out of memory|no space left|out of swap" "$CACHE_ROOT/build.log"; then
               echo "::warning::parallel build died from resource exhaustion; retrying serially (cached units are reused)"
               swapctl -l || true
               stamp "serial retry (jobs=1)"
@@ -225,20 +252,50 @@ jobs:
             fi
             stamp "build done"
 
-            test -x /home/build/target/release/stalwart
+            test -x "$CARGO_TARGET_DIR/release/stalwart"
 
             # 沙箱冒烟测试：unveil/pledge 能正常应用（承诺集有问题时进程会被内核杀掉）
-            /home/build/target/release/stalwart --sandbox-check
+            "$CARGO_TARGET_DIR/release/stalwart" --sandbox-check
 
             # 沙箱矩阵不在这里跑：它需要真实的多场景重启，放到独立的
             # sandbox-matrix.yml（拿本 job 的制品在干净 VM 里跑），这样改一行
             # 测试脚本不必重编 2.5 小时。
 
-            strip /home/build/target/release/stalwart
+            strip "$CARGO_TARGET_DIR/release/stalwart"
             mkdir -p artifacts
-            cp /home/build/target/release/stalwart artifacts/stalwart
+            cp "$CARGO_TARGET_DIR/release/stalwart" artifacts/stalwart
             file artifacts/stalwart
             ls -lh artifacts/stalwart
+
+            # 缓存瘦身，否则 actions/cache 存不下（仓库配额 10 GB，单条也有上限）。
+            # 保留增量编译真正需要的东西：
+            #   * .cargo/registry/cache  .crate 原始包（压缩过，比解包后的 src 小）
+            #     解包目录 registry/src 删掉，下次由 cargo 从 cache 重新解包
+            #   * .cargo/git             git 依赖的 checkout
+            #   * target/release/{deps,build,.fingerprint}  各 rlib 与指纹
+            #       ├─ build/ 里有 librocksdb-sys 的 C++ 产物——正是最慢的单元（20+ 分钟）
+            #       └─ 这些必须留着，否则缓存等于白做
+            # 删掉：旧的最终二进制、examples/tests、debug。实测缓存体积见上面的日志。
+            rm -rf "$CARGO_TARGET_DIR"/{debug,examples,tests} 2>/dev/null || true
+            rm -rf "$CARGO_TARGET_DIR"/release/{examples,tests} 2>/dev/null || true
+            rm -rf "$CARGO_HOME"/registry/src 2>/dev/null || true
+            rm -f "$CACHE_ROOT"/build.log "$CACHE_ROOT"/rc 2>/dev/null || true
+            echo "cache size on exit: $(du -sh "$CACHE_ROOT" 2>/dev/null | cut -f1)"
+            du -sh "$CACHE_ROOT"/.cargo "$CACHE_ROOT"/target 2>/dev/null || true
+            du -sh "$CARGO_TARGET_DIR"/release/{deps,build,.fingerprint} 2>/dev/null || true
+
+      # 只在上一步（VM 里的构建）成功时才写缓存：失败时的 target 目录可能是半成品，
+      # 存下来会污染下次。命中已有的 key 就不用再存。超配额或体积超限也只该影响
+      # 下次速度，所以加 continue-on-error。
+      - name: Save cargo cache
+        if: steps.cargo-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /home/runner/work/cargo-cache/.cargo
+            /home/runner/work/cargo-cache/target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7

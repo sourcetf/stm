@@ -504,7 +504,21 @@ async fn collect_sandbox_paths(
 
     // 临时文件（std::env::temp_dir()，尊重 TMPDIR）与 unix socket
     sandbox.allow_write(std::env::temp_dir().to_string_lossy());
+
+    // CA 信任锚。默认模式读本来不受限，这里是为了严格模式与 chroot：
+    //   * 标准位置（OpenBSD 是 /etc/ssl/cert.pem + /etc/ssl/certs，
+    //     其它 Unix 见 openssl-probe 的清单）：登记 /etc/ssl 已覆盖；
+    //   * 部署方把 CA 放在别处时会设 SSL_CERT_FILE / SSL_CERT_DIR，
+    //     openssl-probe（rustls-native-certs 用它）只认存在的文件，
+    //     这里跟着登记，免得严格模式下被拦。
     sandbox.allow_read("/etc/ssl");
+    for var in ["SSL_CERT_FILE", "SSL_CERT_DIR"] {
+        if let Ok(path) = std::env::var(var)
+            && !path.trim().is_empty()
+        {
+            sandbox.allow_read(path.trim());
+        }
+    }
 
     // 一个写路径都没收集到说明配置没读出来，运行时会到处 EACCES，直接说清楚
     if sandbox.write_paths().is_empty() {

@@ -42,6 +42,16 @@
 //!     TLS 上下文（`TlsConfig::new()` → `client_config()` → rustls-platform-verifier），
 //!     UDP 解析器也一样要，所以 DNS/DNSSEC 解析器和出站 TLS 连接器都建不起来。
 //!     jail 里缺这个文件时报的是 "No CA certificates were loaded from the system"。
+//!   * **为什么不能靠 unveil 解决 chroot 的缺文件问题**：unveil 是「限制」清单，
+//!     不是「授权」清单——它只决定进程**能不能碰**某个路径，不会把任何东西变出来。
+//!     chroot 已经把 `/` 换成 jail，`/etc/ssl/cert.pem` 在 jail 内就是
+//!     `<jail>/etc/ssl/cert.pem`；这个文件不存在时，unveil 里登记 `/etc/ssl`
+//!     也读不到东西。两者解决的是不同维度的问题：
+//!       - 不 chroot 时：读路径本来就走宿主 `/etc/ssl`，`allow_read("/etc/ssl")`
+//!         （以及严格模式的 STANDARD_READ_PATHS）已经覆盖，无需额外登记；
+//!       - chroot 时：必须由部署方把 CA（以及 /etc/resolv.conf、/etc/passwd 等）
+//!         拷进 jail，或把 `SSL_CERT_FILE` 指向 jail 内的一份拷贝
+//!         （openssl-probe 只在文件存在时才认这个变量）。
 
 use std::fmt;
 
@@ -203,7 +213,39 @@ impl SandboxPaths {
             }
         }
 
+        self.check_jail();
+
         Ok(())
+    }
+
+    /// chroot 之后的自检：jail 里缺关键文件时，对应功能会在启动或运行时失败。
+    ///
+    /// 只能告警不能自动修——unveil 是**限制**而不是授权：它只能在 jail 的命名空间里
+    /// 收紧可见范围，无法把 jail 外的文件“放进来”。所以这些文件必须由部署方在
+    /// chroot 之前拷进 jail 目录，否则进程进 jail 后根本看不到它们。
+    pub fn check_jail(&self) {
+        if !self.enabled || self.chroot.is_none() {
+            return;
+        }
+
+        #[cfg(target_os = "openbsd")]
+        for (path, why) in [
+            (
+                "/etc/ssl/cert.pem",
+                "outbound TLS and DNS resolution need a CA bundle",
+            ),
+            ("/etc/resolv.conf", "DNS server list"),
+            ("/etc/passwd", "user lookup / dropping privileges"),
+            ("/etc/group", "group lookup / dropping privileges"),
+            ("/dev/urandom", "random number source"),
+        ] {
+            if !std::path::Path::new(path).exists() {
+                eprintln!(
+                    "OpenBSD sandbox: warning: jail is missing {path} ({why}); \
+                     copy it into the jail or the matching feature will fail."
+                );
+            }
+        }
     }
 
     /// unveil 并锁定（chroot 已在 [`enter_chroot`] 里完成）。
