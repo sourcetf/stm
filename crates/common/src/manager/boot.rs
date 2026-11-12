@@ -369,7 +369,8 @@ async fn collect_sandbox_paths(
             }
         }
     }
-    // 搜索后端（Elasticsearch / Meilisearch / SQL / FoundationDB）都是网络服务，没有本地路径
+    // 搜索后端（Elasticsearch / Meilisearch / SQL）都是网络服务，没有本地路径；
+    // 只有 FoundationDB 要读 cluster 文件，那一条在下面统一处理。
     for tracer in bp.list_infallible::<cfg::Tracer>().await {
         if let cfg::Tracer::Log(tracer) = &tracer.object {
             sandbox.allow_write(&tracer.path);
