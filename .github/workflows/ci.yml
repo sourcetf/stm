@@ -359,7 +359,29 @@ jobs:
           ### Check binary attestation [here](${{ steps.attest.outputs.attestation-url }})
           EOF
 
+      # 同一个 commit 重复跑 CI 时（重试、重复 push、手动 dispatch），release 已经
+      # 发布过了。GitHub 的 immutable release 不允许删/改已发布的 asset，原来的
+      # 流程会在这里报 "Cannot delete asset from an immutable release" 而失败。
+      # 这种失败没有意义（产物已经在），所以先探测再决定要不要发。
+      - name: Check for existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="sha-${{ steps.prep.outputs.short_sha }}"
+          fi
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::release $TAG already exists (immutable); skipping re-upload"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Release
+        if: steps.existing.outputs.exists != 'true'
         uses: softprops/action-gh-release@v3
         with:
           files: |
@@ -380,7 +402,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Delete failed release
+      # 只清理**草稿**。这个 job 原本见 failure 就 `gh release delete`，
+      # 而已发布的 release 在本仓库是 immutable：重跑一次 CI（release 步骤因为
+      # "Cannot delete asset from an immutable release" 失败）就会把上一份正常
+      # 发布的产物连带 tag 一起删掉，而且删掉后 tag 名被 GitHub 记住、再也建不
+      # 回来（"tag_name was used by an immutable release"）。
+      - name: Delete failed draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -390,4 +417,10 @@ jobs:
           else
             TAG="sha-$SHORT_SHA"
           fi
-          gh release delete "$TAG" --yes --cleanup-tag --repo "${{ github.repository }}" || true
+          IS_DRAFT=$(gh release view "$TAG" --repo "${{ github.repository }}" --json isDraft -q .isDraft 2>/dev/null || true)
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "deleting orphaned draft release $TAG"
+            gh release delete "$TAG" --yes --cleanup-tag --repo "${{ github.repository }}" || true
+          else
+            echo "::notice::release $TAG is published (or absent); leaving it untouched"
+          fi
