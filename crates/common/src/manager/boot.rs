@@ -475,16 +475,26 @@ async fn collect_sandbox_paths(
             sandbox.allow_read(&file.file_path);
         }
     }
-    // FoundationDB 的 cluster_file 是本地路径（集群描述文件）
+    // FoundationDB 的 cluster_file 是本地路径（集群描述文件）；
+    // Azure 的 WorkloadIdentity 认证要读挂在本地的工作负载令牌文件。
     if let cfg::DataStore::FoundationDb(store) = bp.setting_infallible::<cfg::DataStore>().await
         && let Some(file) = &store.cluster_file
     {
         sandbox.allow_read(file);
     }
-    if let cfg::BlobStore::FoundationDb(store) = bp.setting_infallible::<cfg::BlobStore>().await
+    if let cfg::SearchStore::FoundationDb(store) = bp.setting_infallible::<cfg::SearchStore>().await
         && let Some(file) = &store.cluster_file
     {
         sandbox.allow_read(file);
+    }
+    match bp.setting_infallible::<cfg::BlobStore>().await {
+        cfg::BlobStore::FoundationDb(store) => {
+            if let Some(file) = &store.cluster_file {
+                sandbox.allow_read(file);
+            }
+        }
+        cfg::BlobStore::Azure(store) => azure_token_file(&store.auth, sandbox),
+        _ => {}
     }
 
     if let Some(dir) = config_dir {
@@ -502,6 +512,17 @@ async fn collect_sandbox_paths(
              runtime writes will likely fail. Set STALWART_UNVEIL_EXTRA=\"/your/data:rwc\" \
              or STALWART_SANDBOX=off."
         );
+    }
+}
+
+/// Azure 的 WorkloadIdentity 认证从本地文件读令牌（token_file），
+/// 其它认证方式（SharedKey / SasToken / ClientSecret / ManagedIdentity）不需要文件。
+fn azure_token_file(auth: &registry::schema::structs::AzureAuth, sandbox: &mut SandboxPaths) {
+    use registry::schema::structs as cfg;
+    if let cfg::AzureAuth::WorkloadIdentity(identity) = auth
+        && let Some(file) = &identity.token_file
+    {
+        sandbox.allow_read(file);
     }
 }
 
