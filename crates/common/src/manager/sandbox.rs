@@ -374,7 +374,10 @@ impl SandboxPaths {
         if let Some(jail) = &self.chroot {
             let _ = std::fmt::Write::write_fmt(&mut out, format_args!(", chroot({jail})"));
         }
-        for (label, list) in [("rwc", &self.write), ("rx", &self.exec)] {
+        // 默认模式下读不受限（unveil "/" r），列出来没意义；严格模式下列出来
+        // 才好排查“某个证书文件为什么读不到”。
+        let read_list: &[String] = if self.strict { &self.read } else { &[] };
+        for (label, list) in [("r", read_list), ("rwc", &self.write), ("rx", &self.exec)] {
             if !list.is_empty() {
                 let _ = std::fmt::Write::write_fmt(
                     &mut out,
