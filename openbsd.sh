@@ -18,6 +18,8 @@
 #   STALWART_SANDBOX=off                          临时关闭沙箱
 #   STALWART_PLEDGE="stdio rpath wpath ..."       自定义 pledge 承诺集
 #   STALWART_UNVEIL_EXTRA="/opt/x:rx,/srv/y:rwc"  追加 unveil 条目（r/w/c/d/x）
+#   STALWART_UNVEIL_STRICT=on                     连读也只放行标准清单 + 登记过的读路径
+#                                                 （证书/私钥写成 @type: File 的路径会自动收进来）
 #   STALWART_CHROOT=/var/stalwart-jail            先 chroot（要求所有路径都在 jail 内，
 #                                                 并且要发生在放弃 root 权限之前）
 # 自检：/usr/local/bin/stalwart --sandbox-check  （只验证 unveil/pledge 能应用）
