@@ -419,10 +419,15 @@ async fn collect_sandbox_paths(
         }
     }
 
-    // WebUI 包会解压到 unpackDirectory（未配置时落在临时目录）
+    // WebUI 包会解压到 unpackDirectory（未配置时落在临时目录）。
+    // resource_url 支持 file:// 前缀（开发版就是这么用的），那种情况下
+    // 这个本地文件也要能读到——严格模式里漏了会报 ENOENT。
     for app in bp.list_infallible::<cfg::Application>().await {
         if let Some(dir) = &app.object.unpack_directory {
             sandbox.allow_write(dir);
+        }
+        if let Some(file) = app.object.resource_url.strip_prefix("file://") {
+            sandbox.allow_read(file);
         }
     }
 
@@ -430,51 +435,15 @@ async fn collect_sandbox_paths(
     // （如 https://acme-v02.api.letsencrypt.org/directory），不是本地目录。
     // ACME 的账户/证书都存进 data/blob store，所以这里不该登记任何路径。
 
-    // 配置里还有一批「值可以写成 @type: File」的密钥/证书字段
-    // （DKIM 私钥、TLS 证书与私钥、OIDC 签名密钥、DNS TSIG 密钥、
-    //  JMAP WebPush 密钥、NATS 凭据、FoundationDB 的 cluster 文件）。
-    // 默认策略下读本来就不受限，这些登记是给 STALWART_UNVEIL_STRICT=on 用的；
+    // 配置里还有一批「值可以写成 `@type: File`」的密钥/证书字段（DKIM 私钥、
+    // TLS 证书与私钥、OIDC 签名/加密密钥、DNS TSIG 密钥、LDAP bind secret、
+    // WebHook 签名密钥、各类 API key、Redis/NATS 口令、SymmetricKey……）。
+    // 默认策略下读本来就不受限，这些登记只是给 STALWART_UNVEIL_STRICT=on 用的；
     // 严格模式下漏登记会让对应功能在运行时读不到文件。
-    // 注意这是**显式枚举**：没有统一的扫描接口，以后新增这类字段要在这里补一行。
-    for signature in bp.list_infallible::<cfg::DkimSignature>().await {
-        if let cfg::SecretText::File(file) = signature.object.private_key() {
-            sandbox.allow_read(&file.file_path);
-        }
-    }
-    for cert in bp.list_infallible::<cfg::Certificate>().await {
-        if let cfg::PublicText::File(file) = &cert.object.certificate {
-            sandbox.allow_read(&file.file_path);
-        }
-        if let cfg::SecretText::File(file) = &cert.object.private_key {
-            sandbox.allow_read(&file.file_path);
-        }
-    }
-    let oidc = bp.setting_infallible::<cfg::OidcProvider>().await;
-    if let cfg::SecretText::File(file) = &oidc.signature_key {
-        sandbox.allow_read(&file.file_path);
-    }
-    if let cfg::SecretKey::File(file) = &oidc.encryption_key {
-        sandbox.allow_read(&file.file_path);
-    }
-    for server in bp.list_infallible::<cfg::DnsServer>().await {
-        // 只有 TSIG 用本地文件；其余服务商是 API 凭据，走 Value/Env。
-        if let cfg::DnsServer::Tsig(tsig) = &server.object
-            && let cfg::SecretKey::File(file) = &tsig.key
-        {
-            sandbox.allow_read(&file.file_path);
-        }
-    }
-    let jmap = bp.setting_infallible::<cfg::Jmap>().await;
-    if let cfg::SecretTextOptional::File(file) = &jmap.web_push_key {
-        sandbox.allow_read(&file.file_path);
-    }
-    if let cfg::Coordinator::Nats(nats) = bp.setting_infallible::<cfg::Coordinator>().await {
-        if let cfg::SecretKeyOptional::File(file) = &nats.auth_secret {
-            sandbox.allow_read(&file.file_path);
-        }
-        if let cfg::SecretTextOptional::File(file) = &nats.credentials {
-            sandbox.allow_read(&file.file_path);
-        }
+    // 逐字段手写过一版，只覆盖了 7 个对象类型（能装下 File 型字段的对象有 26 个），
+    // 所以改成通用扫描，见 collect_secret_file_paths 的注释。
+    if sandbox.is_strict() {
+        collect_secret_file_paths(bp, sandbox).await;
     }
     // FoundationDB 的 cluster_file 是本地路径（集群描述文件）；
     // Azure 的 WorkloadIdentity 认证要读挂在本地的工作负载令牌文件。
@@ -538,6 +507,117 @@ fn azure_token_file(auth: &registry::schema::structs::AzureAuth, sandbox: &mut S
         && let Some(file) = &identity.token_file
     {
         sandbox.allow_read(file);
+    }
+}
+
+/// 通用扫描：把配置里所有「值可以写成 `@type: File`」的密钥字段登记成只读。
+///
+/// 这类字段散落在六个枚举（`SecretKey` / `SecretKeyOptional` / `SecretText` /
+/// `SecretTextOptional` / `PublicText` / `PublicStringOptional`）和 26 个对象类型里
+/// ——DKIM 私钥、TLS 证书与私钥、OIDC 签名/加密密钥、DNS TSIG 密钥、LDAP bind
+/// secret、WebHook 签名密钥、各家 DNS/对象存储的 API key、Redis/NATS 口令、
+/// `SymmetricKey` 等等。逐字段手写过一版，只覆盖到 7 个对象类型，剩下的都是
+/// 严格模式下会 ENOENT 的洞。
+///
+/// 所以这里不枚举字段，而是把每个配置对象序列化成 JSON 再递归找
+/// `{"@type": "File", "filePath": "..."}`：上游以后新增 File 型字段也自动覆盖，
+/// 不用回来改这段。
+///
+/// 两类对象跳过：
+/// * `OBJ_NOT_STORED`（`Bootstrap`、`ApiKey`、`AppPassword` 等）不落库，读出来都是默认值。
+///   `DataStore` 例外：它虽然也标了 `OBJ_NOT_STORED`，但 `RegistryStore::get` 对它走
+///   「读配置文件」的特殊分支，能拿到真实配置（Postgres/MySQL 的口令也可能写在文件里）。
+/// * `OBJ_FILTER_ACCOUNT`（归档邮件、掩码邮箱、用户公钥等）是随账户增长的用户数据，
+///   不存在 File 型密钥，全表扫一遍纯属浪费。
+async fn collect_secret_file_paths(bp: &mut Bootstrap, sandbox: &mut SandboxPaths) {
+    use registry::schema::prelude::{
+        OBJ_FILTER_ACCOUNT, OBJ_NOT_STORED, OBJ_SINGLETON, ObjectType,
+    };
+    use registry::types::{EnumImpl, id::ObjectId};
+    use store::registry::RegistryQuery;
+    use types::id::Id;
+
+    for id in 0..ObjectType::COUNT as u16 {
+        let Some(object_type) = ObjectType::from_id(id) else {
+            continue;
+        };
+        let flags = object_type.flags();
+        if flags & OBJ_FILTER_ACCOUNT != 0
+            || (flags & OBJ_NOT_STORED != 0 && object_type != ObjectType::DataStore)
+        {
+            continue;
+        }
+
+        let object_ids = if flags & OBJ_SINGLETON != 0 {
+            // 单例对象不写 IndexId 键（见 RegistryWrite::write 里的 write_id），
+            // 走 query 只会拿到空列表，得直接按 Id::singleton() 取。
+            vec![Id::singleton()]
+        } else {
+            match bp
+                .registry
+                .query::<Vec<Id>>(RegistryQuery::new(object_type))
+                .await
+            {
+                Ok(ids) => ids,
+                Err(err) => {
+                    eprintln!(
+                        "OpenBSD sandbox: warning: cannot list {} objects ({err}), \
+                         File-type secrets of this type will not be readable in strict mode.",
+                        object_type.as_str()
+                    );
+                    continue;
+                }
+            }
+        };
+
+        for object_id in object_ids {
+            let object = match bp.registry.get(ObjectId::new(object_type, object_id)).await {
+                Ok(Some(object)) => object,
+                Ok(None) => continue,
+                Err(err) => {
+                    eprintln!(
+                        "OpenBSD sandbox: warning: cannot read {} object {object_id} ({err}), \
+                         its File-type secrets will not be readable in strict mode.",
+                        object_type.as_str()
+                    );
+                    continue;
+                }
+            };
+            let Ok(value) = serde_json::to_value(&object.inner) else {
+                continue;
+            };
+            // 借用一下把路径收集出来，避免在递归里同时持有 &mut sandbox
+            let mut paths = Vec::new();
+            collect_file_paths(&value, &mut paths);
+            for path in paths {
+                sandbox.allow_read(&path);
+            }
+        }
+    }
+}
+
+/// 递归找出所有 `{"@type": "File", "filePath": ...}` 里的路径。
+///
+/// 六个密钥枚举都是 `#[serde(tag = "@type")]`、`File` 变体装 `SecretKeyFile`
+/// （字段名 `filePath`），所以只需要认这一种形状。
+fn collect_file_paths(value: &serde_json::Value, out: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if map.get("@type").and_then(|tag| tag.as_str()) == Some("File")
+                && let Some(path) = map.get("filePath").and_then(|path| path.as_str())
+            {
+                out.push(path.to_string());
+            }
+            for (_, child) in map {
+                collect_file_paths(child, out);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_file_paths(item, out);
+            }
+        }
+        _ => {}
     }
 }
 

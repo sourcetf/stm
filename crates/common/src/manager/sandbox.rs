@@ -143,6 +143,11 @@ impl SandboxPaths {
         self.enabled
     }
 
+    /// 严格模式（读侧也白名单化）。默认模式下读不受限，不必登记只读路径。
+    pub fn is_strict(&self) -> bool {
+        self.enabled && self.strict
+    }
+
     /// 已登记的可写路径（用于启动时的自检/告警）。
     pub fn write_paths(&self) -> &[String] {
         &self.write
