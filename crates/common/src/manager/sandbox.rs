@@ -168,14 +168,21 @@ impl SandboxPaths {
         if !self.enabled {
             return;
         }
-        let path = path.as_ref();
-        push_unique(&mut self.write, path);
-        if let Some(parent) = std::path::Path::new(path.trim_end_matches('/')).parent() {
+        // 先规范化再取父目录：配置里的路径可以是相对的，而
+        // `Path::parent()` 对 "var/lib/db.sqlite" 返回的是相对串 "var/lib"，
+        // 那个 `parent.starts_with('/')` 判断会把它丢掉——于是相对路径的配置
+        // 拿不到父目录的 rwc（默认场景能拿到、相对路径场景拿不到，矩阵日志里
+        // 的 rwc 列表差一项就是这个）。
+        let Some(path) = normalize_path(path.as_ref()) else {
+            return;
+        };
+        if let Some(parent) = std::path::Path::new(&path).parent() {
             let parent = parent.to_string_lossy().into_owned();
-            if parent.starts_with('/') && parent != "/" {
+            if parent != "/" && !parent.is_empty() {
                 push_unique(&mut self.write, &parent);
             }
         }
+        push_unique(&mut self.write, &path);
     }
 
     /// 登记一个可执行路径（只会被 exec 的东西才需要）。
@@ -420,12 +427,12 @@ fn var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
 }
 
-/// 登记前把路径规范化成绝对路径：配置里可以写相对路径（相对于启动时的 cwd），
-/// unveil(2) 只接受绝对路径，静默丢掉会导致运行时写入被拒。
-fn push_unique(list: &mut Vec<String>, path: &str) {
+/// 把路径规范化成绝对路径（相对路径按当前 cwd 解析，去掉末尾斜杠）。
+/// 无法解析或为空时返回 None。
+fn normalize_path(path: &str) -> Option<String> {
     let path = path.trim();
     if path.is_empty() {
-        return;
+        return None;
     }
 
     let path = if path.starts_with('/') {
@@ -435,15 +442,26 @@ fn push_unique(list: &mut Vec<String>, path: &str) {
             Ok(cwd) => cwd.join(path).to_string_lossy().into_owned(),
             Err(_) => {
                 eprintln!("OpenBSD sandbox: cannot resolve relative path {path:?}, skipping");
-                return;
+                return None;
             }
         }
     };
 
     let path = path.trim_end_matches('/');
-    let path = if path.is_empty() { "/" } else { path };
-    if !list.iter().any(|existing| existing == path) {
-        list.push(path.to_string());
+    Some(if path.is_empty() {
+        "/".to_string()
+    } else {
+        path.to_string()
+    })
+}
+
+/// 登记前把路径规范化成绝对路径：配置里可以写相对路径（相对于启动时的 cwd），
+/// unveil(2) 只接受绝对路径，静默丢掉会导致运行时写入被拒。
+fn push_unique(list: &mut Vec<String>, path: &str) {
+    if let Some(path) = normalize_path(path)
+        && !list.iter().any(|existing| existing == &path)
+    {
+        list.push(path);
     }
 }
 
@@ -492,4 +510,70 @@ fn unveil(path: &str, perms: &str) -> Result<(), String> {
 fn cstr_io(value: &str) -> Result<std::ffi::CString, std::io::Error> {
     std::ffi::CString::new(value)
         .map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidInput))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sandbox() -> SandboxPaths {
+        SandboxPaths {
+            enabled: true,
+            ..Default::default()
+        }
+    }
+
+    /// 相对路径也必须拿到父目录的 rwc：以前 `Path::parent()` 返回相对串
+    /// （"var/lib"），被 `starts_with('/')` 判断丢掉，父目录就漏登记了。
+    #[test]
+    fn relative_write_path_registers_parent() {
+        let mut sb = sandbox();
+        sb.allow_write("var/lib/stalwart/db.sqlite");
+        let paths = sb.write_paths();
+        assert_eq!(paths.len(), 2, "{paths:?}");
+        let (parent, child) = (&paths[0], &paths[1]);
+        assert_eq!(
+            std::path::Path::new(child).parent().unwrap(),
+            std::path::Path::new(parent)
+        );
+        assert!(parent.ends_with("var/lib/stalwart"), "{paths:?}");
+    }
+
+    #[test]
+    fn absolute_write_path_registers_parent_without_trailing_slash() {
+        let mut sb = sandbox();
+        sb.allow_write("/srv/data/");
+        assert_eq!(sb.write_paths(), ["/srv", "/srv/data"]);
+    }
+
+    /// 顶层路径没有父目录，不能把 "/" 登记成可写。
+    #[test]
+    fn root_level_path_has_no_writable_parent() {
+        let mut sb = sandbox();
+        sb.allow_write("/tmp");
+        assert_eq!(sb.write_paths(), ["/tmp"]);
+    }
+
+    #[test]
+    fn duplicate_registrations_are_collapsed() {
+        let mut sb = sandbox();
+        sb.allow_write("/srv/data/db");
+        sb.allow_write("/srv/data/db/");
+        assert_eq!(sb.write_paths(), ["/srv/data", "/srv/data/db"]);
+    }
+
+    #[test]
+    fn blank_path_is_ignored() {
+        let mut sb = sandbox();
+        sb.allow_write("");
+        sb.allow_write("   ");
+        assert!(sb.write_paths().is_empty());
+    }
+
+    #[test]
+    fn disabled_sandbox_registers_nothing() {
+        let mut sb = SandboxPaths::default();
+        sb.allow_write("/srv/data");
+        assert!(sb.write_paths().is_empty());
+    }
 }
