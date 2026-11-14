@@ -158,7 +158,7 @@ fi
 # 创建/删除任意条目（把 /etc/passwd 改名再塞一个假的进去）。这里的配置目录
 # $d/etc 是已存在的目录，所以 $d 绝不能出现在 rwc 列表里。
 rwc_line() { sed -n 's/^ *rwc: //p' "$1" | head -1; }
-is_rwc() { rwc_line "$1" | tr ' ' '\n' | grep -qx "$2"; }
+is_rwc() { rwc_line "$1" | tr ' ' '\n' | grep -qxF "$2"; }
 if is_rwc "$d/server.log" "$d"; then
     fail "parent of the config directory ($d) was unveiled rwc (over-permissive)"
 else
