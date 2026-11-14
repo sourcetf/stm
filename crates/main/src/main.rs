@@ -42,12 +42,25 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: Jemalloc = Jemalloc;
 
 fn main() -> std::io::Result<ExitCode> {
-    // OpenBSD：`--sandbox-check` 只验证 unveil/pledge 能在当前系统上正常应用，
-    // 供 CI 在 VM 里冒烟测试，不读取任何配置。
+    // OpenBSD：`--sandbox-check` 验证 unveil/pledge 在当前系统上真的生效（含负向
+    // 断言），供 CI 在 VM 里冒烟测试，不读取任何配置。严格模式的读侧断言需要一份
+    // 全新的进程，由 self_check 以 `--sandbox-check-strict` 子进程方式跑。
+    if std::env::args().any(|arg| arg == "--sandbox-check-strict") {
+        return match common::manager::sandbox::self_check_strict() {
+            Ok(()) => {
+                println!("openbsd sandbox: strict mode is enforcing reads");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(err) => {
+                eprintln!("openbsd sandbox strict self-check failed: {err}");
+                Ok(ExitCode::FAILURE)
+            }
+        };
+    }
     if std::env::args().any(|arg| arg == "--sandbox-check") {
         return match common::manager::sandbox::self_check() {
             Ok(()) => {
-                println!("openbsd sandbox: unveil/pledge applied successfully");
+                println!("openbsd sandbox: unveil/pledge applied and enforcing");
                 Ok(ExitCode::SUCCESS)
             }
             Err(err) => {

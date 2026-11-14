@@ -55,7 +55,7 @@ Options:
   -e, --export <PATH>              Export all store data to a specific path
   -i, --import <PATH>              Import store data from a specific path
   -o, --console                    Open the store console
-  --sandbox-check                  Verify that the OpenBSD sandbox (unveil/pledge) applies
+  --sandbox-check                  Verify that the OpenBSD sandbox (unveil/pledge) is enforced
   -h, --help                       Print help
   -V, --version                    Print version
 "#
