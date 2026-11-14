@@ -349,6 +349,14 @@ impl SandboxPaths {
 
         #[cfg(target_os = "openbsd")]
         {
+            // 必须在**任何 unveil 生效之前**把路径表算好。resolved_paths() 要用
+            // `Path::exists()` 判断“目标是否已存在、要不要退到祖先”，而 unveil
+            // 一旦生效这个判断就不可信了：严格模式第一条就是 unveil("/", "")，
+            // 之后连 /etc 都 stat 不到，所有登记项都会被误判成“不存在”而丢掉，
+            // 沙箱反而变成全拒——CI 上就是这么暴露的
+            // （stat /etc (unveiled) in strict mode: No such file or directory）。
+            let resolved = self.resolved_paths();
+
             if self.strict {
                 // 默认拒绝的基线：unveil("/", "") 不给任何权限，但它是**第一次**
                 // 调用，会把整个文件系统从其它系统调用里摘掉。没有这一句时，
@@ -366,7 +374,7 @@ impl SandboxPaths {
                 unveil("/", "r")?;
             }
 
-            for (path, perms) in self.resolved_paths() {
+            for (path, perms) in resolved {
                 unveil_tolerant(&path, &perms.as_str())?;
             }
 
