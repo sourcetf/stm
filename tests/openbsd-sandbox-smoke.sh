@@ -170,6 +170,19 @@ else
     fail "config directory $d/etc missing from rwc list"
 fi
 
+# ---------- 1b. RocksDB 后端：走的是和数据不同的代码路径 ----------
+# 矩阵里其它用例都用 SQLite；RocksDB 会自己 create_dir 并在目录里建多棵 CF，
+# 换后端就漏登记是这类改动最容易犯的错，所以单独跑一遍。
+# 就绪探针用 "CURRENT"：RocksDB 打开库后一定会写这个文件。
+d2="$WORK/rocksdb"; mkdir -p "$d2/etc" "$d2/var/lib"
+printf '{"@type":"RocksDb","path":"%s/var/lib"}' "$d2" > "$d2/etc/config.json"
+run_case "rocksdb" "$d2" "$d2/etc/config.json" "$d2/var/lib/CURRENT"
+if is_rwc "$d2/server.log" "$d2/var/lib"; then
+    ok "rocksdb data dir unveiled rwc"
+else
+    fail "rocksdb data dir missing from rwc list"
+fi
+
 # ---------- 2. 相对路径：数据目录写相对路径，应按 cwd 解析 ----------
 d="$WORK/relative"; mkdir -p "$d/etc" "$d/var/lib"
 printf '{"@type":"Sqlite","path":"var/lib/db.sqlite"}' > "$d/etc/config.json"
