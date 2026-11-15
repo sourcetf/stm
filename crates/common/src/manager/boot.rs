@@ -351,77 +351,123 @@ async fn collect_sandbox_paths(
     // 运行时读出来永远是默认值，等于什么都没收集到。要按组件一个个读：
     // DataStore 走 RegistryStore::get 对 ObjectType::DataStore 的特殊分支（读配置文件），
     // BlobStore / SearchStore 是 OBJ_SINGLETON 落库对象，Tracer 是列表对象。
+
+    // ---- 数据/搜索/blob/cache-swap/metrics/tracing：所有能落地的 store ----
     match bp.setting_infallible::<cfg::DataStore>().await {
         cfg::DataStore::RocksDb(store) => sandbox.allow_write(&store.path),
         cfg::DataStore::Sqlite(store) => sandbox.allow_write(&store.path),
+        cfg::DataStore::FoundationDb(store) => fdb_cluster_file(&store, sandbox),
         _ => {}
     }
-    if let cfg::BlobStore::FileSystem(store) = bp.setting_infallible::<cfg::BlobStore>().await {
-        sandbox.allow_write(&store.path);
+    // 搜索后端里 Elasticsearch / Meilisearch / SQL 都是网络服务，没有本地路径。
+    if let cfg::SearchStore::FoundationDb(store) = bp.setting_infallible::<cfg::SearchStore>().await
+    {
+        fdb_cluster_file(&store, sandbox);
     }
-    // 企业版的 BlobStore::Sharded 可以带多个 FileSystem 分片（每个分片一个目录）；
-    // 只登记顶层变体会把分片目录漏掉，写 blob 时就 EACCES。
-    #[cfg(feature = "enterprise")]
-    if let cfg::BlobStore::Sharded(sharded) = bp.setting_infallible::<cfg::BlobStore>().await {
-        for base in sharded.stores.iter() {
-            if let cfg::BlobStoreBase::FileSystem(store) = base {
-                sandbox.allow_write(&store.path);
+
+    // PostgreSQL 的 host 可以写成一个**目录**，表示走 unix domain socket
+    // （如 /var/run/postgresql）。connect(2) 到 unix socket 在内核里要求该路径有
+    // UNVEIL_WRITE（uipc_usrreq.c: `nd.ni_unveil = UNVEIL_WRITE`），不登记就
+    // EACCES——这种部署在没有沙箱时是完全正常的。
+    // MySQL 不走这条：代码里固定 `.prefer_socket(false)`，host 一律当 TCP 主机名。
+    match bp.setting_infallible::<cfg::DataStore>().await {
+        cfg::DataStore::PostgreSql(store) => {
+            unix_socket_path(&store.host, sandbox);
+            #[cfg(feature = "enterprise")]
+            for replica in store.read_replicas.iter() {
+                unix_socket_path(&replica.host, sandbox);
             }
         }
+        _ => {}
     }
-    // 搜索后端（Elasticsearch / Meilisearch / SQL）都是网络服务，没有本地路径；
-    // 只有 FoundationDB 要读 cluster 文件，那一条在下面统一处理。
+    // Redis 可以用 `redis+unix:///path/to.sock` 走 unix socket。
+    match bp.setting_infallible::<cfg::InMemoryStore>().await {
+        cfg::InMemoryStore::Redis(store) => unix_socket_url(&store.url, sandbox),
+        cfg::InMemoryStore::RedisCluster(store) => {
+            for url in store.urls.iter() {
+                unix_socket_url(url, sandbox);
+            }
+        }
+        cfg::InMemoryStore::RedisSentinel(store) => {
+            for url in store.urls.iter() {
+                unix_socket_url(url, sandbox);
+            }
+        }
+        _ => {}
+    }
+
+    blob_store_paths(&bp.setting_infallible::<cfg::BlobStore>().await, sandbox);
+    // cache 的本地溢出目录；BlobStore 型 swap 只在 FoundationDB/S3/Azure 时可能有
+    // 本地文件要读（v1.1.0 的 BlobSwapStore 没有 FileSystem 变体，本地文件只能
+    // 通过 CacheSwap::LocalFile）。
+    match &bp.setting_infallible::<cfg::Cache>().await.swap {
+        cfg::CacheSwap::LocalFile(swap) => sandbox.allow_write(&swap.path),
+        cfg::CacheSwap::BlobStore(swap) => match &swap.store {
+            cfg::BlobSwapStore::FoundationDb(store) => fdb_cluster_file(store, sandbox),
+            cfg::BlobSwapStore::S3(store) => s3_credentials_file(store, sandbox),
+            cfg::BlobSwapStore::Azure(store) => azure_token_file(&store.auth, sandbox),
+            _ => {}
+        },
+        cfg::CacheSwap::InMemory(swap) => {
+            if let cfg::InMemorySwapStore::Keep(keep) = &swap.store {
+                keep_tls_paths(keep, sandbox);
+            }
+        }
+        cfg::CacheSwap::Disabled => {}
+    }
+    if let cfg::InMemoryStore::Keep(keep) = bp.setting_infallible::<cfg::InMemoryStore>().await {
+        keep_tls_paths(&keep, sandbox);
+    }
+    // 企业版还有独立的 metrics / tracing store（也能选 FoundationDB）
+    #[cfg(feature = "enterprise")]
+    {
+        if let cfg::MetricsStore::FoundationDb(store) =
+            bp.setting_infallible::<cfg::MetricsStore>().await
+        {
+            fdb_cluster_file(&store, sandbox);
+        }
+        if let cfg::TracingStore::FoundationDb(store) =
+            bp.setting_infallible::<cfg::TracingStore>().await
+        {
+            fdb_cluster_file(&store, sandbox);
+        }
+    }
+
+    // ---- 日志 ----
     for tracer in bp.list_infallible::<cfg::Tracer>().await {
         if let cfg::Tracer::Log(tracer) = &tracer.object {
             sandbox.allow_write(&tracer.path);
         }
     }
 
-    // cache 的本地溢出目录。
-    // 注意：CacheSwap::BlobStore 用的是 BlobSwapStore，v1.1.0 里它没有 FileSystem
-    // 变体（只有 Default/S3/Azure/FoundationDb/SQL），本地文件系统只能通过
-    // CacheSwap::LocalFile。
-    let cache = bp.setting_infallible::<cfg::Cache>().await;
-    if let cfg::CacheSwap::LocalFile(swap) = &cache.swap {
-        sandbox.allow_write(&swap.path);
-    }
-
-    // 目录（认证）后端里用 SQLite 的
+    // ---- 目录（认证）后端 ----
+    // LDAP / OIDC 的 secret 可能是 `@type: File`，由下面的租户级扫描覆盖；
+    // SQL 目录库如果是独立的 SQLite，目录要可写。
     for directory in bp.list_infallible::<cfg::Directory>().await {
-        if let cfg::Directory::Sql(sql) = &directory.object {
-            if let cfg::SqlAuthStore::Sqlite(store) = &sql.store {
-                sandbox.allow_write(&store.path);
-            }
-        }
-    }
-
-    // store 型 lookup（HTTP/webhook 之外的那类）里用 SQLite 的
-    for lookup in bp.list_infallible::<cfg::StoreLookup>().await {
-        if let cfg::LookupStore::Sqlite(store) = &lookup.object.store {
+        if let cfg::Directory::Sql(sql) = &directory.object
+            && let cfg::SqlAuthStore::Sqlite(store) = &sql.store
+        {
             sandbox.allow_write(&store.path);
         }
     }
 
-    // v1.1.0 的 Keep 协调器可以引用本地 TLS 文件（集群 mTLS）：
-    // 这些是只读路径，但要能读到（严格模式下尤其重要）。
-    if let cfg::Coordinator::Keep(keep) = bp.setting_infallible::<cfg::Coordinator>().await {
-        match &keep.tls {
-            cfg::KeepTls::Authority(auth) => {
-                sandbox.allow_read(&auth.ca_path);
-                sandbox.allow_read(&auth.cert_path);
-                sandbox.allow_read(&auth.key_path);
-            }
-            cfg::KeepTls::RawPublicKeys(keys) => {
-                sandbox.allow_read(&keys.key_path);
-                sandbox.allow_read(&keys.server_keys_path);
-            }
-            cfg::KeepTls::Disabled => {}
+    // ---- lookup 后端 ----
+    for lookup in bp.list_infallible::<cfg::StoreLookup>().await {
+        match &lookup.object.store {
+            cfg::LookupStore::Sqlite(store) => sandbox.allow_write(&store.path),
+            cfg::LookupStore::Keep(keep) => keep_tls_paths(keep, sandbox),
+            _ => {}
         }
     }
 
-    // WebUI 包会解压到 unpackDirectory（未配置时落在临时目录）。
-    // resource_url 支持 file:// 前缀（开发版就是这么用的），那种情况下
-    // 这个本地文件也要能读到——严格模式里漏了会报 ENOENT。
+    // ---- 集群协调器 ----
+    if let cfg::Coordinator::Keep(keep) = bp.setting_infallible::<cfg::Coordinator>().await {
+        keep_tls_paths(&keep, sandbox);
+    }
+
+    // ---- WebUI ----
+    // 包会解压到 unpackDirectory（未配置时落在临时目录）；resource_url 支持
+    // `file://` 前缀（dev_mode 用的就是本地 zip），那种情况下这个文件也要能读到。
     for app in bp.list_infallible::<cfg::Application>().await {
         if let Some(dir) = &app.object.unpack_directory {
             sandbox.allow_write(dir);
@@ -435,36 +481,13 @@ async fn collect_sandbox_paths(
     // （如 https://acme-v02.api.letsencrypt.org/directory），不是本地目录。
     // ACME 的账户/证书都存进 data/blob store，所以这里不该登记任何路径。
 
-    // 配置里还有一批「值可以写成 `@type: File`」的密钥/证书字段（DKIM 私钥、
-    // TLS 证书与私钥、OIDC 签名/加密密钥、DNS TSIG 密钥、LDAP bind secret、
-    // WebHook 签名密钥、各类 API key、Redis/NATS 口令、SymmetricKey……）。
+    // ---- 密钥/证书里写成 `@type: File` 的那些 ----
     // 默认策略下读本来就不受限，这些登记只是给 STALWART_UNVEIL_STRICT=on 用的；
-    // 严格模式下漏登记会让对应功能在运行时读不到文件。
-    // 逐字段手写过一版，只覆盖了 7 个对象类型（能装下 File 型字段的对象有 26 个），
-    // 所以改成通用扫描，见 collect_secret_file_paths 的注释。
+    // 严格模式下漏登记会让对应功能在运行时读不到文件。通用扫描覆盖所有落库的
+    // 配置对象（含租户级的 Directory / DkimSignature / DnsServer，也含上游以后
+    // 新增的 File 型字段）。
     if sandbox.is_strict() {
         collect_secret_file_paths(bp, sandbox).await;
-    }
-    // FoundationDB 的 cluster_file 是本地路径（集群描述文件）；
-    // Azure 的 WorkloadIdentity 认证要读挂在本地的工作负载令牌文件。
-    if let cfg::DataStore::FoundationDb(store) = bp.setting_infallible::<cfg::DataStore>().await
-        && let Some(file) = &store.cluster_file
-    {
-        sandbox.allow_read(file);
-    }
-    if let cfg::SearchStore::FoundationDb(store) = bp.setting_infallible::<cfg::SearchStore>().await
-        && let Some(file) = &store.cluster_file
-    {
-        sandbox.allow_read(file);
-    }
-    match bp.setting_infallible::<cfg::BlobStore>().await {
-        cfg::BlobStore::FoundationDb(store) => {
-            if let Some(file) = &store.cluster_file {
-                sandbox.allow_read(file);
-            }
-        }
-        cfg::BlobStore::Azure(store) => azure_token_file(&store.auth, sandbox),
-        _ => {}
     }
 
     if let Some(dir) = config_dir {
@@ -507,6 +530,107 @@ fn azure_token_file(auth: &registry::schema::structs::AzureAuth, sandbox: &mut S
         && let Some(file) = &identity.token_file
     {
         sandbox.allow_read(file);
+    }
+}
+
+/// Keep 协调器/内存库客户端用的本地 TLS 文件（集群 mTLS）。这些是只读路径，
+/// 但严格模式与 chroot 下必须能读到，否则连不上集群。
+fn keep_tls_paths(keep: &registry::schema::structs::KeepStore, sandbox: &mut SandboxPaths) {
+    use registry::schema::structs as cfg;
+    match &keep.tls {
+        cfg::KeepTls::Authority(auth) => {
+            sandbox.allow_read(&auth.ca_path);
+            sandbox.allow_read(&auth.cert_path);
+            sandbox.allow_read(&auth.key_path);
+        }
+        cfg::KeepTls::RawPublicKeys(keys) => {
+            sandbox.allow_read(&keys.key_path);
+            sandbox.allow_read(&keys.server_keys_path);
+        }
+        cfg::KeepTls::Disabled => {}
+    }
+}
+
+/// Blob store 里可能出现的本地路径。
+///
+/// 文件系统后端（含企业版分片里每个 FileSystem 分片）是**可写**目录；
+/// FoundationDB 要读 cluster 描述文件，Azure 的 WorkloadIdentity 要读
+/// 本地令牌文件，S3 的 profile 指向共享凭据文件——这三个是**只读**。
+///
+/// 只登记顶层变体会把分片目录整个漏掉，写 blob 时直接 EACCES，所以分片要递归。
+fn blob_store_paths(store: &registry::schema::structs::BlobStore, sandbox: &mut SandboxPaths) {
+    use registry::schema::structs as cfg;
+    match store {
+        cfg::BlobStore::FileSystem(store) => sandbox.allow_write(&store.path),
+        cfg::BlobStore::FoundationDb(store) => fdb_cluster_file(store, sandbox),
+        cfg::BlobStore::Azure(store) => azure_token_file(&store.auth, sandbox),
+        cfg::BlobStore::S3(store) => s3_credentials_file(store, sandbox),
+        #[cfg(feature = "enterprise")]
+        cfg::BlobStore::Sharded(sharded) => {
+            for base in sharded.stores.iter() {
+                match base {
+                    cfg::BlobStoreBase::FileSystem(store) => sandbox.allow_write(&store.path),
+                    cfg::BlobStoreBase::FoundationDb(store) => fdb_cluster_file(store, sandbox),
+                    cfg::BlobStoreBase::Azure(store) => azure_token_file(&store.auth, sandbox),
+                    cfg::BlobStoreBase::S3(store) => s3_credentials_file(store, sandbox),
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// SQL 的 host 可以写成一个**目录**，表示走 unix domain socket
+/// （PostgreSQL 的 `/var/run/postgresql`、MySQL 的 `/var/run/mysqld`）。
+/// 连 socket 在内核里是 UNVEIL_WRITE，所以那个目录要登记成可写。
+fn unix_socket_path(host: &str, sandbox: &mut SandboxPaths) {
+    let host = host.trim();
+    if host.starts_with('/') {
+        sandbox.allow_write(host);
+    }
+}
+
+/// Redis 用 `redis+unix:///path/to.sock` 或 `unix:///path/to.sock` 走 unix socket。
+fn unix_socket_url(url: &str, sandbox: &mut SandboxPaths) {
+    let Some(rest) = url
+        .strip_prefix("redis+unix://")
+        .or_else(|| url.strip_prefix("valkey+unix://"))
+        .or_else(|| url.strip_prefix("unix://"))
+    else {
+        return;
+    };
+    // 去掉 query（?db=1&pass=...）再登记
+    let path = rest.split('?').next().unwrap_or(rest);
+    if path.starts_with('/') {
+        sandbox.allow_write(path);
+    }
+}
+
+/// FoundationDB 的 `cluster_file` 是本地集群描述文件（只读）。
+fn fdb_cluster_file(
+    store: &registry::schema::structs::FoundationDbStore,
+    sandbox: &mut SandboxPaths,
+) {
+    if let Some(file) = &store.cluster_file {
+        sandbox.allow_read(file);
+    }
+}
+
+/// S3 只用 `profile` 时会去读共享凭据文件：`AWS_SHARED_CREDENTIALS_FILE`
+/// 或 `$HOME/.aws/credentials`。严格模式与 chroot 下要能读到，否则 S3 起不来。
+fn s3_credentials_file(store: &registry::schema::structs::S3Store, sandbox: &mut SandboxPaths) {
+    if store.profile.is_none() {
+        return;
+    }
+    if let Some(path) = std::env::var_os("AWS_SHARED_CREDENTIALS_FILE") {
+        sandbox.allow_read(path.to_string_lossy());
+    } else if let Some(home) = std::env::var_os("HOME") {
+        sandbox.allow_read(
+            std::path::Path::new(&home)
+                .join(".aws/credentials")
+                .to_string_lossy(),
+        );
     }
 }
 

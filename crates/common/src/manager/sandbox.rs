@@ -87,6 +87,7 @@ pub struct SandboxPaths {
 }
 
 /// 严格模式下放行的标准只读路径：跑一个邮件服务器绕不开的那些。
+/// 这些是系统库层（DNS、丢弃权限、时区、随机数）要读的，用户配置覆盖不到。
 #[cfg_attr(not(target_os = "openbsd"), allow(dead_code))]
 const STANDARD_READ_PATHS: &[&str] = &[
     "/etc/ssl",
