@@ -357,42 +357,23 @@ async fn collect_sandbox_paths(
         cfg::DataStore::RocksDb(store) => sandbox.allow_write(&store.path),
         cfg::DataStore::Sqlite(store) => sandbox.allow_write(&store.path),
         cfg::DataStore::FoundationDb(store) => fdb_cluster_file(&store, sandbox),
+        cfg::DataStore::PostgreSql(store) => postgres_paths(&store, sandbox),
         _ => {}
     }
-    // 搜索后端里 Elasticsearch / Meilisearch / SQL 都是网络服务，没有本地路径。
-    if let cfg::SearchStore::FoundationDb(store) = bp.setting_infallible::<cfg::SearchStore>().await
-    {
-        fdb_cluster_file(&store, sandbox);
-    }
-
-    // PostgreSQL 的 host 可以写成一个**目录**，表示走 unix domain socket
-    // （如 /var/run/postgresql）。connect(2) 到 unix socket 在内核里要求该路径有
-    // UNVEIL_WRITE（uipc_usrreq.c: `nd.ni_unveil = UNVEIL_WRITE`），不登记就
-    // EACCES——这种部署在没有沙箱时是完全正常的。
-    // MySQL 不走这条：代码里固定 `.prefer_socket(false)`，host 一律当 TCP 主机名。
-    match bp.setting_infallible::<cfg::DataStore>().await {
-        cfg::DataStore::PostgreSql(store) => {
-            unix_socket_path(&store.host, sandbox);
-            #[cfg(feature = "enterprise")]
-            for replica in store.read_replicas.iter() {
-                unix_socket_path(&replica.host, sandbox);
-            }
-        }
+    match bp.setting_infallible::<cfg::SearchStore>().await {
+        cfg::SearchStore::FoundationDb(store) => fdb_cluster_file(&store, sandbox),
+        cfg::SearchStore::PostgreSql(store) => postgres_paths(&store, sandbox),
         _ => {}
     }
-    // Redis 可以用 `redis+unix:///path/to.sock` 走 unix socket。
+    // Redis 在每个位置都是独立的连接配置，必须逐位置枚举
+    // （`InMemoryStore` 只是其中一处）。
     match bp.setting_infallible::<cfg::InMemoryStore>().await {
-        cfg::InMemoryStore::Redis(store) => unix_socket_url(&store.url, sandbox),
-        cfg::InMemoryStore::RedisCluster(store) => {
-            for url in store.urls.iter() {
-                unix_socket_url(url, sandbox);
-            }
-        }
-        cfg::InMemoryStore::RedisSentinel(store) => {
-            for url in store.urls.iter() {
-                unix_socket_url(url, sandbox);
-            }
-        }
+        cfg::InMemoryStore::Redis(store) => redis_paths(&store, sandbox),
+        cfg::InMemoryStore::RedisCluster(store) => redis_cluster_paths(&store, sandbox),
+        cfg::InMemoryStore::RedisSentinel(store) => redis_sentinel_paths(&store, sandbox),
+        #[cfg(feature = "enterprise")]
+        cfg::InMemoryStore::Sharded(sharded) => in_memory_shard_paths(&sharded, sandbox),
+        cfg::InMemoryStore::Keep(keep) => keep_tls_paths(&keep, sandbox),
         _ => {}
     }
 
@@ -406,30 +387,30 @@ async fn collect_sandbox_paths(
             cfg::BlobSwapStore::FoundationDb(store) => fdb_cluster_file(store, sandbox),
             cfg::BlobSwapStore::S3(store) => s3_credentials_file(store, sandbox),
             cfg::BlobSwapStore::Azure(store) => azure_token_file(&store.auth, sandbox),
+            cfg::BlobSwapStore::PostgreSql(store) => postgres_paths(store, sandbox),
             _ => {}
         },
-        cfg::CacheSwap::InMemory(swap) => {
-            if let cfg::InMemorySwapStore::Keep(keep) = &swap.store {
-                keep_tls_paths(keep, sandbox);
-            }
-        }
+        cfg::CacheSwap::InMemory(swap) => match &swap.store {
+            cfg::InMemorySwapStore::Redis(store) => redis_paths(store, sandbox),
+            cfg::InMemorySwapStore::RedisCluster(store) => redis_cluster_paths(store, sandbox),
+            cfg::InMemorySwapStore::RedisSentinel(store) => redis_sentinel_paths(store, sandbox),
+            cfg::InMemorySwapStore::Keep(keep) => keep_tls_paths(keep, sandbox),
+            _ => {}
+        },
         cfg::CacheSwap::Disabled => {}
     }
-    if let cfg::InMemoryStore::Keep(keep) = bp.setting_infallible::<cfg::InMemoryStore>().await {
-        keep_tls_paths(&keep, sandbox);
-    }
-    // 企业版还有独立的 metrics / tracing store（也能选 FoundationDB）
+    // 企业版还有独立的 metrics / tracing store（也能选 FoundationDB / PostgreSQL）
     #[cfg(feature = "enterprise")]
     {
-        if let cfg::MetricsStore::FoundationDb(store) =
-            bp.setting_infallible::<cfg::MetricsStore>().await
-        {
-            fdb_cluster_file(&store, sandbox);
+        match bp.setting_infallible::<cfg::MetricsStore>().await {
+            cfg::MetricsStore::FoundationDb(store) => fdb_cluster_file(&store, sandbox),
+            cfg::MetricsStore::PostgreSql(store) => postgres_paths(&store, sandbox),
+            _ => {}
         }
-        if let cfg::TracingStore::FoundationDb(store) =
-            bp.setting_infallible::<cfg::TracingStore>().await
-        {
-            fdb_cluster_file(&store, sandbox);
+        match bp.setting_infallible::<cfg::TracingStore>().await {
+            cfg::TracingStore::FoundationDb(store) => fdb_cluster_file(&store, sandbox),
+            cfg::TracingStore::PostgreSql(store) => postgres_paths(&store, sandbox),
+            _ => {}
         }
     }
 
@@ -441,28 +422,35 @@ async fn collect_sandbox_paths(
     }
 
     // ---- 目录（认证）后端 ----
-    // LDAP / OIDC 的 secret 可能是 `@type: File`，由下面的租户级扫描覆盖；
-    // SQL 目录库如果是独立的 SQLite，目录要可写。
+    // LDAP 的 `ldapi://` 走 unix socket，OIDC / SQL 的 secret 可能是
+    // `@type: File`（由下面的通用扫描覆盖）；SQL 目录库若是独立 SQLite，
+    // 目录要可写。
     for directory in bp.list_infallible::<cfg::Directory>().await {
-        if let cfg::Directory::Sql(sql) = &directory.object
-            && let cfg::SqlAuthStore::Sqlite(store) = &sql.store
-        {
-            sandbox.allow_write(&store.path);
+        match &directory.object {
+            cfg::Directory::Sql(sql) => sql_auth_store_paths(&sql.store, sandbox),
+            cfg::Directory::Ldap(ldap) => {
+                ldap_socket_path(&ldap.url, sandbox);
+                #[cfg(feature = "enterprise")]
+                for url in ldap.url_failover.iter() {
+                    ldap_socket_path(url, sandbox);
+                }
+            }
+            _ => {}
         }
     }
 
     // ---- lookup 后端 ----
     for lookup in bp.list_infallible::<cfg::StoreLookup>().await {
-        match &lookup.object.store {
-            cfg::LookupStore::Sqlite(store) => sandbox.allow_write(&store.path),
-            cfg::LookupStore::Keep(keep) => keep_tls_paths(keep, sandbox),
-            _ => {}
-        }
+        lookup_store_paths(&lookup.object.store, sandbox);
     }
 
     // ---- 集群协调器 ----
-    if let cfg::Coordinator::Keep(keep) = bp.setting_infallible::<cfg::Coordinator>().await {
-        keep_tls_paths(&keep, sandbox);
+    match bp.setting_infallible::<cfg::Coordinator>().await {
+        cfg::Coordinator::Redis(store) => redis_paths(&store, sandbox),
+        cfg::Coordinator::RedisCluster(store) => redis_cluster_paths(&store, sandbox),
+        cfg::Coordinator::RedisSentinel(store) => redis_sentinel_paths(&store, sandbox),
+        cfg::Coordinator::Keep(keep) => keep_tls_paths(&keep, sandbox),
+        _ => {}
     }
 
     // ---- WebUI ----
@@ -582,12 +570,21 @@ fn blob_store_paths(store: &registry::schema::structs::BlobStore, sandbox: &mut 
 }
 
 /// SQL 的 host 可以写成一个**目录**，表示走 unix domain socket
-/// （PostgreSQL 的 `/var/run/postgresql`、MySQL 的 `/var/run/mysqld`）。
-/// 连 socket 在内核里是 UNVEIL_WRITE，所以那个目录要登记成可写。
+/// （PostgreSQL 的 `/var/run/postgresql`）。连 socket 在内核里是 UNVEIL_WRITE，
+/// 所以那个目录要登记成可写。MySQL 不走这条：代码里固定 `.prefer_socket(false)`。
 fn unix_socket_path(host: &str, sandbox: &mut SandboxPaths) {
     let host = host.trim();
     if host.starts_with('/') {
         sandbox.allow_write(host);
+    }
+}
+
+/// PostgreSQL 的每个连接配置（主库 + 读副本）都可能有 unix socket host。
+fn postgres_paths(store: &registry::schema::structs::PostgreSqlStore, sandbox: &mut SandboxPaths) {
+    unix_socket_path(&store.host, sandbox);
+    #[cfg(feature = "enterprise")]
+    for replica in store.read_replicas.iter() {
+        unix_socket_path(&replica.host, sandbox);
     }
 }
 
@@ -604,6 +601,129 @@ fn unix_socket_url(url: &str, sandbox: &mut SandboxPaths) {
     let path = rest.split('?').next().unwrap_or(rest);
     if path.starts_with('/') {
         sandbox.allow_write(path);
+    }
+}
+
+fn redis_paths(store: &registry::schema::structs::RedisStore, sandbox: &mut SandboxPaths) {
+    unix_socket_url(&store.url, sandbox);
+}
+
+fn redis_cluster_paths(
+    store: &registry::schema::structs::RedisClusterStore,
+    sandbox: &mut SandboxPaths,
+) {
+    for url in store.urls.iter() {
+        unix_socket_url(url, sandbox);
+    }
+    secret_optional_path(&store.auth_secret, sandbox);
+}
+
+fn redis_sentinel_paths(
+    store: &registry::schema::structs::RedisSentinelStore,
+    sandbox: &mut SandboxPaths,
+) {
+    for url in store.urls.iter() {
+        unix_socket_url(url, sandbox);
+    }
+    secret_optional_path(&store.auth_secret, sandbox);
+    secret_optional_path(&store.sentinel_secret, sandbox);
+}
+
+/// `SecretKeyOptional::File` 里的路径。通用扫描覆盖的是落库对象，
+/// 而这些密钥挂在深层嵌套的 store 结构里，显式补一次更稳。
+fn secret_optional_path(
+    secret: &registry::schema::structs::SecretKeyOptional,
+    sandbox: &mut SandboxPaths,
+) {
+    if let registry::schema::structs::SecretKeyOptional::File(file) = secret {
+        sandbox.allow_read(&file.file_path);
+    }
+}
+
+/// LDAP 的 `ldapi://%2fvar%2frun%2fldapi` 走 unix socket（路径是 percent-encoded
+/// 的 host 部分）。connect(2) 到 unix socket 在内核里要求 UNVEIL_WRITE。
+fn ldap_socket_path(url: &str, sandbox: &mut SandboxPaths) {
+    let Some(rest) = url.strip_prefix("ldapi://") else {
+        return;
+    };
+    let host = rest.split('/').next().unwrap_or(rest);
+    let path = percent_decode(host);
+    if path.starts_with('/') {
+        sandbox.allow_write(&path);
+    }
+}
+
+/// percent-decode（`%2f` → `/`）。只处理 path 里会出现的转义，够用即可。
+fn percent_decode(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (hex_val(bytes[i + 1]), hex_val(bytes[i + 2])) {
+                out.push(hi << 4 | lo);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+fn hex_val(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+/// `SqlAuthStore` 里的本地路径（独立 SQLite 目录要可写；PG 可能是 unix socket）。
+fn sql_auth_store_paths(
+    store: &registry::schema::structs::SqlAuthStore,
+    sandbox: &mut SandboxPaths,
+) {
+    use registry::schema::structs as cfg;
+    match store {
+        cfg::SqlAuthStore::Sqlite(store) => sandbox.allow_write(&store.path),
+        cfg::SqlAuthStore::PostgreSql(store) => postgres_paths(store, sandbox),
+        _ => {}
+    }
+}
+
+/// `LookupStore` 里的本地路径。每个变体都要过一遍：漏一个就有一条
+/// 「换个 lookup 后端就在严格模式/chroot 下起不来」的路径。
+fn lookup_store_paths(store: &registry::schema::structs::LookupStore, sandbox: &mut SandboxPaths) {
+    use registry::schema::structs as cfg;
+    match store {
+        cfg::LookupStore::Sqlite(store) => sandbox.allow_write(&store.path),
+        cfg::LookupStore::PostgreSql(store) => postgres_paths(store, sandbox),
+        cfg::LookupStore::Redis(store) => redis_paths(store, sandbox),
+        cfg::LookupStore::RedisCluster(store) => redis_cluster_paths(store, sandbox),
+        cfg::LookupStore::RedisSentinel(store) => redis_sentinel_paths(store, sandbox),
+        cfg::LookupStore::Keep(keep) => keep_tls_paths(keep, sandbox),
+        #[cfg(feature = "enterprise")]
+        cfg::LookupStore::Sharded(sharded) => in_memory_shard_paths(sharded, sandbox),
+        _ => {}
+    }
+}
+
+/// 企业版分片内存库：每个分片是一条独立的 Redis 连接配置。
+#[cfg(feature = "enterprise")]
+fn in_memory_shard_paths(
+    sharded: &registry::schema::structs::ShardedInMemoryStore,
+    sandbox: &mut SandboxPaths,
+) {
+    use registry::schema::structs as cfg;
+    for base in sharded.stores.iter() {
+        match base {
+            cfg::InMemoryStoreBase::Redis(store) => redis_paths(store, sandbox),
+            cfg::InMemoryStoreBase::RedisCluster(store) => redis_cluster_paths(store, sandbox),
+            cfg::InMemoryStoreBase::RedisSentinel(store) => redis_sentinel_paths(store, sandbox),
+        }
     }
 }
 

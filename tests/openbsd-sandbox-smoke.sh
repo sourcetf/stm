@@ -56,6 +56,12 @@ say()  { printf '%s\n' "$*"; }
 fail() { FAILS=$((FAILS + 1)); printf '  FAIL %s\n' "$*"; }
 ok()   { printf '  ok   %s\n' "$*"; }
 
+# 启动日志里最后一行 "  rwc: /a /b ..." 的内容。断言用它做**分词精确匹配**，
+# 不要用 `grep "rwc: .*$dir"`——那是正则，路径里的 `.` 会匹配任意字符，
+# 而且子串匹配会把 /var/lib 当成 /var/lib2 命中（假绿）。
+rwc_line() { sed -n 's/^ *rwc: //p' "$1" | head -1; }
+is_rwc() { rwc_line "$1" | tr ' ' '\n' | grep -qxF "$2"; }
+
 # 在 $WORKDIR 里启动二进制，把 pid 放到 LAUNCH_PID。
 # \
 # 关键点：**不要**用 `( cd "$dir" && ... ) &`——OpenBSD 的 /bin/sh 是 ksh，
@@ -81,6 +87,18 @@ listen_count() {
     # 不要按地址族过滤：默认监听绑的是 [::]，OpenBSD 默认 v6only，用 -f inet
     # 会一条都看不到。
     netstat -an 2>/dev/null | grep -c 'LISTEN' || true
+}
+
+# 真实的协议握手：只看到 LISTEN 不代表能服务——accept(2)、read(2)、write(2)
+# 都要在 pledge 之后仍然被放行，而且响应路径会碰配置/缓存。用 HTTP（明文
+# 8080）试一发，取第一行状态行。
+# 只有在 8080 确实处于 LISTEN 时才断言，避免被 VM 里已有的服务干扰。
+http_probe() {
+    printf 'GET / HTTP/1.0\r\nHost: localhost\r\n\r\n' \
+        | nc -w 5 127.0.0.1 8080 2>/dev/null | head -1
+}
+has_http_listener() {
+    netstat -an 2>/dev/null | grep LISTEN | grep -q '\.8080 '
 }
 
 # 启动一次并等待“就绪”，随后 SIGTERM
@@ -114,6 +132,12 @@ run_case() {
     # 监听是由 spawn 出来的任务 bind 的，而 SIGTERM 处理器在随后的几行才装上。
     # 见到 LISTEN 后再让启动流程往前跑两秒，免得信号落在装处理器之前。
     [ "$ready" = "1" ] && sleep 2
+    # 真发一个 HTTP 请求：验证 accept/read/write 在 pledge 后仍然可用，
+    # 而不只是“内核里有条 LISTEN”。
+    reply=""
+    if has_http_listener; then
+        reply=$(http_probe)
+    fi
     pid_alive "$pid" && alive=1
     kill -TERM "$pid" 2>/dev/null
     stop_pid "$pid" 60 && graceful=1 || graceful=0
@@ -127,6 +151,15 @@ run_case() {
     fi
     if [ "$alive" = "1" ]; then ok "$name: server stayed up"; else fail "$name: server died"; fi
     if [ "$ready" = "1" ]; then ok "$name: listeners bound"; else fail "$name: no listener appeared within 60s"; fi
+    # 只有真的发出了请求才断言（8080 没监听时跳过，避免误报）
+    if [ -n "$reply" ]; then
+        case "$reply" in
+            HTTP/*) ok "$name: served HTTP ($reply)" ;;
+            *) fail "$name: HTTP listener answered garbage: $reply" ;;
+        esac
+    elif has_http_listener; then
+        fail "$name: HTTP port is listening but did not answer"
+    fi
     if [ -f "$db" ]; then ok "$name: store created"; else fail "$name: store missing"; fi
     if [ "$graceful" = "1" ] && [ "$code" = "0" ]; then
         ok "$name: exited cleanly on SIGTERM"
@@ -148,7 +181,7 @@ mkdir -p "$WORK"
 d="$WORK/default"; mkdir -p "$d/etc" "$d/var/lib"
 printf '{"@type":"Sqlite","path":"%s/var/lib/db.sqlite"}' "$d" > "$d/etc/config.json"
 run_case "default" "$d" "$d/etc/config.json" "$d/var/lib/db.sqlite"
-if grep -q "rwc: .*$d/var/lib" "$d/server.log"; then
+if is_rwc "$d/server.log" "$d/var/lib"; then
     ok "data path collected from configuration"
 else
     fail "data path missing from unveil list"
@@ -157,8 +190,6 @@ fi
 # 已存在的目录只登记它自己，不再把父目录也放开：父目录拿到 c 就能在它下面
 # 创建/删除任意条目（把 /etc/passwd 改名再塞一个假的进去）。这里的配置目录
 # $d/etc 是已存在的目录，所以 $d 绝不能出现在 rwc 列表里。
-rwc_line() { sed -n 's/^ *rwc: //p' "$1" | head -1; }
-is_rwc() { rwc_line "$1" | tr ' ' '\n' | grep -qxF "$2"; }
 if is_rwc "$d/server.log" "$d"; then
     fail "parent of the config directory ($d) was unveiled rwc (over-permissive)"
 else
@@ -187,7 +218,7 @@ fi
 d="$WORK/relative"; mkdir -p "$d/etc" "$d/var/lib"
 printf '{"@type":"Sqlite","path":"var/lib/db.sqlite"}' > "$d/etc/config.json"
 run_case "relative-path" "$d" "etc/config.json" "$d/var/lib/db.sqlite"
-if grep -q "rwc: .*$d/var/lib" "$d/server.log"; then
+if is_rwc "$d/server.log" "$d/var/lib"; then
     ok "relative data path resolved to absolute"
 else
     fail "relative data path was not resolved"
@@ -243,7 +274,7 @@ printf '{"@type":"Sqlite","path":"%s/var/lib-a/db.sqlite"}' "$d" > "$d/etc/confi
 run_case "path-change (run 1)" "$d" "$d/etc/config.json" "$d/var/lib-a/db.sqlite"
 printf '{"@type":"Sqlite","path":"%s/var/lib-b/db.sqlite"}' "$d" > "$d/etc/config.json"
 run_case "path-change (run 2)" "$d" "$d/etc/config.json" "$d/var/lib-b/db.sqlite"
-if grep -q "rwc: .*$d/var/lib-b" "$d/server.log"; then
+if is_rwc "$d/server.log" "$d/var/lib-b"; then
     ok "new data path collected after restart"
 else
     fail "new data path was not collected"
