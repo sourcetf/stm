@@ -155,18 +155,28 @@ impl Listeners {
                 }
             };
 
-            #[cfg(windows)]
-            if addr.is_ipv6()
-                && addr.ip().is_unspecified()
-                && let Err(err) = socket2::SockRef::from(&socket).set_only_v6(false)
-            {
-                bp.build_warning(
-                    id,
-                    format!(
-                        "Failed to disable IPV6_V6ONLY on {addr} ({err}); \
-                         IPv4 clients will not be able to connect to this listener"
-                    ),
-                );
+            // Windows 默认 IPV6_V6ONLY=1，需要显式关掉才能同时接受 IPv4。
+            // Linux 默认是 0（双栈），不用管。OpenBSD/FreeBSD 上 IPV6_V6ONLY
+            // **总是** 1，而且 setsockopt 直接返回 EINVAL——关不掉。这时
+            // `[::]:port` 只有 IPv6 能连，IPv4 客户端全部 Connection refused，
+            // 表现就是“该监听的端口没有监听”。所以关不掉时额外绑一个 v4 socket。
+            let mut needs_v4_companion = false;
+            if addr.is_ipv6() && addr.ip().is_unspecified() {
+                match socket2::SockRef::from(&socket).set_only_v6(false) {
+                    Ok(()) => {}
+                    Err(err) => {
+                        needs_v4_companion = true;
+                        trc::event!(
+                            Network(trc::NetworkEvent::ListenError),
+                            ListenerId = listener.name.clone(),
+                            LocalIp = addr.ip(),
+                            LocalPort = addr.port(),
+                            Reason = err.to_string(),
+                            Details = "IPV6_V6ONLY cannot be disabled on this platform, \
+                                       binding an additional IPv4 socket",
+                        );
+                    }
+                }
             }
 
             if let Err(err) = socket.set_reuseaddr(listener.socket_reuse_address) {
@@ -208,6 +218,41 @@ impl Listeners {
                 backlog: listener.socket_backlog.map(|v| v as u32),
                 nodelay: listener.socket_no_delay,
             });
+
+            if needs_v4_companion {
+                // 同一个端口再绑一个 IPv4 socket（SO_REUSEPORT 已按配置设好）。
+                // IPv6 socket 是 v6only 的，两者不冲突。
+                let v4_addr = StdSocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), addr.port());
+                match TcpSocket::new_v4() {
+                    Ok(socket) => {
+                        if let Err(err) = socket.set_reuseaddr(listener.socket_reuse_address) {
+                            bp.build_error(id, format!("Failed to set SO_REUSEADDR: {err}"));
+                            return;
+                        }
+                        #[cfg(not(target_env = "msvc"))]
+                        if let Err(err) = socket.set_reuseport(listener.socket_reuse_port) {
+                            bp.build_error(id, format!("Failed to set SO_REUSEPORT: {err}"));
+                            return;
+                        }
+                        listeners.push(TcpListener {
+                            socket,
+                            addr: v4_addr,
+                            ttl: listener.socket_ttl.map(|v| v as u32),
+                            backlog: listener.socket_backlog.map(|v| v as u32),
+                            nodelay: listener.socket_no_delay,
+                        });
+                    }
+                    Err(err) => {
+                        bp.build_error(
+                            id,
+                            format!(
+                                "Failed to create the IPv4 companion socket for {v4_addr}: {err}"
+                            ),
+                        );
+                        return;
+                    }
+                }
+            }
         }
 
         let span_id_gen = self.span_id_gen.clone();
