@@ -90,15 +90,21 @@ listen_count() {
 }
 
 # 真实的协议握手：只看到 LISTEN 不代表能服务——accept(2)、read(2)、write(2)
-# 都要在 pledge 之后仍然被放行，而且响应路径会碰配置/缓存。用 HTTP（明文
-# 8080）试一发，取第一行状态行。
-# 只有在 8080 确实处于 LISTEN 时才断言，避免被 VM 里已有的服务干扰。
+# 都要在 pledge 之后仍然被放行，而且响应路径会碰配置/缓存。
+#
+# 默认监听绑的是 [::]:8080，而 OpenBSD 的 net.inet6.ip6.v6only 默认是 1，
+# 所以**必须连 ::1**；连 127.0.0.1 根本连不上（之前探针一次都没触发就是这个原因）。
 http_probe() {
-    printf 'GET / HTTP/1.0\r\nHost: localhost\r\n\r\n' \
-        | nc -w 5 127.0.0.1 8080 2>/dev/null | head -1
+    command -v nc >/dev/null 2>&1 || return 0
+    for host in ::1 127.0.0.1; do
+        reply=$(printf 'GET / HTTP/1.0\r\nHost: localhost\r\n\r\n' \
+            | nc -w 5 "$host" 8080 2>/dev/null | head -1)
+        if [ -n "$reply" ]; then printf '%s' "$reply"; return 0; fi
+    done
 }
+# netstat 里 8080 是否在 LISTEN（v4/v6 都算），用来区分“没监听”和“监听但不响应”。
 has_http_listener() {
-    netstat -an 2>/dev/null | grep LISTEN | grep -q '\.8080 '
+    netstat -an 2>/dev/null | grep LISTEN | grep -qE '[.:]8080[[:space:]]'
 }
 
 # 启动一次并等待“就绪”，随后 SIGTERM
