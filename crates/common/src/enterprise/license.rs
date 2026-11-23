@@ -3,14 +3,16 @@ use std::{
     time::Duration,
 };
 use store::write::now;
-const RENEW_THRESHOLD: u64 = 60 * 60 * 24 * 4;
+const RENEW_THRESHOLD: u64 = 60 * 60 * 24 * 4; 
 const FALLBACK_DOMAIN: &str = "localhost";
 const TEST_VALID_FROM: u64 = 0;
-const TEST_VALID_TO: u64 = u64::MAX;
+const TEST_VALID_TO: u64 = 4_102_444_800;
 const TEST_ACCOUNTS: u32 = u32::MAX;
+const FOREVER: Duration = Duration::from_secs(100 * 365 * 24 * 60 * 60);
 pub struct LicenseValidator {
     _private: (),
 }
+
 #[derive(Debug, Clone)]
 pub struct LicenseKey {
     pub valid_to: u64,
@@ -18,6 +20,7 @@ pub struct LicenseKey {
     pub domain: String,
     pub accounts: u32,
 }
+
 #[derive(Debug)]
 pub enum LicenseError {
     Expired,
@@ -29,10 +32,12 @@ pub enum LicenseError {
     InvalidParameters,
     RenewalFailed { reason: String },
 }
+
 pub struct RenewedLicense {
     pub key: LicenseKey,
     pub encoded_key: String,
 }
+
 impl LicenseValidator {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -48,6 +53,7 @@ impl LicenseValidator {
         })
     }
 }
+
 impl LicenseKey {
     pub fn new(
         license_key: impl AsRef<str>,
@@ -74,22 +80,23 @@ impl LicenseKey {
         })
     }
     pub fn is_near_expiration(&self) -> bool {
-        if self.valid_to == u64::MAX {
+        if self.valid_to >= TEST_VALID_TO {
             return false;
         }
         let now = now();
         self.valid_to.saturating_sub(now) <= RENEW_THRESHOLD
     }
     pub fn expires_in(&self) -> Duration {
-        if self.valid_to == u64::MAX {
-            return Duration::MAX;
+        if self.valid_to >= TEST_VALID_TO {
+            return FOREVER;
         }
         Duration::from_secs(self.valid_to.saturating_sub(now()))
     }
     pub fn renew_in(&self) -> Duration {
-        if self.valid_to == u64::MAX {
-            return Duration::MAX;
+        if self.valid_to >= TEST_VALID_TO {
+            return FOREVER;
         }
+        // 用 saturating_add：系统时钟接近 u64 上限时（测试会改时间）不能 panic。
         Duration::from_secs(self.valid_to.saturating_sub(now().saturating_add(RENEW_THRESHOLD)))
     }
     pub fn is_expired(&self) -> bool {
