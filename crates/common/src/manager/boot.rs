@@ -9,7 +9,7 @@ use crate::{
     BuildServer, Caches, Core, Data, IPC_CHANNEL_BUFFER, Inner, Ipc,
     config::{
         network::AsnGeoLookupConfig,
-        server::{Listeners, listener::recovery_mode_port},
+        server::{Listeners, listener::recovery_mode_addr},
         storage::Storage,
         telemetry::Telemetry,
     },
@@ -165,6 +165,7 @@ impl BootManager {
         .await
         .failed("⚠️ Startup failed");
         let mut bootstrap = Bootstrap::new(registry).await;
+        bootstrap.data_store.clone().report_cluster(&mut bootstrap);
 
         // Add safe defaults if missing
         if import_export == StoreOp::None {
@@ -217,7 +218,7 @@ impl BootManager {
                         Hostname = CompactString::from(bootstrap.registry.local_hostname()),
                         Details = format!(
                             "No configuration file was found. Port {} is open for initial setup.",
-                            recovery_mode_port()
+                            recovery_mode_addr().port()
                         ),
                         Version = env!("CARGO_PKG_VERSION"),
                     );
@@ -226,7 +227,7 @@ impl BootManager {
                         Server(trc::ServerEvent::RecoveryMode),
                         Details = format!(
                             "Port {} is open for troubleshooting and recovery.",
-                            recovery_mode_port()
+                            recovery_mode_addr().port()
                         ),
                         Hostname = CompactString::from(bootstrap.registry.local_hostname()),
                         Version = env!("CARGO_PKG_VERSION"),
